@@ -1,0 +1,6 @@
+{
+  "name": "Getnayi",
+  "description": "A clean, modern, mobile-first creator-driven short-form video discovery platform based on TikTok/Reels.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

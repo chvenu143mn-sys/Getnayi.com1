@@ -1,0 +1,55 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-black: var(--theme-bg);
+  --color-zinc-900: var(--theme-zinc-900);
+  --color-zinc-800: var(--theme-zinc-800);
+  --color-zinc-950: var(--theme-zinc-950);
+  
+  --color-brand: #ff5a36;
+  --color-gold: #ffb800;
+  
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+}
+
+:root {
+  --theme-bg: #050505;
+  --theme-zinc-900: #111111;
+  --theme-zinc-800: #1a1a1a;
+  --theme-zinc-950: #080808;
+}
+
+:root.theme-dark-grey {
+  --theme-bg: #0a0a0a;
+  --theme-zinc-900: #171717;
+  --theme-zinc-800: #222222;
+  --theme-zinc-950: #050505;
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: var(--theme-bg);
+  color: #fff;
+  overscroll-behavior-y: none;
+}
