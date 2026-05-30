@@ -17,7 +17,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Check if Playwright has injected a mock user to bypass Supabase loading lag
+    // @ts-ignore
+    if (window.__MOCK_USER__) {
+      // @ts-ignore
+      const mockUser = window.__MOCK_USER__;
+      setUser(mockUser);
+      setSession({
+        access_token: 'mock-jwt-token',
+        token_type: 'bearer',
+        expires_in: 3600,
+        refresh_token: 'mock-refresh-token',
+        user: mockUser
+      });
+      setLoading(false);
+      return;
+    }
+
+    console.log('--- BROWSER GETSESSION CHECK STARTED');
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('--- BROWSER GETSESSION COMPLETED:', session);
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -34,12 +53,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signOut = async () => {
+  const signOut = React.useCallback(async () => {
     await supabase.auth.signOut();
-  };
+  }, []);
+
+  const value = React.useMemo(() => ({ session, user, loading, signOut }), [session, user, loading, signOut]);
 
   return (
-    <AuthContext.Provider value={{ session, user, loading, signOut }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

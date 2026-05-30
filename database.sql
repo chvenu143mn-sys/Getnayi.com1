@@ -1,4 +1,9 @@
 -- Run this in your Supabase SQL Editor to set up the database.
+-- 
+-- ⚠️ PRODUCTION REQUIREMENT: BACKUPS
+-- Please ensure Supabase Point-in-Time Recovery (PITR) is enabled in your database settings
+-- to guarantee robust backups and rollback capability in production.
+--
 
 -- 1. Create profiles table
 CREATE TABLE IF NOT EXISTS public.profiles (
@@ -14,7 +19,21 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS instagram text;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS tiktok text;
 
--- 2. Create videos table
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS revenue numeric default 0;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS stripe_customer_id text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS stripe_subscription_id text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_premium boolean default false;
+
+-- Create secure view for public profile reads
+CREATE OR REPLACE VIEW public.public_profiles AS
+SELECT id, username, avatar_url, bio, instagram, tiktok, created_at, is_brand, is_admin, can_upload
+FROM public.profiles;
+
+GRANT SELECT ON public.public_profiles TO anon, authenticated;
+
+-- Videos table
 CREATE TABLE IF NOT EXISTS public.videos (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references public.profiles(id) on delete cascade not null,
@@ -26,13 +45,13 @@ CREATE TABLE IF NOT EXISTS public.videos (
   real_life_image_url text,
   is_verified_real boolean default false,
   views integer default 0,
-  status text default 'active' check (status in ('active', 'pending_review', 'rejected')),
+  status text default 'active' check (status in ('active', 'pending_review', 'rejected', 'processing')),
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- Ensure views and status columns exist if the table was created previously without them
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS views integer default 0;
-ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS status text default 'active' check (status in ('active', 'pending_review', 'rejected'));
+ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS status text default 'active' check (status in ('active', 'pending_review', 'rejected', 'processing'));
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS product_url text;
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS thumbnail_url text;
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS main_product_image_url text;
@@ -44,9 +63,17 @@ ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS is_admin_verified_link boolea
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.videos ENABLE ROW LEVEL SECURITY;
 
+-- Admin Check Function
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN AS $$
+  SELECT COALESCE((SELECT is_admin FROM public.profiles WHERE id = auth.uid()), false);
+$$ LANGUAGE sql SECURITY DEFINER;
+
 -- Profiles Policies
 DROP POLICY IF EXISTS "Public profiles are viewable by everyone." ON public.profiles;
-CREATE POLICY "Public profiles are viewable by everyone." ON public.profiles FOR SELECT USING (true);
+CREATE POLICY "Users can view their own profile or admins." ON public.profiles FOR SELECT USING (
+  auth.uid() = id OR public.is_admin()
+);
 DROP POLICY IF EXISTS "Users can insert their own profile." ON public.profiles;
 CREATE POLICY "Users can insert their own profile." ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
 DROP POLICY IF EXISTS "Users can update own profile." ON public.profiles;
@@ -104,7 +131,8 @@ CREATE TABLE IF NOT EXISTS public.reports (
 
 ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Reports are viewable by everyone" ON public.reports;
-CREATE POLICY "Reports are viewable by everyone" ON public.reports FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can view their own reports or admins" ON public.reports;
+CREATE POLICY "Users can view their own reports or admins" ON public.reports FOR SELECT USING (auth.uid() = user_id OR public.is_admin());
 DROP POLICY IF EXISTS "Users can insert reports" ON public.reports;
 CREATE POLICY "Users can insert reports" ON public.reports FOR INSERT WITH CHECK (auth.uid() = user_id);
 
@@ -126,7 +154,7 @@ DROP POLICY IF EXISTS "Users can delete own comments" ON public.comments;
 CREATE POLICY "Users can delete own comments" ON public.comments FOR DELETE USING (
   auth.uid() = user_id OR 
   EXISTS (SELECT 1 FROM public.videos WHERE id = public.comments.video_id AND user_id = auth.uid()) OR
-  (SELECT is_admin FROM public.profiles WHERE id = auth.uid()) = true
+  public.is_admin()
 );
 
 -- 9. Create follows table
@@ -176,9 +204,14 @@ CREATE TABLE IF NOT EXISTS public.video_views (
 
 ALTER TABLE public.video_views ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Anyone can insert views" ON public.video_views;
-CREATE POLICY "Anyone can insert views" ON public.video_views FOR INSERT WITH CHECK (true);
+CREATE POLICY "Anyone can insert views" ON public.video_views FOR INSERT WITH CHECK (false);
 DROP POLICY IF EXISTS "Views viewable by everyone" ON public.video_views;
-CREATE POLICY "Views viewable by everyone" ON public.video_views FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Admins and video owners can view views" ON public.video_views;
+CREATE POLICY "Admins and video owners can view views" ON public.video_views FOR SELECT USING (
+  public.is_admin()
+  OR 
+  (SELECT user_id FROM public.videos WHERE public.videos.id = public.video_views.video_id) = auth.uid()
+);
 
 -- To defend against aggressive view-counting bots locally in DB (basic example):
 CREATE OR REPLACE FUNCTION public.increment_video_views(video_id_param uuid, session_token_param text DEFAULT 'anonymous')
@@ -292,24 +325,71 @@ CREATE TABLE IF NOT EXISTS public.creator_applications (
 
 ALTER TABLE public.creator_applications ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Creator applications are viewable by everyone" ON public.creator_applications;
-CREATE POLICY "Creator applications are viewable by everyone" ON public.creator_applications FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can view their own applications or admins" ON public.creator_applications;
+CREATE POLICY "Users can view their own applications or admins" ON public.creator_applications FOR SELECT USING (auth.uid() = user_id OR public.is_admin());
 DROP POLICY IF EXISTS "Users can insert their own applications" ON public.creator_applications;
 CREATE POLICY "Users can insert their own applications" ON public.creator_applications FOR INSERT WITH CHECK (auth.uid() = user_id);
 DROP POLICY IF EXISTS "Admins can update applications" ON public.creator_applications;
-CREATE POLICY "Admins can update applications" ON public.creator_applications FOR UPDATE USING ((SELECT is_admin FROM public.profiles WHERE public.profiles.id = auth.uid()) = true);
+CREATE POLICY "Admins can update applications" ON public.creator_applications FOR UPDATE USING (public.is_admin());
 
 -- Additional Admin Policies
 DROP POLICY IF EXISTS "Admins can update profiles" ON public.profiles;
-CREATE POLICY "Admins can update profiles" ON public.profiles FOR UPDATE USING ((SELECT is_admin FROM public.profiles WHERE public.profiles.id = auth.uid()) = true);
+CREATE POLICY "Admins can update profiles" ON public.profiles FOR UPDATE USING (public.is_admin());
+
+-- Protect role columns from unauthorized updates
+CREATE OR REPLACE FUNCTION public.protect_profile_roles()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF COALESCE(current_setting('request.jwt.claims', true)::jsonb->>'role', '') = 'service_role' OR current_user IN ('postgres', 'supabase_admin') THEN
+    RETURN NEW;
+  END IF;
+
+  -- If the user modifying the record is not an admin, they cannot change role-related fields
+  IF NOT public.is_admin() THEN
+    NEW.is_admin := OLD.is_admin;
+    NEW.can_upload := OLD.can_upload;
+    NEW.is_brand := OLD.is_brand;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_profile_update ON public.profiles;
+CREATE TRIGGER on_profile_update
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW EXECUTE PROCEDURE public.protect_profile_roles();
 
 DROP POLICY IF EXISTS "Admins can update videos" ON public.videos;
-CREATE POLICY "Admins can update videos" ON public.videos FOR UPDATE USING ((SELECT is_admin FROM public.profiles WHERE public.profiles.id = auth.uid()) = true);
+CREATE POLICY "Admins can update videos" ON public.videos FOR UPDATE USING (public.is_admin());
+
+-- Protect moderated video columns from unauthorized updates
+CREATE OR REPLACE FUNCTION public.protect_video_status()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF COALESCE(current_setting('request.jwt.claims', true)::jsonb->>'role', '') = 'service_role' OR current_user IN ('postgres', 'supabase_admin') THEN
+    RETURN NEW;
+  END IF;
+
+  IF NOT public.is_admin() THEN
+    NEW.status := OLD.status;
+    NEW.is_admin_verified_link := OLD.is_admin_verified_link;
+    NEW.views := OLD.views;
+    NEW.trust_score := OLD.trust_score;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_video_update ON public.videos;
+CREATE TRIGGER on_video_update
+  BEFORE UPDATE ON public.videos
+  FOR EACH ROW EXECUTE PROCEDURE public.protect_video_status();
 
 DROP POLICY IF EXISTS "Admins can delete videos" ON public.videos;
-CREATE POLICY "Admins can delete videos" ON public.videos FOR DELETE USING ((SELECT is_admin FROM public.profiles WHERE public.profiles.id = auth.uid()) = true);
+CREATE POLICY "Admins can delete videos" ON public.videos FOR DELETE USING (public.is_admin());
 
 DROP POLICY IF EXISTS "Admins can delete reports" ON public.reports;
-CREATE POLICY "Admins can delete reports" ON public.reports FOR DELETE USING ((SELECT is_admin FROM public.profiles WHERE public.profiles.id = auth.uid()) = true);
+CREATE POLICY "Admins can delete reports" ON public.reports FOR DELETE USING (public.is_admin());
 
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_admin boolean default false;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_brand boolean default false;
@@ -317,11 +397,47 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_brand boolean default fa
 -- 12. Trust Score System
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS trust_score integer default 100;
 
+CREATE OR REPLACE FUNCTION public.check_report_limit()
+RETURNS TRIGGER AS $$
+DECLARE
+  report_count INTEGER;
+BEGIN
+  -- Rate limit constraints (5 per user per 24 hours)
+  SELECT count(*) INTO report_count
+  FROM public.reports
+  WHERE user_id = NEW.user_id
+    AND created_at >= NOW() - INTERVAL '1 day';
+
+  IF report_count >= 5 THEN
+    RAISE EXCEPTION 'Rate limit exceeded: You can only submit 5 reports per day';
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_report_insert_limit ON public.reports;
+CREATE TRIGGER on_report_insert_limit
+  BEFORE INSERT ON public.reports
+  FOR EACH ROW EXECUTE PROCEDURE public.check_report_limit();
+
 CREATE OR REPLACE FUNCTION public.handle_new_report()
 RETURNS TRIGGER AS $$
 DECLARE
   penalty INTEGER := 5;
+  reporter_is_trusted BOOLEAN;
+  new_trust_score INTEGER;
 BEGIN
+  -- Determine if the reporter is trusted based on their profile
+  SELECT (is_admin OR is_brand OR is_premium OR can_upload) INTO reporter_is_trusted
+  FROM public.profiles
+  WHERE id = NEW.user_id;
+
+  -- Untrusted users do not trigger automated penalties, goes straight to human moderation queue
+  IF NOT reporter_is_trusted THEN
+    RETURN NEW;
+  END IF;
+
   IF NEW.reason LIKE '%CRITICAL%' THEN
     penalty := 20;
   ELSIF NEW.reason LIKE '%HIGH%' THEN
@@ -330,7 +446,15 @@ BEGIN
 
   UPDATE public.videos 
   SET trust_score = GREATEST(0, COALESCE(trust_score, 100) - penalty)
-  WHERE id = NEW.video_id;
+  WHERE id = NEW.video_id
+  RETURNING trust_score INTO new_trust_score;
+
+  -- Automated takedown if trust score hits 0
+  IF new_trust_score <= 0 THEN
+    UPDATE public.videos
+    SET status = 'rejected'
+    WHERE id = NEW.video_id;
+  END IF;
   
   RETURN NEW;
 END;
@@ -355,6 +479,27 @@ CREATE INDEX IF NOT EXISTS idx_saved_videos_video_id ON public.saved_videos(vide
 CREATE INDEX IF NOT EXISTS idx_follows_follower ON public.follows(follower_id);
 CREATE INDEX IF NOT EXISTS idx_follows_following ON public.follows(following_id);
 CREATE INDEX IF NOT EXISTS idx_video_views_video_id ON public.video_views(video_id);
+
+-- Phase 2 Optimized Indexes added by Architect Audit
+CREATE INDEX IF NOT EXISTS idx_videos_feed_optimized ON public.videos(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_videos_caption_gin ON public.videos USING GIN (to_tsvector('english', coalesce(caption, '')));
+
+-- 14.5 Notifications Table 
+CREATE TABLE IF NOT EXISTS public.notifications (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references public.profiles(id) on delete cascade not null,
+  actor_id uuid references public.profiles(id) on delete cascade not null,
+  video_id uuid references public.videos(id) on delete cascade,
+  type text not null check (type in ('like', 'comment', 'follow', 'admin', 'mention')),
+  is_read boolean default false,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own notifications" ON public.notifications;
+CREATE POLICY "Users can view own notifications" ON public.notifications FOR SELECT USING (auth.uid() = user_id);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id_read ON public.notifications(user_id, is_read, created_at DESC);
 
 -- 15. Creator Dashboard Performance View (Phase 1)
 -- Collapses hundreds of thousands of engagement metric records into a single row count per video
@@ -387,11 +532,11 @@ ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Categories viewable by everyone" ON public.categories;
 CREATE POLICY "Categories viewable by everyone" ON public.categories FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Admins can insert categories" ON public.categories;
-CREATE POLICY "Admins can insert categories" ON public.categories FOR INSERT WITH CHECK ((SELECT is_admin FROM public.profiles WHERE public.profiles.id = auth.uid()) = true);
+CREATE POLICY "Admins can insert categories" ON public.categories FOR INSERT WITH CHECK (public.is_admin());
 DROP POLICY IF EXISTS "Admins can update categories" ON public.categories;
-CREATE POLICY "Admins can update categories" ON public.categories FOR UPDATE USING ((SELECT is_admin FROM public.profiles WHERE public.profiles.id = auth.uid()) = true);
+CREATE POLICY "Admins can update categories" ON public.categories FOR UPDATE USING (public.is_admin());
 DROP POLICY IF EXISTS "Admins can delete categories" ON public.categories;
-CREATE POLICY "Admins can delete categories" ON public.categories FOR DELETE USING ((SELECT is_admin FROM public.profiles WHERE public.profiles.id = auth.uid()) = true);
+CREATE POLICY "Admins can delete categories" ON public.categories FOR DELETE USING (public.is_admin());
 
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS category_id uuid references public.categories(id) on delete set null;
 
@@ -406,6 +551,35 @@ ALTER TABLE public.short_links ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public can view short links" ON public.short_links;
 CREATE POLICY "Public can view short links" ON public.short_links FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Anyone can create short links" ON public.short_links;
-CREATE POLICY "Anyone can create short links" ON public.short_links FOR INSERT WITH CHECK (true);
+CREATE POLICY "Anyone can create short links" ON public.short_links FOR INSERT WITH CHECK (false);
+
+-- 18. Webhook Dead Letter Queue
+CREATE TABLE IF NOT EXISTS public.webhook_dead_letter_queue (
+  id uuid default gen_random_uuid() primary key,
+  payload jsonb,
+  error_message text,
+  resolved boolean default false,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+ALTER TABLE public.webhook_dead_letter_queue ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admins can view DLQ" ON public.webhook_dead_letter_queue;
+CREATE POLICY "Admins can view DLQ" ON public.webhook_dead_letter_queue FOR SELECT USING (public.is_admin());
+DROP POLICY IF EXISTS "Admins can update DLQ" ON public.webhook_dead_letter_queue;
+CREATE POLICY "Admins can update DLQ" ON public.webhook_dead_letter_queue FOR UPDATE USING (public.is_admin());
+
+-- 19. PRODUCTION SEARCH & PERFORMANCE OPTIMIZATIONS
+-- Install Trigram Extension for fast fuzzy searching & autocomplete via GIN Index operations
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- Fast fuzzy search matches for creators & video captions
+CREATE INDEX IF NOT EXISTS idx_videos_caption_trgm ON public.videos USING gin (caption gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_profiles_username_trgm ON public.profiles USING gin (username gin_trgm_ops);
+
+-- Avoid file-sorting operations by indexing category feeds pre-sorted
+CREATE INDEX IF NOT EXISTS idx_videos_category_status_created ON public.videos (category_id, status, created_at DESC);
+
+-- Fast tracking of admin actions audit trail
+CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_created_at_desc ON public.admin_audit_logs (created_at DESC);
 
 

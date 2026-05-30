@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { m as motion, AnimatePresence } from 'motion/react';
 import { 
   Eye, 
   Heart, 
@@ -16,7 +16,8 @@ import {
   ChevronRight, 
   Video as VideoIcon,
   HelpCircle,
-  Award
+  Award,
+  ShieldAlert
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -47,15 +48,15 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     const hasMultipleSeries = payload.length > 1;
 
     return (
-      <div className="bg-[#151518]/95 backdrop-blur-md border border-white/10 p-3 rounded-xl shadow-xl space-y-1.5 font-sans min-w-[125px]">
+      <div className="bg-[#151518]/95 backdrop-blur-md border border-white/10 p-3 rounded-xl shadow-xl gap-y-1.5 font-sans min-w-[125px]">
         {title && (
           <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest">{title}</p>
         )}
-        <div className="space-y-1">
+        <div className="gap-y-1">
           {isPie ? (
-            <div className="flex items-center space-x-2 text-[12.5px]">
+            <div className="flex items-center gap-x-2 text-[12.5px]">
               <span 
-                className="w-2 h-2 rounded-full shrink-0" 
+                className="size-2 rounded-full shrink-0" 
                 style={{ backgroundColor: payload[0].payload?.color || payload[0].color || '#ef2950' }} 
               />
               <span className="text-zinc-300 font-medium">Value:</span>
@@ -65,9 +66,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
             </div>
           ) : hasMultipleSeries ? (
             payload.map((item: any, index: number) => (
-              <div key={index} className="flex items-center space-x-2 text-[12.5px]">
+              <div key={index} className="flex items-center gap-x-2 text-[12.5px]">
                 <span 
-                  className="w-2 h-2 rounded-full shrink-0" 
+                  className="size-2 rounded-full shrink-0" 
                   style={{ backgroundColor: item.fill || item.color || '#ef2950' }} 
                 />
                 <span className="text-zinc-300 font-medium">{item.name}:</span>
@@ -80,16 +81,16 @@ const CustomTooltip = ({ active, payload, label }: any) => {
             <>
               {data && data.Views !== undefined ? (
                 <>
-                  <div className="flex items-center space-x-2 text-[12.5px]">
-                    <span className="w-2 h-2 rounded-full bg-[#ef2955] shrink-0" />
+                  <div className="flex items-center gap-x-2 text-[12.5px]">
+                    <span className="size-2 rounded-full bg-[#ef2955] shrink-0" />
                     <span className="text-zinc-400 font-medium">Views:</span>
                     <span className="text-white font-mono font-bold">
                       {data.Views >= 1000 ? (data.Views / 1000).toFixed(1) + 'K' : data.Views}
                     </span>
                   </div>
                   {data.Likes !== undefined && (
-                    <div className="flex items-center space-x-2 text-[12.5px]">
-                      <span className="w-2 h-2 rounded-full bg-[#ef2950]/60 shrink-0" />
+                    <div className="flex items-center gap-x-2 text-[12.5px]">
+                      <span className="size-2 rounded-full bg-[#ef2950]/60 shrink-0" />
                       <span className="text-zinc-400 font-medium">Likes:</span>
                       <span className="text-white font-mono font-bold">
                         {data.Likes >= 1000 ? (data.Likes / 1000).toFixed(1) + 'K' : data.Likes}
@@ -97,8 +98,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
                     </div>
                   )}
                   {data.Saves !== undefined && (
-                    <div className="flex items-center space-x-2 text-[12.5px]">
-                      <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                    <div className="flex items-center gap-x-2 text-[12.5px]">
+                      <span className="size-2 rounded-full bg-amber-500 shrink-0" />
                       <span className="text-zinc-400 font-medium">Saves:</span>
                       <span className="text-white font-mono font-bold">
                         {data.Saves >= 1000 ? (data.Saves / 1000).toFixed(1) + 'K' : data.Saves}
@@ -108,9 +109,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
                 </>
               ) : (
                 payload.map((item: any, index: number) => (
-                  <div key={index} className="flex items-center space-x-2 text-[12.5px]">
+                  <div key={index} className="flex items-center gap-x-2 text-[12.5px]">
                     <span 
-                      className="w-2 h-2 rounded-full shrink-0" 
+                      className="size-2 rounded-full shrink-0" 
                       style={{ backgroundColor: item.fill || item.color || '#ef2950' }} 
                     />
                     <span className="text-zinc-300 font-medium">{item.name}:</span>
@@ -351,34 +352,34 @@ export default function CreatorDashboard() {
   const hasStats = isDemoMode || displayVideos.length > 0;
 
   return (
-    <div className="flex-1 w-full bg-[#0c0c0e] text-white font-sans flex flex-col h-full bg-black">
+    <div className="flex-1 w-full bg-[#0c0c0e] text-white font-sans flex flex-col h-full bg-[#0c0c0e]">
       {/* Header BAR */}
       <div className="sticky top-0 z-20 bg-[#0c0c0e]/95 backdrop-blur-md pt-5 pb-3 px-4 border-b border-white/5">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <button 
+          <div className="flex items-center gap-x-2">
+            <button type="button" aria-label="button"  
               onClick={() => navigate('/profile')} 
               className="p-2 -ml-2 text-white/90 hover:text-white transition-colors hover:bg-white/5 rounded-full"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="size-5" />
             </button>
             <h1 className="text-[18px] font-bold text-white tracking-tight flex items-center gap-1.5">
               Creator Studio
-              <Award className="w-4 h-4 text-amber-400" />
+              <Award className="size-4 text-amber-400" />
             </h1>
           </div>
 
           {/* Clean toggle switch */}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-x-2">
             <span className="text-[11px] font-medium text-zinc-500 tracking-wide uppercase">Demo Data</span>
-            <button 
+            <button type="button" aria-label="button"  
               onClick={() => setIsDemoMode(!isDemoMode)}
               className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                 isDemoMode ? 'bg-[#ef2950]' : 'bg-zinc-800'
               }`}
             >
               <span
-                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                className={`pointer-events-none inline-block size-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
                   isDemoMode ? 'translate-x-4' : 'translate-x-0'
                 }`}
               />
@@ -389,11 +390,11 @@ export default function CreatorDashboard() {
 
       <div className="flex-1 overflow-y-auto no-scrollbar pt-5 px-4">
         {loading ? (
-          <div className="space-y-6 animate-pulse">
+          <div className="gap-y-6 animate-pulse">
             {/* Creator Mini Card Skeleton */}
             <div className="p-4 bg-[#151518] border border-white/5 rounded-[22px] flex items-center shadow-lg">
-              <div className="w-[46px] h-[46px] rounded-full bg-zinc-800 shrink-0 mr-3.5" />
-              <div className="flex-1 space-y-2">
+              <div className="size-[46px] rounded-full bg-zinc-800 shrink-0 mr-3.5" />
+              <div className="flex-1 gap-y-2">
                 <div className="h-4 bg-zinc-805 bg-zinc-800 rounded w-1/3" />
                 <div className="h-3 bg-zinc-850 rounded w-1/2" />
               </div>
@@ -406,9 +407,9 @@ export default function CreatorDashboard() {
                 <div key={i} className="p-4 bg-[#131316] border border-white/5 rounded-2xl flex flex-col justify-between h-[120px]">
                   <div className="flex items-center justify-between">
                     <div className="h-3 bg-zinc-800 rounded w-1/2" />
-                    <div className="w-8 h-8 rounded-lg bg-zinc-800" />
+                    <div className="size-8 rounded-lg bg-zinc-800" />
                   </div>
-                  <div className="space-y-2 mt-4">
+                  <div className="gap-y-2 mt-4">
                     <div className="h-6 bg-[#18181c] bg-zinc-800 rounded w-2/3" />
                     <div className="h-3 bg-zinc-850 rounded w-1/3" />
                   </div>
@@ -427,10 +428,10 @@ export default function CreatorDashboard() {
                 </div>
               </div>
               {/* Dummy Chart Simulating Shimmer Lines and Bar shapes */}
-              <div className="h-[220px] w-full flex flex-col justify-end pt-5 space-y-4 px-2">
-                <div className="flex-1 flex items-end justify-between space-x-4">
+              <div className="h-[220px] w-full flex flex-col justify-end pt-5 gap-y-4 px-2">
+                <div className="flex-1 flex items-end justify-between gap-x-4">
                   {[40, 70, 45, 90, 60, 85, 50].map((height, idx) => (
-                    <div key={idx} className="flex-1 flex flex-col items-center space-y-2">
+                    <div key={idx} className="flex-1 flex flex-col items-center gap-y-2">
                       <div className="w-full bg-zinc-800/60 rounded-t" style={{ height: `${height}%` }} />
                       <div className="h-2 bg-zinc-850 rounded w-8" />
                     </div>
@@ -441,8 +442,8 @@ export default function CreatorDashboard() {
 
             {/* Growth Analytics & Smart Insights Skeleton */}
             <div className="bg-[#131316] border border-white/5 p-5 rounded-[26px] flex items-start">
-              <div className="w-10 h-10 bg-zinc-800 rounded-2xl mr-4 shrink-0" />
-              <div className="flex-1 space-y-2.5">
+              <div className="size-10 bg-zinc-800 rounded-2xl mr-4 shrink-0" />
+              <div className="flex-1 gap-y-2.5">
                 <div className="h-4 bg-zinc-800 rounded w-1/4" />
                 <div className="h-3 bg-zinc-850 rounded w-full" />
                 <div className="h-3 bg-zinc-850 rounded w-5/6" />
@@ -450,7 +451,7 @@ export default function CreatorDashboard() {
             </div>
 
             {/* Video List of uploads / performance list Skeleton */}
-            <div className="flex flex-col mb-6 space-y-4">
+            <div className="flex flex-col mb-6 gap-y-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="h-5 bg-zinc-800 rounded w-40" />
                 <div className="h-3 bg-zinc-850 rounded w-16" />
@@ -459,7 +460,7 @@ export default function CreatorDashboard() {
               {[1, 2, 3].map((item) => (
                 <div key={item} className="p-3.5 bg-[#131316] border border-white/5 rounded-2xl flex items-center">
                   <div className="w-[50px] h-[64px] rounded-xl bg-zinc-800 shrink-0 mr-4" />
-                  <div className="flex-1 space-y-2">
+                  <div className="flex-1 gap-y-2">
                     <div className="h-4 bg-zinc-800 rounded w-2/3" />
                     <div className="h-3 bg-zinc-500/10 rounded w-1/3" />
                   </div>
@@ -473,15 +474,28 @@ export default function CreatorDashboard() {
               ))}
             </div>
           </div>
+        ) : profile && !profile.can_upload && !profile.is_admin ? (
+          <div className="flex flex-col items-center justify-center pt-24 text-center px-4">
+            <div className="size-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4 border border-red-500/20">
+              <ShieldAlert className="size-8 text-red-500" />
+            </div>
+            <h2 className="text-xl font-bold text-white mb-2">Access Denied</h2>
+            <p className="text-zinc-400 max-w-[280px]">
+              You need Creator or Administrator privileges to access the Creator Studio.
+            </p>
+            <button type="button" aria-label="Return" onClick={() => navigate(-1)} className="mt-8 px-6 py-2.5 bg-white text-black font-semibold rounded-xl text-sm transition-transform active:scale-95">
+              Go Back
+            </button>
+          </div>
         ) : (
-          <div className="space-y-6">
+          <div className="gap-y-6">
             {/* Creator Mini Card */}
             <div className="p-4 bg-gradient-to-r from-[#17171e] to-[#151518] border border-white/5 rounded-[22px] flex items-center shadow-lg">
-              <div className="w-[46px] h-[46px] rounded-full overflow-hidden bg-zinc-850 shrink-0 mr-3.5 border border-white/10 ring-2 ring-white/5 shadow-inner">
+              <div className="size-[46px] rounded-full overflow-hidden bg-zinc-850 shrink-0 mr-3.5 border border-white/10 ring-2 ring-white/5 shadow-inner">
                 {profile?.avatar_url ? (
-                  <img src={profile.avatar_url} alt={profile.username} className="w-full h-full object-cover" />
+                  <img src={profile.avatar_url} alt={profile.username} className="size-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-white/50 bg-zinc-800 text-[14px] uppercase font-bold font-serif italic">
+                  <div className="size-full flex items-center justify-center text-white/50 bg-zinc-800 text-[14px] uppercase font-bold font-serif italic">
                     {profile?.username?.charAt(0) || 'U'}
                   </div>
                 )}
@@ -496,7 +510,7 @@ export default function CreatorDashboard() {
               </div>
               
               <div className="px-3 py-1.5 bg-indigo-500/10 border border-indigo-400/20 text-indigo-400 text-[10.5px] font-bold rounded-xl tracking-wider uppercase shadow-[0_0_12px_rgba(99,102,241,0.1)] shrink-0 flex items-center gap-1 font-mono">
-                <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                <Sparkles className="size-3.5 animate-pulse" />
                 Insight pro
               </div>
             </div>
@@ -508,7 +522,7 @@ export default function CreatorDashboard() {
                 <div className="flex items-center justify-between">
                   <span className="text-[12.5px] font-semibold text-zinc-500 tracking-wide uppercase">Total Views</span>
                   <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/10">
-                    <Eye className="w-4 h-4" />
+                    <Eye className="size-4" />
                   </div>
                 </div>
                 <div className="mt-4 flex flex-col">
@@ -516,7 +530,7 @@ export default function CreatorDashboard() {
                     {totalViews >= 1000000 ? (totalViews / 1000000).toFixed(1) + 'M' : totalViews >= 1000 ? (totalViews / 1000).toFixed(1) + 'K' : totalViews}
                   </span>
                   <span className="text-[10.5px] font-medium text-emerald-400 mt-1 flex items-center gap-0.5">
-                    <TrendingUp className="w-3 h-3" /> +12.4% vs last week
+                    <TrendingUp className="size-3" /> +12.4% vs last week
                   </span>
                 </div>
               </div>
@@ -526,7 +540,7 @@ export default function CreatorDashboard() {
                 <div className="flex items-center justify-between">
                   <span className="text-[12.5px] font-semibold text-zinc-500 tracking-wide uppercase">Total Likes</span>
                   <div className="p-1.5 rounded-lg bg-[#ef2950]/10 text-[#ef2950] border border-[#ef2950]/10">
-                    <Heart className="w-4 h-4 fill-[#ef2950]/10" />
+                    <Heart className="size-4 fill-[#ef2950]/10" />
                   </div>
                 </div>
                 <div className="mt-4 flex flex-col">
@@ -534,7 +548,7 @@ export default function CreatorDashboard() {
                     {totalLikes >= 1000000 ? (totalLikes / 1000000).toFixed(1) + 'M' : totalLikes >= 1000 ? (totalLikes / 1000).toFixed(1) + 'K' : totalLikes}
                   </span>
                   <span className="text-[10.5px] font-medium text-[#ef2950] mt-1 flex items-center gap-0.5">
-                    <TrendingUp className="w-3 h-3" /> +8.1% vs last week
+                    <TrendingUp className="size-3" /> +8.1% vs last week
                   </span>
                 </div>
               </div>
@@ -544,7 +558,7 @@ export default function CreatorDashboard() {
                 <div className="flex items-center justify-between">
                   <span className="text-[12.5px] font-semibold text-zinc-500 tracking-wide uppercase">Saves (Saves)</span>
                   <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/10">
-                    <Bookmark className="w-4 h-4 fill-amber-500/10" />
+                    <Bookmark className="size-4 fill-amber-500/10" />
                   </div>
                 </div>
                 <div className="mt-4 flex flex-col">
@@ -562,7 +576,7 @@ export default function CreatorDashboard() {
                 <div className="flex items-center justify-between">
                   <span className="text-[12.5px] font-semibold text-zinc-500 tracking-wide uppercase">Engagement Rate</span>
                   <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-400/10">
-                    <TrendingUp className="w-4 h-4" />
+                    <TrendingUp className="size-4" />
                   </div>
                 </div>
                 <div className="mt-4 flex flex-col">
@@ -585,7 +599,7 @@ export default function CreatorDashboard() {
                 
                 {/* Horizontal mini navigation for charts */}
                 <div className="flex gap-2.5 mt-3.5 pt-1.5 border-t border-white/5">
-                  <button 
+                  <button type="button" aria-label="button"  
                     onClick={() => setActiveChartTab('trends')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all ${
                       activeChartTab === 'trends' ? 'bg-[#ef2950] text-white shadow-sm' : 'bg-transparent text-zinc-500 hover:text-white/80'
@@ -593,7 +607,7 @@ export default function CreatorDashboard() {
                   >
                     Audience growth
                   </button>
-                  <button 
+                  <button type="button" aria-label="button"  
                     onClick={() => setActiveChartTab('comparison')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all ${
                       activeChartTab === 'comparison' ? 'bg-[#ef2950] text-white shadow-sm' : 'bg-transparent text-zinc-500 hover:text-white/80'
@@ -601,7 +615,7 @@ export default function CreatorDashboard() {
                   >
                     Top videos comparison
                   </button>
-                  <button 
+                  <button type="button" aria-label="button"  
                     onClick={() => setActiveChartTab('distribution')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all ${
                       activeChartTab === 'distribution' ? 'bg-[#ef2950] text-white shadow-sm' : 'bg-transparent text-zinc-500 hover:text-white/80'
@@ -613,8 +627,8 @@ export default function CreatorDashboard() {
               </div>
 
               {!hasStats ? (
-                <div className="h-[210px] w-full flex flex-col items-center justify-center text-zinc-600 space-y-2 border border-dashed border-white/5 rounded-2xl">
-                   <Info className="w-8 h-8 opacity-40 text-zinc-500" strokeWidth={1.5} />
+                <div className="h-[210px] w-full flex flex-col items-center justify-center text-zinc-600 gap-y-2 border border-dashed border-white/5 rounded-2xl">
+                   <Info className="size-8 opacity-40 text-zinc-500" strokeWidth={1.5} />
                    <p className="text-xs">No analytics charts available.</p>
                    <p className="text-[10.5px] text-zinc-700">Upload your very first video to populate.</p>
                 </div>
@@ -675,10 +689,10 @@ export default function CreatorDashboard() {
                           </PieChart>
                         </ResponsiveContainer>
                       </div>
-                      <div className="flex flex-col space-y-2 text-zinc-400 pl-4 pr-2 flex-1 justify-center">
+                      <div className="flex flex-col gap-y-2 text-zinc-400 pl-4 pr-2 flex-1 justify-center">
                         {distributionData.map((entry, i) => (
                           <div key={i} className="flex items-center text-[11px] font-sans tracking-wide">
-                            <span className="w-2.5 h-2.5 rounded-full mr-2.5 shrink-0" style={{ backgroundColor: entry.color }} />
+                            <span className="size-2.5 rounded-full mr-2.5 shrink-0" style={{ backgroundColor: entry.color }} />
                             <span className="font-medium text-white/95 mr-1.5">{entry.name}:</span>
                             <span className="font-mono text-zinc-500 font-bold">{entry.value >= 1000 ? (entry.value / 1000).toFixed(1) + 'K' : entry.value}</span>
                           </div>
@@ -693,7 +707,7 @@ export default function CreatorDashboard() {
             {/* Growth Analytics & Smart Insights */}
             <div className="bg-gradient-to-br from-[#101013] to-[#141417] border border-indigo-500/10 p-5 rounded-[26px] shadow-sm flex items-start">
                <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-2xl mr-4 shrink-0 shadow-[0_4px_12px_rgba(99,102,241,0.15)]">
-                 <Sparkles className="w-[18px] h-[18px]" />
+                 <Sparkles className="size-[18px]" />
                </div>
                <div className="flex-1">
                  <h4 className="text-[13.5px] font-bold text-white tracking-wide">AI Recommendation for @{profile?.username || 'Glow'}</h4>
@@ -712,7 +726,7 @@ export default function CreatorDashboard() {
 
               {/* Search video list bar */}
               <div className="relative mb-4">
-                 <Search className="w-4 h-4 text-zinc-501 text-zinc-500 absolute left-4 top-1/2 -translate-y-1/2" />
+                 <Search className="size-4 text-zinc-501 text-zinc-500 absolute left-4 top-1/2 -translate-y-1/2" />
                  <input 
                    type="text" 
                    placeholder="Search video ledger..." 
@@ -724,12 +738,12 @@ export default function CreatorDashboard() {
 
               {displayVideos.length === 0 ? (
                  <div className="py-12 text-center text-zinc-650 flex flex-col items-center justify-center bg-[#131316] border border-dashed border-white/5 rounded-3xl text-zinc-500/80">
-                   <VideoIcon className="w-10 h-10 text-zinc-700 mb-2.5" strokeWidth={1.5} />
+                   <VideoIcon className="size-10 text-zinc-700 mb-2.5" strokeWidth={1.5} />
                    <p className="text-sm font-semibold text-white/90">No ledger entries match search</p>
                    <p className="text-xs text-zinc-500 mt-1">Try searching another tag, word, or keyword.</p>
                  </div>
               ) : (
-                 <div className="flex flex-col space-y-3">
+                 <div className="flex flex-col gap-y-3">
                    {displayVideos.map((video, index) => (
                      <div 
                        key={video.id || index}
@@ -741,13 +755,13 @@ export default function CreatorDashboard() {
                         {/* Thumbnail */}
                         <div className="w-[50px] h-[64px] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 shrink-0 mr-4 relative">
                           {video.thumbnail_url ? (
-                            <img src={video.thumbnail_url} alt="Video thumbnail" className="w-full h-full object-cover" />
+                            <img src={video.thumbnail_url} alt="Video thumbnail" className="size-full object-cover" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-zinc-600 bg-zinc-805">
-                               <Play className="w-4 h-4 text-zinc-650" />
+                            <div className="size-full flex items-center justify-center text-zinc-600 bg-zinc-805">
+                               <Play className="size-4 text-zinc-650" />
                             </div>
                           )}
-                          <div className="absolute inset-x-0 bottom-0 bg-black/60 py-0.5 text-center">
+                          <div className="absolute inset-x-0 bottom-0 bg-[#0c0c0e]/60 py-0.5 text-center">
                              <span className="text-[10px] font-mono font-bold text-white/95">#{index+1}</span>
                           </div>
                         </div>
@@ -755,7 +769,7 @@ export default function CreatorDashboard() {
                         {/* Mid Meta */}
                         <div className="flex-1 min-w-0 pr-4.5 flex flex-col justify-center">
                            <p className="text-[13.5px] font-semibold text-white/95 truncate tracking-tight">{video.caption}</p>
-                           <div className="flex items-center space-x-2 mt-1.5 flex-wrap gap-y-1">
+                           <div className="flex items-center gap-x-2 mt-1.5 flex-wrap gap-y-1">
                              <div className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 font-mono text-[9.5px]">
                                 {video.created_at ? new Date(video.created_at).toLocaleDateString() : 'N/A'}
                              </div>
@@ -765,7 +779,7 @@ export default function CreatorDashboard() {
                                </span>
                              ) : (
                                <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[9.5px] font-bold tracking-wider uppercase flex items-center gap-0.5">
-                                  <CheckCircle className="w-2.5 h-2.5" /> Published
+                                  <CheckCircle className="size-2.5" /> Published
                                </span>
                              )}
                            </div>
@@ -774,19 +788,19 @@ export default function CreatorDashboard() {
                         {/* Performance ledger Metrics breakdown */}
                         <div className="grid grid-cols-2 gap-x-3.5 gap-y-1 text-right shrink-0 pr-1">
                            <div className="flex items-center justify-end text-[11.5px] text-zinc-400 font-mono tracking-wide">
-                              <Eye className="w-3.5 h-3.5 mr-1 text-zinc-500" strokeWidth={2} />
+                              <Eye className="size-3.5 mr-1 text-zinc-500" strokeWidth={2} />
                               <span>{video.views >= 1000 ? (video.views/1000).toFixed(1) + 'K' : video.views}</span>
                            </div>
                            <div className="flex items-center justify-end text-[11.5px] text-zinc-400 font-mono tracking-wide">
-                              <Heart className="w-3.5 h-3.5 mr-1 text-[#ef2950] fill-[#ef2950]/10" strokeWidth={2} />
+                              <Heart className="size-3.5 mr-1 text-[#ef2950] fill-[#ef2950]/10" strokeWidth={2} />
                               <span>{video.likes >= 1000 ? (video.likes/1000).toFixed(1) + 'K' : video.likes}</span>
                            </div>
                            <div className="flex items-center justify-end text-[11.5px] text-zinc-400 font-mono tracking-wide">
-                              <Bookmark className="w-3.5 h-3.5 mr-1 text-amber-500" strokeWidth={2} />
+                              <Bookmark className="size-3.5 mr-1 text-amber-500" strokeWidth={2} />
                               <span>{video.saves}</span>
                            </div>
                            <div className="flex items-center justify-end text-[11.5px] text-zinc-400 font-mono tracking-wide">
-                              <MessageSquare className="w-3.5 h-3.5 mr-1 text-indigo-400" strokeWidth={2} />
+                              <MessageSquare className="size-3.5 mr-1 text-indigo-400" strokeWidth={2} />
                               <span>{video.comments}</span>
                            </div>
                         </div>

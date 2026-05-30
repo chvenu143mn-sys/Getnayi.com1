@@ -4,7 +4,7 @@ import debounce from 'lodash/debounce';
 import throttle from 'lodash/throttle';
 import DOMPurify from 'dompurify';
 import { ShoppingBag, ShoppingCart, Play, Volume2, VolumeX, Heart, Share2, Flag, X, AlertOctagon, MessageCircle, Send, BadgeCheck, ShieldCheck, Trash2, Loader2, ChevronRight, ArrowLeft, ShieldAlert, Bookmark, Disc, Plus, ChevronLeft, MoreHorizontal, Star, Link as LinkIcon, Tag } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { m as motion, AnimatePresence } from 'motion/react';
 import Hls from 'hls.js';
 import { Video } from '../types';
 import { GuestGate } from './GuestGate';
@@ -38,11 +38,17 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
   const [isMuted, setIsMuted] = useState(getGlobalMuted());
   const [hasError, setHasError] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
-  const [isLiked, setIsLiked] = useState(false);
-  const [likesCount, setLikesCount] = useState(0);
-  const [isSaved, setIsSaved] = useState(false);
-  const [savesCount, setSavesCount] = useState(0);
-  const [viewsCount, setViewsCount] = useState(video.views || 0);
+  
+  // Use denormalized metrics from the API payload (N+1 fixed)
+  const [isLiked, setIsLiked] = useState(video.user_state?.is_liked ?? false);
+  const [likesCount, setLikesCount] = useState(video.metrics?.likes ?? 0);
+  const [isSaved, setIsSaved] = useState(video.user_state?.is_saved ?? false);
+  const [savesCount, setSavesCount] = useState(video.metrics?.saves ?? 0);
+  // Reconcile possible views variations depending on backend cache vs direct db hit
+  const [viewsCount, setViewsCount] = useState(video.metrics?.views ?? video.views ?? 0);
+  // Reusable follower state
+  const [isFollowing, setIsFollowing] = useState(video.user_state?.is_followed ?? false);
+  
   const [showHeartAnim, setShowHeartAnim] = useState(false);
   const [showVerifiedInfo, setShowVerifiedInfo] = useState(false);
   
@@ -82,8 +88,8 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
   const [detailsActiveSection, setDetailsActiveSection] = useState<'main' | 'coupon'>('main');
   const [isCopied, setIsCopied] = useState(false);
   
-  const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowingLoading, setIsFollowingLoading] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
   
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -96,31 +102,32 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
   };
 
   const getAuthModalIcon = () => {
-    if (authModalReason.includes('like')) {
+    const reason = authModalReason || '';
+    if (reason.includes('like')) {
       return (
-        <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center animate-bounce mb-4 mx-auto">
-          <Heart className="w-8 h-8 fill-red-500 text-red-500" />
+        <div className="size-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center animate-bounce mb-4 mx-auto">
+          <Heart className="size-8 fill-red-500 text-red-500" />
         </div>
       );
     }
 
-    if (authModalReason.includes('share')) {
+    if (reason.includes('share')) {
       return (
-        <div className="w-16 h-16 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center animate-bounce mb-4 mx-auto">
-          <Share2 className="w-8 h-8 text-emerald-500" />
+        <div className="size-16 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center animate-bounce mb-4 mx-auto">
+          <Share2 className="size-8 text-emerald-500" />
         </div>
       );
     }
-    if (authModalReason.includes('product')) {
+    if (reason.includes('product')) {
       return (
-        <div className="w-16 h-16 bg-indigo-500/10 text-indigo-500 rounded-full flex items-center justify-center animate-bounce mb-4 mx-auto">
-          <ShoppingBag className="w-8 h-8 text-indigo-500" />
+        <div className="size-16 bg-indigo-500/10 text-indigo-500 rounded-full flex items-center justify-center animate-bounce mb-4 mx-auto">
+          <ShoppingBag className="size-8 text-indigo-500" />
         </div>
       );
     }
     return (
-      <div className="w-16 h-16 bg-white/10 text-white rounded-full flex items-center justify-center animate-bounce mb-4 mx-auto">
-        <BadgeCheck className="w-8 h-8 text-white" />
+      <div className="size-16 bg-white/10 text-white rounded-full flex items-center justify-center animate-bounce mb-4 mx-auto">
+        <BadgeCheck className="size-8 text-white" />
       </div>
     );
   };
@@ -143,82 +150,31 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
     let viewTimer: NodeJS.Timeout;
     
     if (isActive && isPlaying && !hasViewedLocallyThisSession) {
-      // Do not count guest user views as explicitly requested
-      if (!user) {
-        return;
-      }
-
       viewTimer = setTimeout(() => {
           const incrementViews = async () => {
             try {
-              // Retrieve the client device IP address
-              let ipAddress = '';
-              try {
-                const ipRes = await fetch('https://api.ipify.org?format=json');
-                if (ipRes.ok) {
-                  const ipData = await ipRes.json();
-                  ipAddress = ipData.ip;
-                }
-              } catch (ipFetchErr) {
-                 console.warn("Failed to get device IP, falling back to user ID...", ipFetchErr);
-              }
-
-              // Use IP address as the view's unique session token, fallback to user.id if fetch fails
-              const token = ipAddress || user.id;
-
               // Try the highly scalable Redis write-buffer API first (Phases 2 & 3)
-              try {
-                const response = await fetch(`/api/videos/${video.id}/view`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ session_token: token })
-                });
-
-                if (response.ok) {
-                  const resData = await response.json();
-                  if (resData.success && resData.buffered) {
-                    // Cache path was successful! Update state with low latency
-                    if (resData.views !== undefined && resData.views !== null) {
-                      setViewsCount(resData.views);
-                    }
-                    setHasViewedLocallyThisSession(true);
-                    return;
-                  }
+              const sessionData = await supabase.auth.getSession();
+              const sessionToken = sessionData.data.session?.access_token;
+              
+              const response = await fetch(`/api/videos/${video.id}/view`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 
+                  'Content-Type': 'application/json',
+                  ...(sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {})
                 }
-              } catch (apiErr) {
-                console.warn("View buffering API bypass, falling back to direct db RPC...", apiErr);
+              });
+
+              if (response.ok) {
+                const resData = await response.json();
+                if (resData.success) {
+                  if (resData.views !== undefined && resData.views !== null) {
+                    setViewsCount(resData.views);
+                  }
+                  setHasViewedLocallyThisSession(true);
+                }
               }
-
-              // Pre-check the database to see if we've ALREADY recorded this view for this token
-              const { data: existingView, error: checkError } = await supabase
-                .from('video_views')
-                .select('id')
-                .eq('video_id', video.id)
-                .eq('session_token', token)
-                .maybeSingle();
-
-              if (!checkError && existingView) {
-                // We've already viewed it! Just update local state to stop looping and BAIL OUT.
-                setHasViewedLocallyThisSession(true);
-                return;
-              }
-
-              // Call supabase DIRECTLY to increment unique views
-              const { error: rpcError } = await supabase.rpc('increment_video_views', { video_id_param: video.id, session_token_param: token });
-              if (rpcError) {
-                 console.error("RPC Error increment_video_views:", rpcError);
-              }
-
-              // Fetch absolute truth count directly from Postgres database table
-              const { count: freshViewCount, error: vCountError } = await supabase
-                .from('video_views')
-                .select('*', { count: 'exact', head: true })
-                .eq('video_id', video.id);
-
-              if (!vCountError && freshViewCount !== null) {
-                 setViewsCount(freshViewCount);
-              }
-              setHasViewedLocallyThisSession(true);
             } catch (e) {
               console.error('Error incrementing views', e);
             }
@@ -230,108 +186,17 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
     return () => clearTimeout(viewTimer);
   }, [isActive, isPlaying, hasViewedLocallyThisSession, video.id, user]);
 
-  // Fetch initial likes and comments count
+  // Update state if video metrics/state changes externally from feed reloading
   useEffect(() => {
-    const fetchCounts = async () => {
-      // Reset view session trackers for the new video
-      setHasViewedLocallyThisSession(false);
-      try {
-        const { count: lCount, error: lError } = await supabase
-          .from('likes')
-          .select('*', { count: 'exact', head: true })
-          .eq('video_id', video.id);
-          
-        if (lError) console.warn("Supabase likes fetch error (maybe run database.sql?):", lError);
-        setLikesCount(lCount || 0);
-
-        const { count: sCount, error: sError } = await supabase
-          .from('saved_videos')
-          .select('*', { count: 'exact', head: true })
-          .eq('video_id', video.id);
-
-        if (sError) console.warn("Supabase saved_videos fetch error:", sError);
-        setSavesCount(sCount || 0);
-
-        // Fetch fresh views count directly from video_views table just like likes
-        const { count: vCount, error: vError } = await supabase
-          .from('video_views')
-          .select('*', { count: 'exact', head: true })
-          .eq('video_id', video.id);
-        
-        if (!vError && vCount !== null) {
-           setViewsCount(vCount);
-        } else if (vError) {
-           console.warn("Supabase video_views fetch error:", vError);
-        }
-
-        // Check if user has already viewed using their device IP address
-        if (user) {
-          let ipAddress = '';
-          try {
-            const ipRes = await fetch('https://api.ipify.org?format=json');
-            if (ipRes.ok) {
-              const ipData = await ipRes.json();
-              ipAddress = ipData.ip;
-            }
-          } catch (ipFetchErr) {
-             console.warn("Failed to get device IP for initial load check", ipFetchErr);
-          }
-
-          const token = ipAddress || user.id;
-          const { data: viewData, error: viewError } = await supabase
-            .from('video_views')
-            .select('id')
-            .eq('video_id', video.id)
-            .eq('session_token', token)
-            .maybeSingle();
-            
-          if (!viewError && viewData) {
-            setHasViewedLocallyThisSession(true);
-          } else {
-            setHasViewedLocallyThisSession(false);
-          }
-        } else {
-          setHasViewedLocallyThisSession(false);
-        }
-
-        if (user) {
-          const { data, error: userLikeError } = await supabase
-            .from('likes')
-            .select('id')
-            .eq('video_id', video.id)
-            .eq('user_id', user.id)
-            .maybeSingle(); // maybeSingle instead of single prevents 406 error if not found
-            
-          if (userLikeError) console.warn("User like fetch error:", userLikeError);
-          if (data) setIsLiked(true);
-
-          const { data: savedData, error: userSaveError } = await supabase
-            .from('saved_videos')
-            .select('id')
-            .eq('video_id', video.id)
-            .eq('user_id', user.id)
-            .maybeSingle();
-            
-          if (userSaveError) console.warn("User save fetch error:", userSaveError);
-          if (savedData) setIsSaved(true);
-
-          if (video.user_id && video.user_id !== user.id) {
-            const { data: followData } = await supabase
-              .from('follows')
-              .select('id')
-              .eq('following_id', video.user_id)
-              .eq('follower_id', user.id)
-              .maybeSingle();
-            if (followData) setIsFollowing(true);
-          }
-        }
-      } catch (err) {
-        console.error('Error fetching initial counts:', err);
-      }
-    };
-    
-    fetchCounts();
-  }, [video.id, user]);
+    setLikesCount(video.metrics?.likes ?? 0);
+    setIsLiked(video.user_state?.is_liked ?? false);
+    setSavesCount(video.metrics?.saves ?? 0);
+    setIsSaved(video.user_state?.is_saved ?? false);
+    setIsFollowing(video.user_state?.is_followed ?? false);
+    // don't overwrite viewscount if it was buffered locally to be higher
+    setViewsCount(prev => Math.max(prev, video.metrics?.views ?? video.views ?? 0));
+    setHasViewedLocallyThisSession(false);
+  }, [video.id, video.metrics, video.user_state, video.views]);
 
   // Handle HLS and Video Source
   useEffect(() => {
@@ -462,22 +327,23 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
 
     // Call API immediately
     try {
-      if (!previousLiked) {
-        const { error } = await supabase.from('likes').insert({ video_id: video.id, user_id: user.id });
-        if (error) {
-           console.error("Error inserting like directly:", error);
-           if (error.code === 'PGRST205' || error.message?.includes('not find the table')) {
-             alert("The 'likes' table is missing in your database! Please open database.sql and execute it in your Supabase SQL Editor to enable likes, views, and comments.");
-           }
-        }
-      } else {
-         const { error } = await supabase.from('likes').delete().eq('video_id', video.id).eq('user_id', user.id);
-         if (error) {
-           console.error("Error deleting like directly:", error);
-           if (error.code === 'PGRST205' || error.message?.includes('not find the table')) {
-             alert("The 'likes' table is missing! Please execute database.sql in Supabase.");
-           }
-         }
+      const action = !previousLiked ? 'like' : 'unlike';
+      const sessionData = await supabase.auth.getSession();
+      const sessionToken = sessionData.data.session?.access_token;
+      
+      const response = await fetch(`/api/engagement/${action}`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {})
+        },
+        body: JSON.stringify({ videoId: video.id })
+      });
+      const data = await response.json();
+      if (!data.success && data.error === 'Too many engagement actions. Please slow down.') {
+        alert(data.error);
+        setIsLiked(previousLiked);
+        setLikesCount(prev => previousLiked ? prev + 1 : prev - 1);
       }
     } catch (err) {
       console.error('Error toggling like:', err);
@@ -496,12 +362,23 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
     setSavesCount(prev => previousSaved ? prev - 1 : prev + 1);
 
     try {
-      if (!previousSaved) {
-        const { error } = await supabase.from('saved_videos').insert({ video_id: video.id, user_id: user.id });
-        if (error) console.error("Error inserting save:", error);
-      } else {
-        const { error } = await supabase.from('saved_videos').delete().eq('video_id', video.id).eq('user_id', user.id);
-        if (error) console.error("Error deleting save:", error);
+      const action = !previousSaved ? 'save' : 'unsave';
+      const sessionData = await supabase.auth.getSession();
+      const sessionToken = sessionData.data.session?.access_token;
+      
+      const response = await fetch(`/api/engagement/${action}`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {})
+        },
+        body: JSON.stringify({ videoId: video.id })
+      });
+      const data = await response.json();
+      if (!data.success && data.error === 'Too many engagement actions. Please slow down.') {
+        alert(data.error);
+        setIsSaved(previousSaved);
+        setSavesCount(prev => previousSaved ? prev + 1 : prev - 1);
       }
     } catch (err) {
       console.error('Error toggling save:', err);
@@ -523,12 +400,24 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
 
     setIsFollowingLoading(true);
     try {
-      if (isFollowing) {
-        await supabase.from('follows').delete().eq('following_id', video.user_id).eq('follower_id', user.id);
-        setIsFollowing(false);
+      const action = isFollowing ? 'unfollow' : 'follow';
+      const sessionData = await supabase.auth.getSession();
+      const sessionToken = sessionData.data.session?.access_token;
+      
+      const response = await fetch(`/api/engagement/${action}`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {})
+        },
+        body: JSON.stringify({ targetUserId: video.user_id })
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        setIsFollowing(action === 'follow');
       } else {
-        await supabase.from('follows').insert({ following_id: video.user_id, follower_id: user.id });
-        setIsFollowing(true);
+        alert(data.error || 'Could not update follow status');
       }
     } catch (err: any) {
       console.error('Error toggling follow:', err);
@@ -540,6 +429,8 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
 
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (isSharing) return;
+    setIsSharing(true);
     
     let shareUrl = `${window.location.origin}/video/${video.id}`;
     
@@ -593,6 +484,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
         console.error('Failed to copy', err);
       }
     }
+    setIsSharing(false);
   };
 
   const handleReport = (e: React.MouseEvent) => {
@@ -616,22 +508,31 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
       // Basic rate limiting: check if user hasn't spammed reports recently (optional but good practice)
       const fullReason = `[${reportCategory.priority}] ${reportCategory.label}${reportReason.trim() ? `\n\nDetails: ${reportReason.trim()}` : ''}`;
       
-      const { error } = await supabase.from('reports').insert({
-        video_id: video.id,
-        user_id: user.id,
-        reason: fullReason
+      const sessionData = await supabase.auth.getSession();
+      const sessionToken = sessionData.data.session?.access_token;
+
+      const response = await fetch('/api/engagement/report', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {})
+        },
+        body: JSON.stringify({ videoId: video.id, reason: fullReason })
       });
-      if (error) throw error;
+
+      const data = await response.json();
+      if (!data.success) throw new Error(data.error);
+      
       setHasReported(true);
     } catch (err: any) {
-      alert("Error submitting report. Please try again later.");
+      alert(err.message || "Error submitting report. Please try again later.");
     } finally {
       setIsSubmittingReport(false);
     }
   };
 
   return (
-    <div ref={setRefs} className="relative w-full h-full snap-start snap-always bg-zinc-900 group shrink-0">
+    <div ref={setRefs} className="relative size-full snap-start snap-always bg-zinc-900 group shrink-0">
       {/* Video Element */}
       {isNearView ? (
         video.video_url && !hasError ? (
@@ -642,7 +543,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
             loop
             playsInline
             muted={isMuted}
-            className={cn("w-full h-full object-cover transition-opacity duration-300", isBuffering ? "opacity-0" : "opacity-100")}
+            className={cn("size-full object-cover transition-opacity duration-300", isBuffering ? "opacity-0" : "opacity-100")}
             onClick={togglePlay}
             onDoubleClick={handleDoubleClick}
             onError={() => {
@@ -656,20 +557,21 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
           />
           {/* Skeleton Loader / Poster */}
           {isBuffering && (
-            <div className="absolute inset-0 z-0 bg-zinc-900">
+            <div className="absolute inset-0 z-0 bg-zinc-900 flex items-center justify-center">
               <img 
                 src={video.thumbnail_url || video.video_url.replace('/playlist.m3u8', '/thumbnail.jpg')}
                 alt="Thumbnail"
-                className="w-full h-full object-cover opacity-60"
+                className="absolute inset-0 size-full object-cover opacity-50 blur-[2px]"
               />
-              <div className="absolute inset-0 bg-zinc-900/40 animate-pulse flex items-center justify-center pointer-events-none" />
+              <div className="absolute inset-0 bg-zinc-900/30 animate-pulse pointer-events-none" />
+              <Loader2 className="size-10 text-white/50 animate-spin relative z-10" />
             </div>
           )}
         </>
       ) : (
-        <div className="w-full h-full bg-zinc-800 flex flex-col items-center justify-center text-zinc-500 space-y-3 z-10 relative pointer-events-auto">
+        <div className="size-full bg-zinc-800 flex flex-col items-center justify-center text-zinc-500 gap-y-3 z-10 relative pointer-events-auto">
           <p className="text-sm font-medium">Getting this video ready...</p>
-          <button 
+          <button type="button" aria-label="button"  
             onClick={(e) => {
               e.stopPropagation();
               setHasError(false);
@@ -685,17 +587,26 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
           <img 
             src={video.thumbnail_url || video.video_url.replace('/playlist.m3u8', '/thumbnail.jpg')}
             alt="Thumbnail"
-            className="w-full h-full object-cover opacity-50"
+            className="size-full object-cover opacity-50"
           />
         </div>
       )}
 
       {/* Play/Pause Overlay */}
       {!isPlaying && !isBuffering && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-          <div className="bg-black/40 p-4 rounded-full backdrop-blur-sm">
-            <Play className="w-12 h-12 text-white/90 fill-white/90 ml-1" />
-          </div>
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10 gap-4">
+          <button type="button" aria-label="button"  
+            onClick={(e) => { e.stopPropagation(); toggleMute(e); }}
+            className="size-12 shrink-0 bg-[#0c0c0e]/40 backdrop-blur-md rounded-full text-white/90 hover:bg-[#0c0c0e]/60 transition-colors pointer-events-auto cursor-pointer flex items-center justify-center shadow-[0_0_20px_rgba(0,0,0,0.5)] border border-white/10"
+          >
+            {isMuted ? <VolumeX className="size-5" /> : <Volume2 className="size-5" />}
+          </button>
+          <button type="button" aria-label="button"  
+            onClick={(e) => { e.stopPropagation(); togglePlay(); }}
+            className="size-12 shrink-0 bg-[#0c0c0e]/40 backdrop-blur-md rounded-full text-white/90 hover:bg-[#0c0c0e]/60 transition-colors pointer-events-auto cursor-pointer flex items-center justify-center shadow-[0_0_20px_rgba(0,0,0,0.5)] border border-white/10"
+          >
+            <Play className="size-6 text-white/90 fill-white/90 ml-1" />
+          </button>
         </div>
       )}
 
@@ -709,18 +620,10 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
             className="absolute inset-0 flex items-center justify-center pointer-events-none z-20"
           >
-            <Heart className="w-32 h-32 text-red-500 fill-red-500 drop-shadow-2xl" />
+            <Heart className="size-32 text-red-500 fill-red-500 drop-shadow-2xl" />
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Mute toggle */}
-      <button 
-        onClick={toggleMute}
-        className="absolute top-4 right-4 p-2 bg-black/20 backdrop-blur-md rounded-full text-white/90 hover:bg-black/40 transition-colors z-20 mt-4 cursor-pointer"
-      >
-        {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-      </button>
 
       {/* Bottom Gradient overlay - lighter gradient for readability without darkening */}
       <div className="absolute bottom-0 left-0 right-0 h-[40%] bg-gradient-to-t from-black/40 via-black/10 to-transparent pointer-events-none z-0" />
@@ -734,7 +637,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
           {video.categories && (
             <div className="mb-1.5 flex">
               <span className="px-2 py-0.5 bg-white/20 backdrop-blur-md rounded border border-white/20 text-white text-[10px] font-bold uppercase tracking-wider shadow-sm flex items-center">
-                <Tag className="w-3 h-3 mr-1" />
+                <Tag className="size-3 mr-1" />
                 {video.categories.name}
               </span>
             </div>
@@ -742,14 +645,14 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
 
           <div className="flex items-center flex-wrap gap-y-1">
             <span className="text-white font-sans font-bold text-[15px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-              @{video.profiles?.username || 'user'}
+              @{video.profiles?.username || (video as any).public_profiles?.username || 'user'}
             </span>
-            {video.is_verified_real && (
-              <BadgeCheck className="w-[15px] h-[15px] text-[#3897f0] ml-1 shrink-0 drop-shadow-sm" fill="currentColor" strokeWidth={0} />
+            {(video.profiles?.is_brand || (video as any).public_profiles?.is_brand) && (
+              <BadgeCheck className="size-[15px] text-[#3897f0] ml-1 shrink-0 drop-shadow-sm" fill="currentColor" strokeWidth={0} />
             )}
             {/* Inline dynamic follow/you action badge next to username */}
             {(!user || video.user_id !== user?.id) ? (
-              <button
+              <button type="button" aria-label="button" 
                 onClick={handleFollowToggle}
                 disabled={isFollowingLoading}
                 className={cn(
@@ -792,10 +695,10 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                   setDetailsActiveSection('main');
                   setShowProductDetails(true);
                 }}
-                className="group flex items-center bg-black/45 hover:bg-black/60 backdrop-blur-md rounded-xl p-1.5 pr-4 w-fit border border-white/10 transition-colors shadow-md text-left"
+                className="group flex items-center bg-[#0c0c0e]/45 hover:bg-[#0c0c0e]/60 backdrop-blur-md rounded-xl p-1.5 pr-4 w-fit border border-white/10 transition-colors shadow-md text-left"
               >
-                <div className="w-10 h-10 rounded-lg bg-zinc-900 overflow-hidden shrink-0 flex items-center justify-center mr-3 border border-white/5">
-                   <img src={video.main_product_image_url || video.thumbnail_url || "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=150&q=80"} alt="Product" className="w-full h-full object-cover animate-fadeIn" />
+                <div className="size-10 rounded-lg bg-zinc-900 overflow-hidden shrink-0 flex items-center justify-center mr-3 border border-white/5">
+                   <img src={video.main_product_image_url || video.thumbnail_url || "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=150&q=80"} alt="Product" className="size-full object-cover animate-fadeIn" />
                 </div>
                 <div className="flex flex-col items-start justify-center max-w-[170px]">
                    <span className="text-[13px] font-sans font-semibold text-white/95 leading-tight truncate w-full">
@@ -821,7 +724,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                   }}
                   className="flex items-center gap-1.5 bg-emerald-500/15 hover:bg-emerald-555/20 backdrop-blur-md text-emerald-400 font-bold border border-emerald-500/25 px-2.5 py-1 rounded-lg w-fit text-[11px] uppercase tracking-wider shadow-sm transition-all animate-fadeIn"
                 >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
                   </svg>
                   <span>Use Coupon: {parsedProduct.couponCode}</span>
@@ -833,33 +736,33 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
       </div>
 
       {/* Right Side Action Buttons */}
-      <div className="absolute bottom-[80px] right-2 w-14 flex flex-col items-center space-y-5 z-20 pointer-events-auto pb-safe">
+      <div className="absolute bottom-[80px] right-2 w-14 flex flex-col items-center gap-y-5 z-20 pointer-events-auto pb-safe">
         
         {/* Avatar */}
         <div className="relative mb-2">
-          <div className="w-[48px] h-[48px] rounded-full border-[1.5px] border-white/80 bg-[#1c1c1e] overflow-hidden shrink-0 shadow-sm flex flex-col justify-center items-center">
+          <div className="size-[48px] rounded-full border-[1.5px] border-white/80 bg-[#1c1c1e] overflow-hidden shrink-0 shadow-sm flex flex-col justify-center items-center">
             {video.profiles?.avatar_url ? (
-              <img src={video.profiles.avatar_url} alt={video.profiles.username} className="w-full h-full object-cover relative z-10" />
+              <img src={video.profiles.avatar_url} alt={video.profiles.username} className="size-full object-cover relative z-10" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-white font-serif italic text-[16px] font-medium bg-zinc-800 relative z-10">
+              <div className="size-full flex items-center justify-center text-white font-serif italic text-[16px] font-medium bg-zinc-800 relative z-10">
                 {video.profiles?.username?.charAt(0).toLowerCase() || 'v'}
               </div>
             )}
           </div>
           {/* Follow toggle on avatar: only show if uploader !== viewer and is not following */}
           {(!user || video.user_id !== user.id) && !isFollowing && (
-            <button
+            <button type="button" aria-label="button" 
               onClick={handleFollowToggle}
               disabled={isFollowingLoading}
-              className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-[#ef2950] text-white flex items-center justify-center shadow-md border-[2px] border-black transition-transform active:scale-95 z-20"
+              className="absolute -bottom-2 left-1/2 -translate-x-1/2 size-6 rounded-full bg-[#ef2950] text-white flex items-center justify-center shadow-md border-[2px] border-black transition-transform active:scale-95 z-20"
             >
-               <Plus className="w-4 h-4" strokeWidth={3} />
+               <Plus className="size-4" strokeWidth={3} />
             </button>
           )}
         </div>
 
         {/* Like Button */}
-        <button 
+        <button type="button" aria-label="button"  
           onClick={handleLikeToggle}
           className="flex flex-col items-center group active:scale-95 transition-transform"
         >
@@ -872,7 +775,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
         </button>
 
         {/* Save/Bookmark Button */}
-        <button 
+        <button type="button" aria-label="button"  
           onClick={handleBookmarkToggle}
           className="flex flex-col items-center group active:scale-95 transition-transform mt-1"
         >
@@ -885,22 +788,29 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
         </button>
 
         {/* Share Button */}
-        <button 
+        <button type="button" aria-label="button"  
           onClick={handleShare}
           className="flex flex-col items-center group active:scale-95 transition-transform mt-1"
+          disabled={isSharing}
         >
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="white" className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)] ml-1">
-             <path d="M21 12l-7-7v4C7 10 4 15 3 20c2.5-3.5 6-5.1 11-5.1V19l7-7z"/>
-          </svg>
-          <span className="text-white font-sans text-[13px] font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] mt-0 tracking-tight text-center w-full">Share</span>
+          {isSharing ? (
+            <Loader2 className="size-9 text-white animate-spin drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]" />
+          ) : (
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="white" className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]">
+               <path d="M21 12l-7-7v4C7 10 4 15 3 20c2.5-3.5 6-5.1 11-5.1V19l7-7z"/>
+            </svg>
+          )}
+          <span className="text-white font-sans text-[13px] font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] mt-0 tracking-tight text-center w-full">
+            {isSharing ? 'Wait...' : 'Share'}
+          </span>
         </button>
 
         {/* Report Button */}
-        <button 
+        <button type="button" aria-label="button"  
           onClick={handleReport}
           className="flex flex-col items-center group active:scale-95 transition-transform mt-3"
         >
-          <Flag className="w-[30px] h-[30px] text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]" fill="currentColor" />
+          <Flag className="size-[36px] text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)] p-[2px]" fill="currentColor" />
         </button>
       </div>
 
@@ -911,7 +821,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm pointer-events-auto"
+            className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[#0c0c0e]/60 backdrop-blur-sm pointer-events-auto"
             onClick={(e) => { e.stopPropagation(); setShowReportModal(false); }}
           >
             <motion.div
@@ -923,11 +833,11 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
             >
               {/* Header */}
               <div className="flex items-center p-4 pt-6 shrink-0 relative">
-                <button 
+                <button type="button" aria-label="button"  
                   onClick={() => setShowReportModal(false)}
                   className="absolute left-4 p-2 -ml-2 text-white/90 hover:text-white transition-colors"
                 >
-                   <ArrowLeft className="w-6 h-6" strokeWidth={2} />
+                   <ArrowLeft className="size-6" strokeWidth={2} />
                 </button>
                 <div className="flex-1 text-center flex justify-center w-full">
                    <h2 className="text-[17px] font-medium text-white tracking-wide">Report Content</h2>
@@ -942,7 +852,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                       className="flex flex-col items-center justify-center py-20 px-6 text-center"
                     >
                       <motion.div 
-                        className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center relative mb-6"
+                        className="size-20 bg-green-500/10 rounded-full flex items-center justify-center relative mb-6"
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
                         transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.1 }}
@@ -952,7 +862,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                           animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0, 0.5] }}
                           transition={{ duration: 2, repeat: Infinity }}
                         />
-                        <ShieldCheck className="w-10 h-10 text-green-500 relative z-10" />
+                        <ShieldCheck className="size-10 text-green-500 relative z-10" />
                       </motion.div>
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
@@ -984,15 +894,15 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
 
                     {/* Body */}
                     <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-6 flex flex-col">
-                       <div className="flex flex-col space-y-3">
+                       <div className="flex flex-col gap-y-3">
                           {REPORT_CATEGORIES.map((category) => (
-                            <button
+                            <button type="button" aria-label="button" 
                               key={category.id}
                               onClick={() => setReportCategory(category as any)}
                               className={`w-full flex items-center p-4 bg-[#151518] rounded-xl transition-all group text-left border \${reportCategory?.id === category.id ? 'border-orange-500/50 bg-orange-500/5' : 'border-white/5 hover:border-white/10'}`}
                             >
                               <div className={`w-[26px] h-[26px] rounded-full border-2 \${reportCategory?.id === category.id ? 'border-orange-500 text-orange-500' : 'border-[#ef2950]/80 text-[#ef2950]/80'} flex items-center justify-center shrink-0 mr-4 transition-colors`}>
-                                  <div className="w-[10px] h-[10px] rounded-full border-2 border-current" />
+                                  <div className="size-[10px] rounded-full border-2 border-current" />
                               </div>
                               <div>
                                 <div className="font-medium text-[15px] text-white/90 tracking-wide mb-0.5">
@@ -1007,12 +917,12 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
 
                     {/* Footer Submit Button */}
                     <div className="px-5 pt-4 pb-[calc(24px+env(safe-area-inset-bottom))] bg-[#0c0c0e] shrink-0 border-t border-transparent">
-                       <button
+                       <button type="button" aria-label="button" 
                          onClick={submitReport}
                          disabled={!reportCategory || isSubmittingReport}
                          className="w-full py-[18px] bg-[#ef2950] text-white font-semibold text-[16px] tracking-wide rounded-2xl flex items-center justify-center hover:bg-[#ef2950]/90 transition-colors active:scale-[0.98] shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                        >
-                          {isSubmittingReport ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Submit Report'}
+                          {isSubmittingReport ? <Loader2 className="size-5 animate-spin" /> : 'Submit Report'}
                        </button>
                     </div>
                   </>
@@ -1040,24 +950,24 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                <div className="relative w-full aspect-[4/5] bg-zinc-950 shrink-0 rounded-b-3xl overflow-hidden shadow-lg">
                  <img 
                    src={video.main_product_image_url || video.thumbnail_url || "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=800&q=80"}
-                   className="absolute inset-0 w-full h-full object-cover"
+                   className="absolute inset-0 size-full object-cover"
                    alt="Product"
                  />
                  <div className="absolute inset-0 bg-gradient-to-t from-[#0c0c0e] via-transparent to-black/35 pointer-events-none" />
                  
                  {/* Top Navigation Overlay */}
                  <div className="absolute top-0 left-0 right-0 p-4 pt-[calc(1rem+env(safe-area-inset-top,0px))] flex justify-between items-start z-10">
-                   <button 
+                   <button type="button" aria-label="button"  
                      onClick={() => { setShowProductDetails(false); }}
-                     className="w-10 h-10 flex items-center justify-center text-white bg-black/45 rounded-full backdrop-blur-md border border-white/5 hover:bg-black/60 active:scale-95 transition-all shadow-md"
+                     className="size-10 flex items-center justify-center text-white bg-[#0c0c0e]/45 rounded-full backdrop-blur-md border border-white/5 hover:bg-[#0c0c0e]/60 active:scale-95 transition-all shadow-md"
                    >
-                     <ChevronLeft className="w-6 h-6" strokeWidth={2.5} />
+                     <ChevronLeft className="size-6" strokeWidth={2.5} />
                    </button>
-                   <button 
+                   <button type="button" aria-label="button"  
                      onClick={() => alert("Options coming soon")} 
-                     className="w-10 h-10 flex items-center justify-center text-white bg-black/45 rounded-full backdrop-blur-md border border-white/5 hover:bg-black/60 active:scale-95 transition-all shadow-md"
+                     className="size-10 flex items-center justify-center text-white bg-[#0c0c0e]/45 rounded-full backdrop-blur-md border border-white/5 hover:bg-[#0c0c0e]/60 active:scale-95 transition-all shadow-md"
                    >
-                     <MoreHorizontal className="w-5 h-5" />
+                     <MoreHorizontal className="size-5" />
                    </button>
                  </div>
                </div>
@@ -1084,21 +994,21 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                      <span className="text-[20px] font-sans font-bold text-zinc-400">Verified Deal</span>
                    )}
                    <div className="flex items-center gap-1 bg-white/5 border border-white/5 rounded-full px-2.5 py-1 text-[11px] text-zinc-400 font-medium">
-                      <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                      <Star className="size-3 text-amber-400 fill-amber-400" />
                       <span>Creator Vouched</span>
                    </div>
                  </div>
 
                  {/* Authentic Product Link Badge */}
-                 <div className="flex flex-col space-y-2 mt-4">
+                 <div className="flex flex-col gap-y-2 mt-4">
                    <div className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center shadow-sm w-fit">
-                      <BadgeCheck className="w-4 h-4 text-emerald-400 mr-2" />
+                      <BadgeCheck className="size-4 text-emerald-400 mr-2" />
                       <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">Verified Authentic eComm Store Link</span>
                    </div>
                    {video.is_admin_verified_link && (
                      <div className="px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20 flex flex-col shadow-sm w-fit">
                         <div className="flex items-center">
-                          <ShieldCheck className="w-4 h-4 text-blue-400 mr-2" />
+                          <ShieldCheck className="size-4 text-blue-400 mr-2" />
                           <span className="text-[11px] font-bold text-blue-400 uppercase tracking-wider">Admin Verified Link</span>
                         </div>
                         <span className="text-[10px] text-blue-400/80 mt-1 font-medium">* This implies the website looks legitimate based on manual review.</span>
@@ -1119,14 +1029,14 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                  {/* Real Life Photos Carousel */}
                  <div className="mt-8 border-t border-zinc-900 pt-6">
                    <h3 className="text-[15px] font-bold text-white mb-3 tracking-wide">Product Looks</h3>
-                   <div className="flex space-x-3 overflow-x-auto pb-2 scrollbar-none snap-x h-[140px]">
+                   <div className="flex gap-x-3 overflow-x-auto pb-2 scrollbar-none snap-x h-[140px]">
                      <div className="w-[110px] h-full rounded-2xl bg-zinc-900 overflow-hidden shrink-0 snap-start border border-white/5 shadow-sm relative group">
-                        <img src={video.main_product_image_url || video.thumbnail_url || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=200&auto=format&fit=crop"} className="w-full h-full object-cover" />
-                        <span className="absolute bottom-1 right-1 px-1 py-0.5 bg-black/60 rounded text-[9px] text-white">Official</span>
+                        <img src={video.main_product_image_url || video.thumbnail_url || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=200&auto=format&fit=crop"} className="size-full object-cover"  alt="" />
+                        <span className="absolute bottom-1 right-1 px-1 py-0.5 bg-[#0c0c0e]/60 rounded text-[9px] text-white">Official</span>
                      </div>
                      {video.real_life_image_url && (
                        <div className="w-[110px] h-full rounded-2xl bg-zinc-900 overflow-hidden shrink-0 snap-start border border-white/5 shadow-sm relative group">
-                          <img src={video.real_life_image_url} className="w-full h-full object-cover" />
+                          <img src={video.real_life_image_url} className="size-full object-cover"  alt="" />
                           <span className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-[#ef2950] rounded text-[9px] text-white font-bold uppercase">Real Pic</span>
                        </div>
                      )}
@@ -1144,7 +1054,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                      )}
                    >
                      <div className="flex items-center gap-2 text-emerald-400 font-bold text-[14px] uppercase tracking-wider mb-2.5">
-                       <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                       <svg className="size-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
                        </svg>
                        <span>Exclusive Discount Match</span>
@@ -1156,7 +1066,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                          <span className="text-[18px] font-extrabold text-[#11b981] font-mono tracking-wider">{parsedProduct.couponCode}</span>
                        </div>
                        
-                       <button
+                       <button type="button" aria-label="button" 
                          onClick={(e) => {
                            e.stopPropagation();
                            navigator.clipboard.writeText(parsedProduct.couponCode || '');
@@ -1191,18 +1101,18 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
 
                  {/* Structured Specifications Lists: Uses, Specs, Benefits */}
                  {(parsedProduct.productUses.length > 0 || parsedProduct.keySpecifications.length > 0 || parsedProduct.benefits.length > 0) && (
-                   <div className="mt-8 border-t border-zinc-900 pt-6 space-y-6">
+                   <div className="mt-8 border-t border-zinc-900 pt-6 gap-y-6">
                      <h3 className="text-[16px] font-bold text-white mb-2 tracking-wide font-sans">Product Breakdown</h3>
                      
                      {/* Product Uses Block */}
                      {parsedProduct.productUses.length > 0 && (
-                       <div className="space-y-2.5">
+                       <div className="gap-y-2.5">
                          <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest block font-sans">Tested Use Cases</span>
-                         <div className="text-[14px] text-zinc-300 leading-relaxed space-y-2 pl-0.5">
+                         <div className="text-[14px] text-zinc-300 leading-relaxed gap-y-2 pl-0.5">
                            {parsedProduct.productUses.map((line, idx) => (
                              <div key={idx} className="flex items-start gap-2.5">
-                               <div className="w-[18px] h-[18px] rounded-full bg-[#ef2950]/10 border border-[#ef2950]/20 flex items-center justify-center shrink-0 mt-0.5">
-                                 <svg className="w-2.5 h-2.5 text-[#ef2950]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="4">
+                               <div className="size-[18px] rounded-full bg-[#ef2950]/10 border border-[#ef2950]/20 flex items-center justify-center shrink-0 mt-0.5">
+                                 <svg className="size-2.5 text-[#ef2950]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="4">
                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                  </svg>
                                </div>
@@ -1215,7 +1125,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
 
                      {/* Key Specifications Table/List */}
                      {parsedProduct.keySpecifications.length > 0 && (
-                       <div className="space-y-2.5 pt-4 border-t border-zinc-900">
+                       <div className="gap-y-2.5 pt-4 border-t border-zinc-900">
                          <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest block font-sans">Product Tech Specifications</span>
                          <div className="bg-[#151518]/50 rounded-xl p-3 divide-y divide-zinc-900 text-[13.5px] text-zinc-300">
                            {parsedProduct.keySpecifications.map((spec, idx) => (
@@ -1230,9 +1140,9 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
 
                      {/* Key Benefits */}
                      {parsedProduct.benefits.length > 0 && (
-                       <div className="space-y-2.5 pt-4 border-t border-zinc-900">
+                       <div className="gap-y-2.5 pt-4 border-t border-zinc-900">
                          <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest block font-sans">Primary Benefits</span>
-                         <div className="bg-emerald-500/5 rounded-2xl p-4 border border-emerald-500/10 text-[14px] text-zinc-300 leading-relaxed space-y-2">
+                         <div className="bg-emerald-500/5 rounded-2xl p-4 border border-emerald-500/10 text-[14px] text-zinc-300 leading-relaxed gap-y-2">
                            {parsedProduct.benefits.map((benefit, idx) => (
                              <div key={idx} className="flex items-start gap-2.5">
                                <span className="text-emerald-400 shrink-0 font-bold font-sans">✓</span>
@@ -1265,7 +1175,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                      {parsedProduct.thingsToKnow && (
                        <div className="bg-amber-500/5 border border-amber-500/10 rounded-xl p-3.5 col-span-2">
                          <span className="text-[11px] font-bold text-amber-500 uppercase tracking-widest block mb-1 flex items-center gap-1.5">
-                           <AlertOctagon className="w-3.5 h-3.5" />
+                           <AlertOctagon className="size-3.5" />
                            Honest Heads-up / Things to Know
                          </span>
                          <p className="text-[12.5px] text-zinc-300 leading-relaxed font-sans mt-1">{parsedProduct.thingsToKnow}</p>
@@ -1313,7 +1223,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-[60] bg-black/60 backdrop-blur-sm pointer-events-auto"
+            className="absolute inset-0 z-[60] bg-[#0c0c0e]/60 backdrop-blur-sm pointer-events-auto"
             onClick={(e) => { e.stopPropagation(); setShowVerifiedInfo(false); }}
           >
             <motion.div
@@ -1326,20 +1236,20 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
             >
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center text-gold">
-                  <BadgeCheck className="w-6 h-6 mr-2" strokeWidth={2.5} />
+                  <BadgeCheck className="size-6 mr-2" strokeWidth={2.5} />
                   <h3 className="text-xl font-bold text-white tracking-tight">Verified Hands-On</h3>
                 </div>
-                <button 
+                <button type="button" aria-label="button"  
                   onClick={() => setShowVerifiedInfo(false)}
                   className="p-1.5 text-zinc-400 hover:text-white transition-colors bg-zinc-800 rounded-full"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="size-5" />
                 </button>
               </div>
               <p className="text-zinc-300 leading-relaxed mb-6">
                 This creator uploaded a real-life photo to prove they actually use this product. You can view their photo in the product details.
               </p>
-              <button
+              <button type="button" aria-label="button" 
                 onClick={() => setShowVerifiedInfo(false)}
                 className="w-full bg-[#4A63F3] hover:bg-blue-600 text-white font-bold py-3.5 px-4 rounded-xl transition-colors shadow-lg active:scale-[0.98]"
               >

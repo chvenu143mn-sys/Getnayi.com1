@@ -6,7 +6,7 @@ import { useTheme } from '../context/ThemeContext';
 import { Profile, Video } from '../types';
 import { parseVideoProduct } from '../utils/videoUtils';
 import { Loader2, Settings, Play, Edit3, X, ImagePlus, Instagram, Link2, Trash2, Moon, SunMoon, Lock, Bell, Shield, Palette, HelpCircle, ChevronRight, Bookmark, TrendingUp } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { m as motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { GuestGate } from '../components/GuestGate';
 
@@ -15,10 +15,6 @@ export default function ProfilePage() {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
-  if (!user) {
-    return <GuestGate type="profile" />;
-  }
-  
   const [profile, setProfile] = useState<Profile | null>(null);
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
@@ -140,9 +136,15 @@ export default function ProfilePage() {
           reader.onerror = (error) => reject(error);
         });
 
+        const sessionData = await supabase.auth.getSession();
+        const token = sessionData.data.session?.access_token;
+        
         const res = await fetch('/api/bunny/upload-image', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
           body: JSON.stringify({
             imageBase64: base64,
             filename: avatarObj.file.name
@@ -160,16 +162,27 @@ export default function ProfilePage() {
         }
       }
 
-      const { error } = await supabase
-        .from('profiles')
-        .update({ 
+      const sessionData = await supabase.auth.getSession();
+      const token = sessionData.data.session?.access_token;
+        
+      const res = await fetch('/api/profiles/me', {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
           bio: DOMPurify.sanitize(editBio),
           instagram: DOMPurify.sanitize(editInstagram),
           tiktok: DOMPurify.sanitize(editTiktok),
           avatar_url: finalAvatarUrl
         })
-        .eq('id', user.id);
-      if (error) throw error;
+      });
+      
+      if (!res.ok) {
+         const err = await res.json();
+         throw new Error(err.error || 'Failed to update profile');
+      }
       setProfile(prev => prev ? { 
         ...prev, 
         bio: editBio, 
@@ -183,7 +196,7 @@ export default function ProfilePage() {
       console.error('Error saving profile:', err);
       try {
         // Try parsing assuming the error text might contain a JSON wrapped inside
-        if (err.message.includes('{"error"')) {
+        if (err?.message && err.message.includes('{"error"')) {
           const m = err.message.match(/({.*})/);
           if (m && m[1]) {
             const parsed = JSON.parse(m[1]);
@@ -237,23 +250,23 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-[calc(100dvh-64px-env(safe-area-inset-bottom))] w-full bg-black text-white font-sans">
+      <div className="min-h-[calc(100dvh-64px-env(safe-area-inset-bottom))] w-full bg-[#0c0c0e] text-white font-sans">
         {/* Header Skeleton */}
-        <header className="sticky top-0 z-10 flex items-center justify-between p-4 bg-black/80 backdrop-blur-xl border-b border-white/5">
+        <header className="sticky top-0 z-10 flex items-center justify-between p-4 bg-[#0c0c0e]/80 backdrop-blur-xl border-b border-white/5">
           <div className="w-32 h-6 bg-zinc-900 rounded-md animate-pulse"></div>
-          <div className="w-8 h-8 bg-zinc-900 rounded-full animate-pulse"></div>
+          <div className="size-8 bg-zinc-900 rounded-full animate-pulse"></div>
         </header>
 
         {/* Profile Info Skeleton */}
         <div className="px-4 py-8 flex flex-col items-center border-b border-white/5">
-          <div className="w-24 h-24 rounded-full bg-zinc-900 animate-pulse border border-white/5 mb-5" />
+          <div className="size-24 rounded-full bg-zinc-900 animate-pulse border border-white/5 mb-5" />
           <div className="w-40 h-6 bg-zinc-900 rounded-md animate-pulse mb-4"></div>
           <div className="w-64 h-4 bg-zinc-900 rounded-md animate-pulse mb-8"></div>
           
-          <div className="flex space-x-12 text-center text-sm mb-8 w-full justify-center">
-            <div className="space-y-2"><div className="w-8 h-6 bg-zinc-900 rounded mx-auto animate-pulse"></div><div className="w-12 h-4 bg-zinc-900 rounded animate-pulse"></div></div>
-            <div className="space-y-2"><div className="w-8 h-6 bg-zinc-900 rounded mx-auto animate-pulse"></div><div className="w-12 h-4 bg-zinc-900 rounded animate-pulse"></div></div>
-            <div className="space-y-2"><div className="w-8 h-6 bg-zinc-900 rounded mx-auto animate-pulse"></div><div className="w-12 h-4 bg-zinc-900 rounded animate-pulse"></div></div>
+          <div className="flex gap-x-12 text-center text-sm mb-8 w-full justify-center">
+            <div className="gap-y-2"><div className="w-8 h-6 bg-zinc-900 rounded mx-auto animate-pulse"></div><div className="w-12 h-4 bg-zinc-900 rounded animate-pulse"></div></div>
+            <div className="gap-y-2"><div className="w-8 h-6 bg-zinc-900 rounded mx-auto animate-pulse"></div><div className="w-12 h-4 bg-zinc-900 rounded animate-pulse"></div></div>
+            <div className="gap-y-2"><div className="w-8 h-6 bg-zinc-900 rounded mx-auto animate-pulse"></div><div className="w-12 h-4 bg-zinc-900 rounded animate-pulse"></div></div>
           </div>
         </div>
 
@@ -267,22 +280,26 @@ export default function ProfilePage() {
     );
   }
 
+  if (!user) {
+    return <GuestGate type="profile" />;
+  }
+
   return (
     <div className="flex-1 w-full bg-[#0c0c0e] text-white font-sans selection:bg-white/20 h-full flex flex-col">
       {/* Header */}
       <header className="sticky top-0 z-20 flex items-center justify-between px-6 py-4 pt-6 bg-[#0c0c0e]">
-        <button onClick={() => navigate(-1)} className="p-2 text-white/90 hover:text-white transition-colors -ml-3">
+        <button type="button" aria-label="button"  onClick={() => navigate(-1)} className="p-2 text-white/90 hover:text-white transition-colors -ml-3">
            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
         </button>
-        <div className="flex items-center space-x-2.5 -mr-3">
-          <button 
+        <div className="flex items-center gap-x-2.5 -mr-3">
+          <button type="button" aria-label="button"  
             onClick={() => navigate('/saved')} 
             className="p-2.5 text-white/90 hover:text-white hover:bg-white/5 active:scale-95 rounded-full transition-all"
             title="Saved items"
           >
-             <Bookmark className="w-5.5 h-5.5" strokeWidth={2.2} />
+             <Bookmark className="size-5.5" strokeWidth={2.2} />
           </button>
-          <button 
+          <button type="button" aria-label="button"  
             onClick={() => setIsSettingsModalOpen(true)} 
             className="p-2.5 text-white/90 hover:text-white hover:bg-white/5 active:scale-95 rounded-full transition-all"
           >
@@ -299,12 +316,12 @@ export default function ProfilePage() {
                initial={{ scale: 0.9, opacity: 0 }}
                animate={{ scale: 1, opacity: 1 }}
                transition={{ duration: 0.4, type: "spring", stiffness: 200, damping: 20 }}
-               className="w-[84px] h-[84px] rounded-full overflow-hidden shrink-0 border-[1.5px] border-white/20"
+               className="size-[84px] rounded-full overflow-hidden shrink-0 border-[1.5px] border-white/20"
             >
               {profile?.avatar_url ? (
-                <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                <img src={profile.avatar_url} alt="Profile" className="size-full object-cover" />
               ) : (
-                <div className="w-full h-full bg-zinc-800 flex items-center justify-center text-white/40 font-serif italic text-2xl font-bold">
+                <div className="size-full bg-zinc-800 flex items-center justify-center text-white/40 font-serif italic text-2xl font-bold">
                   {profile?.username?.charAt(0).toLowerCase() || 'u'}
                 </div>
               )}
@@ -318,7 +335,7 @@ export default function ProfilePage() {
                  className="text-[20px] font-sans font-bold tracking-tight mb-0.5 text-white flex items-center"
                >
                  {profile?.username || 'Glow With Sia'}
-                 <svg className="w-[18px] h-[18px] ml-1.5 text-[#3897f0]" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                 <svg className="size-[18px] ml-1.5 text-[#3897f0]" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
                </motion.h2>
                <motion.p className="text-white/70 text-[14px] font-medium tracking-wide">
                  @{profile?.username?.toLowerCase() || 'glow.with.sia'}
@@ -355,21 +372,21 @@ export default function ProfilePage() {
         </motion.div>
 
         {/* Social Icons */}
-        <div className="flex items-center space-x-3 mb-6 w-full">
+        <div className="flex items-center gap-x-3 mb-6 w-full">
            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-white ml-2"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/></svg>
            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-white ml-2"><path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17"/><path d="m10 15 5-3-5-3z"/></svg>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex w-full space-x-3 mb-4">
-           <button 
+        <div className="flex w-full gap-x-3 mb-4">
+           <button type="button" aria-label="button"  
              onClick={() => setIsEditModalOpen(true)}
              className="flex-1 bg-[#ef2950] hover:bg-[#ff3b61] active:scale-[0.98] text-white font-bold py-3.5 rounded-[12px] transition-all text-[15px] shadow-[0_4px_14px_rgba(239,41,80,0.3)] tracking-wide"
            >
              Edit Profile
            </button>
-           <button 
+           <button type="button" aria-label="button"  
              onClick={() => {
                navigator.clipboard.writeText(window.location.href);
                alert('Profile URL copied to clipboard!');
@@ -381,59 +398,59 @@ export default function ProfilePage() {
         </div>
 
         {/* Dashboard Actions */}
-        <div className="flex w-full space-x-3 mb-8">
-          <button 
+        <div className="flex w-full gap-x-3 mb-8">
+          <button type="button" aria-label="button"  
             onClick={() => navigate('/creator-dashboard')}
-            className="flex-1 bg-[#1c1c1e] hover:bg-white/10 active:scale-[0.98] text-white font-medium py-3 rounded-[12px] transition-all border border-white/5 flex flex-col items-center justify-center space-y-1 tracking-wide group"
+            className="flex-1 bg-[#1c1c1e] hover:bg-white/10 active:scale-[0.98] text-white font-medium py-3 rounded-[12px] transition-all border border-white/5 flex flex-col items-center justify-center gap-y-1 tracking-wide group"
           >
-            <TrendingUp className="w-[18px] h-[18px] text-[#ef2950] group-hover:scale-110 transition-transform" />
+            <TrendingUp className="size-[18px] text-[#ef2950] group-hover:scale-110 transition-transform" />
             <span className="text-[12px] text-zinc-300">Creator Dashboard</span>
           </button>
           
           {profile?.is_admin && (
-             <button 
+             <button type="button" aria-label="button"  
               onClick={() => navigate('/admin')}
-              className="flex-1 bg-[#1c1c1e] hover:bg-white/10 active:scale-[0.98] text-white font-medium py-3 rounded-[12px] transition-all border border-white/5 flex flex-col items-center justify-center space-y-1 tracking-wide group"
+              className="flex-1 bg-[#1c1c1e] hover:bg-white/10 active:scale-[0.98] text-white font-medium py-3 rounded-[12px] transition-all border border-white/5 flex flex-col items-center justify-center gap-y-1 tracking-wide group"
             >
-              <Shield className="w-[18px] h-[18px] text-[#ef2950] group-hover:scale-110 transition-transform" />
+              <Shield className="size-[18px] text-[#ef2950] group-hover:scale-110 transition-transform" />
               <span className="text-[12px] text-zinc-300">Admin Panel</span>
             </button>
           )}
         </div>
 
         {/* Circular Highlights (Mock) */}
-        <div className="flex overflow-x-auto w-[100vw] no-scrollbar space-x-5 items-start justify-start select-none -mx-5 px-5 pb-2">
-           <div className="flex flex-col items-center space-y-2 shrink-0 cursor-pointer">
-             <div className="w-[68px] h-[68px] rounded-full border-[1.5px] border-white/50 p-1 bg-gradient-to-tr from-amber-200 to-amber-700">
-               <div className="w-full h-full rounded-full bg-[#1c1c1e] overflow-hidden">
-                 <img src="https://images.unsplash.com/photo-1556228578-0d85b1a4d571?q=80&w=200&auto=format&fit=crop" className="w-full h-full object-cover opacity-80" />
+        <div className="flex overflow-x-auto w-[100vw] no-scrollbar gap-x-5 items-start justify-start select-none -mx-5 px-5 pb-2">
+           <div className="flex flex-col items-center gap-y-2 shrink-0 cursor-pointer">
+             <div className="size-[68px] rounded-full border-[1.5px] border-white/50 p-1 bg-gradient-to-tr from-amber-200 to-amber-700">
+               <div className="size-full rounded-full bg-[#1c1c1e] overflow-hidden">
+                 <img src="https://images.unsplash.com/photo-1556228578-0d85b1a4d571?q=80&w=200&auto=format&fit=crop" className="size-full object-cover opacity-80"  alt="" />
                </div>
              </div>
              <span className="text-[13px] font-medium text-white/90 font-sans tracking-wide">Skincare</span>
            </div>
            
-           <div className="flex flex-col items-center space-y-2 shrink-0 cursor-pointer">
-             <div className="w-[68px] h-[68px] rounded-full border-[1.5px] border-white/50 p-1 bg-gradient-to-tr from-purple-400 to-fuchsia-700">
-               <div className="w-full h-full rounded-full bg-[#1c1c1e] overflow-hidden">
-                 <img src="https://images.unsplash.com/photo-1620916566398-39f1143ab7be?q=80&w=200&auto=format&fit=crop" className="w-full h-full object-cover opacity-80" />
+           <div className="flex flex-col items-center gap-y-2 shrink-0 cursor-pointer">
+             <div className="size-[68px] rounded-full border-[1.5px] border-white/50 p-1 bg-gradient-to-tr from-purple-400 to-fuchsia-700">
+               <div className="size-full rounded-full bg-[#1c1c1e] overflow-hidden">
+                 <img src="https://images.unsplash.com/photo-1620916566398-39f1143ab7be?q=80&w=200&auto=format&fit=crop" className="size-full object-cover opacity-80"  alt="" />
                </div>
              </div>
              <span className="text-[13px] font-medium text-white/90 font-sans tracking-wide">Favorites</span>
            </div>
 
-           <div className="flex flex-col items-center space-y-2 shrink-0 cursor-pointer">
-             <div className="w-[68px] h-[68px] rounded-full border-[1.5px] border-white/50 p-1 bg-gradient-to-tr from-red-400 to-pink-700">
-               <div className="w-full h-full rounded-full bg-[#1c1c1e] overflow-hidden">
-                 <img src="https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?q=80&w=200&auto=format&fit=crop" className="w-full h-full object-cover opacity-80" />
+           <div className="flex flex-col items-center gap-y-2 shrink-0 cursor-pointer">
+             <div className="size-[68px] rounded-full border-[1.5px] border-white/50 p-1 bg-gradient-to-tr from-red-400 to-pink-700">
+               <div className="size-full rounded-full bg-[#1c1c1e] overflow-hidden">
+                 <img src="https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?q=80&w=200&auto=format&fit=crop" className="size-full object-cover opacity-80"  alt="" />
                </div>
              </div>
              <span className="text-[13px] font-medium text-white/90 font-sans tracking-wide">Haircare</span>
            </div>
 
-           <div className="flex flex-col items-center space-y-2 shrink-0 cursor-pointer">
-             <div className="w-[68px] h-[68px] rounded-full border-[1.5px] border-white/50 p-1 bg-gradient-to-tr from-amber-200 to-yellow-600">
-               <div className="w-full h-full rounded-full bg-[#1c1c1e] overflow-hidden">
-                 <img src="https://images.unsplash.com/photo-1512413914594-82ee17e4f3a5?q=80&w=200&auto=format&fit=crop" className="w-full h-full object-cover opacity-80" />
+           <div className="flex flex-col items-center gap-y-2 shrink-0 cursor-pointer">
+             <div className="size-[68px] rounded-full border-[1.5px] border-white/50 p-1 bg-gradient-to-tr from-amber-200 to-yellow-600">
+               <div className="size-full rounded-full bg-[#1c1c1e] overflow-hidden">
+                 <img src="https://images.unsplash.com/photo-1512413914594-82ee17e4f3a5?q=80&w=200&auto=format&fit=crop" className="size-full object-cover opacity-80"  alt="" />
                </div>
              </div>
              <span className="text-[13px] font-medium text-white/90 font-sans tracking-wide">Q&A</span>
@@ -454,21 +471,21 @@ export default function ProfilePage() {
                return (
                  <div key={video.id} className="aspect-[3/4] bg-zinc-900 overflow-hidden relative rounded-xl border border-white/5 group cursor-pointer" onClick={() => navigate(`/video/${video.id}`)}>
                    {video.thumbnail_url || video.main_product_image_url ? (
-                     <img src={video.thumbnail_url || video.main_product_image_url} alt="Video thumbnail" className="w-full h-full object-cover" />
+                     <img src={video.thumbnail_url || video.main_product_image_url} alt="Video thumbnail" className="size-full object-cover" />
                    ) : (
-                     <div className="w-full h-full flex items-center justify-center bg-zinc-800 text-zinc-600">No Image</div>
+                     <div className="size-full flex items-center justify-center bg-zinc-800 text-zinc-600">No Image</div>
                    )}
                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80 pointer-events-none" />
                    
                    {parsedProduct.productPrice && (
-                     <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-black/60 backdrop-blur-sm text-[10.5px] font-bold text-white rounded shadow-sm border border-white/5">
+                     <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-[#0c0c0e]/60 backdrop-blur-sm text-[10.5px] font-bold text-white rounded shadow-sm border border-white/5">
                        ₹{parsedProduct.productPrice.toLocaleString('en-IN')}
                      </div>
                    )}
 
                    <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between pointer-events-none">
                      <div className="flex items-center shadow-sm text-white font-bold">
-                       <Play className="w-3.5 h-3.5 fill-white text-white opacity-90 mr-1" />
+                       <Play className="size-3.5 fill-white text-white opacity-90 mr-1" />
                        <span className="text-white text-[12.5px] font-bold tracking-wide">{video.views > 999 ? (video.views/1000).toFixed(1) + 'K' : video.views}</span>
                      </div>
                      {parsedProduct.productName && (
@@ -477,11 +494,11 @@ export default function ProfilePage() {
                        </span>
                      )}
                    </div>
-                 <button 
+                 <button type="button" aria-label="button"  
                    onClick={(e) => handleDeleteVideoClick(e, video.id)} 
-                   className="absolute top-2 right-2 p-1.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
+                   className="absolute top-2 right-2 p-1.5 bg-[#0c0c0e]/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[#0c0c0e]/80"
                  >
-                   <Trash2 className="w-3.5 h-3.5" />
+                   <Trash2 className="size-3.5" />
                  </button>
                  {video.status === 'pending_review' && (
                     <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-yellow-500/80 text-white text-[10px] font-bold rounded">
@@ -502,7 +519,7 @@ export default function ProfilePage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0c0c0e]/80 backdrop-blur-xl"
             onClick={() => !isSaving && setIsEditModalOpen(false)}
           >
             <motion.div
@@ -513,31 +530,31 @@ export default function ProfilePage() {
               onClick={(e) => e.stopPropagation()}
               className="bg-zinc-950 border border-white/10 p-6 rounded-2xl w-full max-w-sm shadow-2xl relative"
             >
-              <button 
+              <button type="button" aria-label="button"  
                 onClick={() => setIsEditModalOpen(false)}
                 className="absolute top-5 right-5 text-zinc-500 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-full p-1.5"
                 disabled={isSaving}
               >
-                <X className="w-4 h-4" />
+                <X className="size-4" />
               </button>
 
               <h2 className="text-xl font-display font-semibold text-white mb-8">Update Profile</h2>
 
-              <form onSubmit={saveProfile} className="space-y-5">
+              <form onSubmit={saveProfile} className="gap-y-5">
                 <div className="flex justify-center mb-8">
                   <div 
-                    className="relative w-28 h-28 rounded-full border border-white/10 bg-zinc-900 flex items-center justify-center cursor-pointer group overflow-hidden shadow-xl"
+                    className="relative size-28 rounded-full border border-white/10 bg-zinc-900 flex items-center justify-center cursor-pointer group overflow-hidden shadow-xl"
                     onClick={() => fileInputRef.current?.click()}
                   >
                     {avatarObj?.preview ? (
-                      <img src={avatarObj.preview} alt="Avatar" className="w-full h-full object-cover" />
+                      <img src={avatarObj.preview} alt="Avatar" className="size-full object-cover" />
                     ) : profile?.avatar_url ? (
-                      <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                      <img src={profile.avatar_url} alt="Avatar" className="size-full object-cover" />
                     ) : (
-                      <ImagePlus className="w-8 h-8 text-zinc-600 group-hover:text-white transition-colors" strokeWidth={1.5} />
+                      <ImagePlus className="size-8 text-zinc-600 group-hover:text-white transition-colors" strokeWidth={1.5} />
                     )}
-                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <ImagePlus className="w-6 h-6 text-white" />
+                    <div className="absolute inset-0 bg-[#0c0c0e]/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <ImagePlus className="size-6 text-white" />
                     </div>
                   </div>
                   <input 
@@ -564,7 +581,7 @@ export default function ProfilePage() {
 
                 <div>
                   <div className="flex items-center bg-zinc-900 rounded-xl border border-white/5 focus-within:border-white/30 px-4 transition-colors">
-                    <Instagram className="w-4 h-4 text-zinc-500 mr-3" strokeWidth={1.5} />
+                    <Instagram className="size-4 text-zinc-500 mr-3" strokeWidth={1.5} />
                     <input
                       type="text"
                       value={editInstagram}
@@ -577,7 +594,7 @@ export default function ProfilePage() {
 
                 <div>
                   <div className="flex items-center bg-zinc-900 rounded-xl border border-white/5 focus-within:border-white/30 px-4 transition-colors">
-                    <Link2 className="w-4 h-4 text-zinc-500 mr-3" strokeWidth={1.5} />
+                    <Link2 className="size-4 text-zinc-500 mr-3" strokeWidth={1.5} />
                     <input
                       type="text"
                       value={editTiktok}
@@ -590,18 +607,18 @@ export default function ProfilePage() {
 
                 {editError && (
                   <div className="p-3 bg-red-400/10 border border-red-400/20 text-red-400 text-xs font-medium rounded-xl flex items-center">
-                    <div className="w-1.5 h-1.5 rounded-full bg-red-400 mr-2 shrink-0" />
+                    <div className="size-1.5 rounded-full bg-red-400 mr-2 shrink-0" />
                     {editError}
                   </div>
                 )}
 
                 <div className="pt-2">
-                  <button
+                  <button aria-label="button" 
                     type="submit"
                     disabled={isSaving}
                     className="w-full bg-white text-black font-semibold font-sans py-3.5 flex items-center justify-center rounded-xl hover:bg-zinc-200 transition-all active:scale-[0.98] disabled:opacity-50 shadow-[0_0_20px_rgba(255,255,255,0.1)]"
                   >
-                    {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : "Save Profile"}
+                    {isSaving ? <Loader2 className="size-5 animate-spin" /> : "Save Profile"}
                   </button>
                 </div>
               </form>
@@ -617,7 +634,7 @@ export default function ProfilePage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex flex-col justify-end p-2 sm:p-4 bg-black/80 backdrop-blur-sm"
+            className="fixed inset-0 z-[60] flex flex-col justify-end p-2 sm:p-4 bg-[#0c0c0e]/80 backdrop-blur-sm"
             onClick={() => setIsSettingsModalOpen(false)}
           >
             <motion.div
@@ -633,13 +650,13 @@ export default function ProfilePage() {
                   <h2 className="text-[17px] font-sans font-medium tracking-wide text-white">Settings</h2>
                 </div>
                 
-                <div className="space-y-3 mb-auto">
-                  <button onClick={() => alert('Account module coming soon')} className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5">
-                    <div className="w-[42px] h-[42px] rounded-full overflow-hidden bg-zinc-800 shrink-0 mr-4 border border-white/10">
+                <div className="gap-y-3 mb-auto">
+                  <button type="button" aria-label="button"  onClick={() => alert('Account module coming soon')} className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5">
+                    <div className="size-[42px] rounded-full overflow-hidden bg-zinc-800 shrink-0 mr-4 border border-white/10">
                       {profile?.avatar_url ? (
-                         <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                         <img src={profile.avatar_url} alt="Profile" className="size-full object-cover" />
                       ) : (
-                         <div className="w-full h-full bg-zinc-800 flex items-center justify-center text-white/40 font-serif italic text-lg font-bold">
+                         <div className="size-full bg-zinc-800 flex items-center justify-center text-white/40 font-serif italic text-lg font-bold">
                            {profile?.username?.charAt(0).toLowerCase() || 'u'}
                          </div>
                       )}
@@ -648,86 +665,86 @@ export default function ProfilePage() {
                        <h4 className="text-[15px] font-medium text-white tracking-wide mb-0.5">Account</h4>
                        <p className="text-[13px] text-zinc-400 tracking-wide">Edit profile, username, email</p>
                     </div>
-                    <ChevronRight className="w-[18px] h-[18px] text-zinc-600 group-hover:text-white/70 transition-colors" />
+                    <ChevronRight className="size-[18px] text-zinc-600 group-hover:text-white/70 transition-colors" />
                   </button>
 
-                  <button 
+                  <button type="button" aria-label="button"  
                     onClick={() => {
                       setIsSettingsModalOpen(false);
                       navigate('/saved');
                     }} 
                     className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5"
                   >
-                    <div className="w-[42px] h-[42px] rounded-full bg-[#1c1c1e] shrink-0 mr-4 flex items-center justify-center border border-white/5 group-hover:bg-zinc-800 transition-colors">
-                      <Bookmark className="w-5 h-5 text-[#ef2950]" strokeWidth={2.0} />
+                    <div className="size-[42px] rounded-full bg-[#1c1c1e] shrink-0 mr-4 flex items-center justify-center border border-white/5 group-hover:bg-zinc-800 transition-colors">
+                      <Bookmark className="size-5 text-[#ef2950]" strokeWidth={2.0} />
                     </div>
                     <div className="flex-1 mr-2">
                        <h4 className="text-[15px] font-medium text-white tracking-wide mb-0.5">Saved Items</h4>
                        <p className="text-[13px] text-zinc-400 tracking-wide">My bookmarked videos, products & collections</p>
                     </div>
-                    <ChevronRight className="w-[18px] h-[18px] text-zinc-600 group-hover:text-white/70 transition-colors" />
+                    <ChevronRight className="size-[18px] text-zinc-600 group-hover:text-white/70 transition-colors" />
                   </button>
 
-                  <button onClick={() => alert('Privacy module coming soon')} className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5">
-                    <div className="w-[42px] h-[42px] rounded-full bg-[#1c1c1e] shrink-0 mr-4 flex items-center justify-center border border-white/5 group-hover:bg-zinc-800 transition-colors">
-                      <Lock className="w-5 h-5 text-zinc-400" strokeWidth={1.5} />
+                  <button type="button" aria-label="button"  onClick={() => alert('Privacy module coming soon')} className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5">
+                    <div className="size-[42px] rounded-full bg-[#1c1c1e] shrink-0 mr-4 flex items-center justify-center border border-white/5 group-hover:bg-zinc-800 transition-colors">
+                      <Lock className="size-5 text-zinc-400" strokeWidth={1.5} />
                     </div>
                     <div className="flex-1 mr-2">
                        <h4 className="text-[15px] font-medium text-white tracking-wide mb-0.5">Privacy</h4>
                        <p className="text-[13px] text-zinc-400 tracking-wide">Security, hidden accounts</p>
                     </div>
-                    <ChevronRight className="w-[18px] h-[18px] text-zinc-600 group-hover:text-white/70 transition-colors" />
+                    <ChevronRight className="size-[18px] text-zinc-600 group-hover:text-white/70 transition-colors" />
                   </button>
 
-                  <button onClick={() => alert('Notifications module coming soon')} className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5">
-                    <div className="w-[42px] h-[42px] rounded-full bg-[#1c1c1e] shrink-0 mr-4 flex items-center justify-center border border-white/5 group-hover:bg-zinc-800 transition-colors">
-                      <Bell className="w-5 h-5 text-zinc-400" strokeWidth={1.5} />
+                  <button type="button" aria-label="button"  onClick={() => alert('Notifications module coming soon')} className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5">
+                    <div className="size-[42px] rounded-full bg-[#1c1c1e] shrink-0 mr-4 flex items-center justify-center border border-white/5 group-hover:bg-zinc-800 transition-colors">
+                      <Bell className="size-5 text-zinc-400" strokeWidth={1.5} />
                     </div>
                     <div className="flex-1 mr-2">
                        <h4 className="text-[15px] font-medium text-white tracking-wide mb-0.5">Notifications</h4>
                        <p className="text-[13px] text-zinc-400 tracking-wide">Push, email preferences</p>
                     </div>
-                    <ChevronRight className="w-[18px] h-[18px] text-zinc-600 group-hover:text-white/70 transition-colors" />
+                    <ChevronRight className="size-[18px] text-zinc-600 group-hover:text-white/70 transition-colors" />
                   </button>
 
-                  <button onClick={() => {
+                  <button type="button" aria-label="button"  onClick={() => {
                         setIsSettingsModalOpen(false);
                         navigate('/creator-verification');
                     }} className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5">
-                    <div className="w-[42px] h-[42px] rounded-full bg-[#1c1c1e] shrink-0 mr-4 flex items-center justify-center border border-white/5 group-hover:bg-zinc-800 transition-colors">
-                      <Shield className="w-5 h-5 text-zinc-500" strokeWidth={1.5} />
+                    <div className="size-[42px] rounded-full bg-[#1c1c1e] shrink-0 mr-4 flex items-center justify-center border border-white/5 group-hover:bg-zinc-800 transition-colors">
+                      <Shield className="size-5 text-zinc-500" strokeWidth={1.5} />
                     </div>
                     <div className="flex-1 mr-2">
                        <h4 className="text-[15px] font-medium text-white tracking-wide mb-0.5">Creator Verification</h4>
                        <p className="text-[13px] text-zinc-400 tracking-wide">Apply for verification badge</p>
                     </div>
-                    <ChevronRight className="w-[18px] h-[18px] text-zinc-600 group-hover:text-white/70 transition-colors" />
+                    <ChevronRight className="size-[18px] text-zinc-600 group-hover:text-white/70 transition-colors" />
                   </button>
 
-                  <button onClick={toggleTheme} className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5">
-                    <div className="w-[42px] h-[42px] rounded-full bg-[#1c1c1e] shrink-0 mr-4 flex items-center justify-center border border-white/5 group-hover:bg-zinc-800 transition-colors">
-                      <Palette className="w-5 h-5 text-zinc-400" strokeWidth={1.5} />
+                  <button type="button" aria-label="button"  onClick={toggleTheme} className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5">
+                    <div className="size-[42px] rounded-full bg-[#1c1c1e] shrink-0 mr-4 flex items-center justify-center border border-white/5 group-hover:bg-zinc-800 transition-colors">
+                      <Palette className="size-5 text-zinc-400" strokeWidth={1.5} />
                     </div>
                     <div className="flex-1 mr-2">
                        <h4 className="text-[15px] font-medium text-white tracking-wide mb-0.5">Theme</h4>
                        <p className="text-[13px] text-zinc-400 tracking-wide">Dark</p>
                     </div>
-                    <ChevronRight className="w-[18px] h-[18px] text-zinc-600 group-hover:text-white/70 transition-colors" />
+                    <ChevronRight className="size-[18px] text-zinc-600 group-hover:text-white/70 transition-colors" />
                   </button>
 
-                  <button onClick={() => alert('Help & Support module coming soon')} className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5">
-                    <div className="w-[42px] h-[42px] rounded-full bg-[#1c1c1e] shrink-0 mr-4 flex items-center justify-center border border-white/5 group-hover:bg-zinc-800 transition-colors">
-                      <HelpCircle className="w-5 h-5 text-zinc-400" strokeWidth={1.5} />
+                  <button type="button" aria-label="button"  onClick={() => alert('Help & Support module coming soon')} className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5">
+                    <div className="size-[42px] rounded-full bg-[#1c1c1e] shrink-0 mr-4 flex items-center justify-center border border-white/5 group-hover:bg-zinc-800 transition-colors">
+                      <HelpCircle className="size-5 text-zinc-400" strokeWidth={1.5} />
                     </div>
                     <div className="flex-1 mr-2">
                        <h4 className="text-[15px] font-medium text-white tracking-wide mb-0.5">Help & Support</h4>
                        <p className="text-[13px] text-zinc-400 tracking-wide">FAQs, reporting, contact us</p>
                     </div>
-                    <ChevronRight className="w-[18px] h-[18px] text-zinc-600 group-hover:text-white/70 transition-colors" />
+                    <ChevronRight className="size-[18px] text-zinc-600 group-hover:text-white/70 transition-colors" />
                   </button>
                 </div>
                 
-                <button
+                <button type="button" aria-label="button" 
                   onClick={handleSignOut}
                   className="w-full mt-6 py-4 bg-transparent border border-red-500/30 text-red-500 font-medium tracking-wide rounded-[20px] flex items-center justify-center hover:bg-red-500/5 transition-all active:scale-[0.98]"
                 >
@@ -746,7 +763,7 @@ export default function ProfilePage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#0c0c0e]/80 backdrop-blur-md"
             onClick={() => !isDeleting && setVideoToDelete(null)}
           >
             <motion.div
@@ -761,20 +778,20 @@ export default function ProfilePage() {
                 Are you sure? This can't be undone.
               </p>
               
-              <div className="flex space-x-3">
-                <button
+              <div className="flex gap-x-3">
+                <button type="button" aria-label="button" 
                   onClick={() => setVideoToDelete(null)}
                   disabled={isDeleting}
                   className="flex-1 py-3.5 bg-zinc-900 border border-white/5 hover:bg-zinc-800 text-white font-semibold font-sans text-sm rounded-xl transition-all disabled:opacity-50 active:scale-[0.98]"
                 >
                   Cancel
                 </button>
-                <button
+                <button type="button" aria-label="button" 
                   onClick={confirmDeleteVideo}
                   disabled={isDeleting}
                   className="flex-1 py-3.5 bg-red-600 hover:bg-red-500 text-white font-semibold font-sans text-sm rounded-xl transition-all flex items-center justify-center disabled:opacity-50 active:scale-[0.98] shadow-lg shadow-red-500/20"
                 >
-                  {isDeleting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Delete'}
+                  {isDeleting ? <Loader2 className="size-5 animate-spin" /> : 'Delete'}
                 </button>
               </div>
             </motion.div>

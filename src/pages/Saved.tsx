@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { m as motion, AnimatePresence } from 'motion/react';
 import { Plus, Loader2, Bookmark, Play, ShoppingBag, ExternalLink, ChevronRight, Video as VideoIcon, FolderPlus, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -48,7 +48,8 @@ export default function Saved() {
               id,
               username,
               avatar_url,
-              bio
+              bio,
+              is_brand
             )
           )
         `)
@@ -83,7 +84,7 @@ export default function Saved() {
       if (followsData && followsData.length > 0) {
         const creatorIds = followsData.map(f => f.following_id);
         const { data: profiles, error: errP } = await supabase
-          .from('profiles')
+          .from('public_profiles')
           .select('*')
           .in('id', creatorIds);
 
@@ -165,19 +166,19 @@ export default function Saved() {
   };
 
   return (
-    <div className="flex-1 w-full bg-[#0c0c0e] text-white font-sans flex flex-col h-full bg-black">
+    <div className="flex-1 w-full bg-[#0c0c0e] text-white font-sans flex flex-col h-full bg-[#0c0c0e]">
       {/* Header Tabs */}
       <div className="sticky top-0 z-20 bg-[#0c0c0e] pt-6 pb-1">
         <div className="flex items-center px-4 mb-2">
-            <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-white/90 hover:text-white transition-colors">
+            <button type="button" aria-label="button"  onClick={() => navigate(-1)} className="p-2 -ml-2 text-white/90 hover:text-white transition-colors">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
             </button>
             <h2 className="text-[17px] font-semibold text-white ml-2 tracking-wide">Saved Items</h2>
         </div>
 
-        <div className="flex px-5 space-x-7 overflow-x-auto scrollbar-none pb-3 border-b border-white/5">
+        <div className="flex px-5 gap-x-7 overflow-x-auto scrollbar-none pb-3 border-b border-white/5">
           {tabs.map((tab) => (
-            <button
+            <button type="button" aria-label="button" 
                key={tab}
                onClick={() => setActiveTab(tab)}
                className={`relative pb-2 text-[15px] font-medium tracking-wide whitespace-nowrap transition-colors ${
@@ -200,8 +201,8 @@ export default function Saved() {
 
       <div className="flex-1 overflow-y-auto no-scrollbar pt-5 px-5">
         {loading ? (
-          <div className="py-20 flex flex-col items-center justify-center text-zinc-500 space-y-3">
-            <Loader2 className="w-8 h-8 animate-spin text-[#ef2950]" />
+          <div className="py-20 flex flex-col items-center justify-center text-zinc-500 gap-y-3">
+            <Loader2 className="size-8 animate-spin text-[#ef2950]" />
             <p className="text-sm font-medium">Loading saved items...</p>
           </div>
         ) : (
@@ -211,7 +212,7 @@ export default function Saved() {
               <div>
                 {products.length === 0 ? (
                   <div className="py-16 text-center text-zinc-500 flex flex-col items-center">
-                    <ShoppingBag className="w-12 h-12 text-zinc-700 mb-3" strokeWidth={1.5} />
+                    <ShoppingBag className="size-12 text-zinc-700 mb-3" strokeWidth={1.5} />
                     <p className="text-sm font-medium">No saved products yet.</p>
                     <p className="text-xs text-zinc-600 mt-1">Bookmark review videos to save their products.</p>
                   </div>
@@ -219,15 +220,15 @@ export default function Saved() {
                   <div className="grid grid-cols-2 gap-3.5 mb-6">
                     {products.map((product, idx) => (
                       <div key={`${product.id}-${idx}`} className="flex flex-col bg-[#151518] border border-white/5 rounded-2xl overflow-hidden shadow-lg group relative">
-                        <button 
+                        <button type="button" aria-label="button"  
                           onClick={(e) => { e.stopPropagation(); openCollectionModal(product.savedVideoId as string); }}
-                          className="absolute top-2 right-2 bg-black/60 p-1.5 rounded-full z-10 hover:bg-black/80 transition-colors"
+                          className="absolute top-2 right-2 bg-[#0c0c0e]/60 p-1.5 rounded-full z-10 hover:bg-[#0c0c0e]/80 transition-colors"
                         >
-                          <FolderPlus className="w-4 h-4 text-white" />
+                          <FolderPlus className="size-4 text-white" />
                         </button>
                         <div className="w-full aspect-square overflow-hidden bg-zinc-900 relative">
-                          <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <img src={product.image} alt={product.name} className="size-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                          <div className="absolute inset-0 bg-[#0c0c0e]/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                             <a 
                               href={product.url} 
                               target="_blank" 
@@ -235,7 +236,7 @@ export default function Saved() {
                               onClick={(e) => e.stopPropagation()}
                               className="p-2.5 bg-[#ef2950] text-white rounded-full hover:bg-[#ff3b61] active:scale-95 transition-all shadow-lg"
                             >
-                              <ExternalLink className="w-4 h-4" />
+                              <ExternalLink className="size-4" />
                             </a>
                           </div>
                         </div>
@@ -244,8 +245,8 @@ export default function Saved() {
                            <span className="text-[11px] font-medium text-zinc-500 mt-0.5">by @{product.creator.toLowerCase()}</span>
                            <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-white/5">
                              <span className="text-[12px] font-semibold text-[#ef2950] bg-[#ef2950]/10 px-2 py-0.5 rounded-md">{product.price}</span>
-                             <button onClick={() => navigate(`/video/${product.id}`)} className="text-[11px] text-zinc-400 hover:text-white flex items-center gap-0.5">
-                               Watch <ChevronRight className="w-3 h-3" />
+                             <button type="button" aria-label="button"  onClick={() => navigate(`/video/${product.id}`)} className="text-[11px] text-zinc-400 hover:text-white flex items-center gap-0.5">
+                               Watch <ChevronRight className="size-3" />
                              </button>
                            </div>
                         </div>
@@ -261,7 +262,7 @@ export default function Saved() {
               <div>
                 {savedVideos.length === 0 ? (
                   <div className="py-16 text-center text-zinc-500 flex flex-col items-center">
-                    <VideoIcon className="w-12 h-12 text-zinc-700 mb-3" strokeWidth={1.5} />
+                    <VideoIcon className="size-12 text-zinc-700 mb-3" strokeWidth={1.5} />
                     <p className="text-sm font-medium">No saved videos yet.</p>
                     <p className="text-xs text-zinc-600 mt-1">Videos you bookmark from the home feed will show here.</p>
                   </div>
@@ -273,20 +274,20 @@ export default function Saved() {
                         onClick={() => navigate(`/video/${item.video.id}`)}
                         className="aspect-[3/4] bg-zinc-900 overflow-hidden relative rounded-xl border border-white/5 group cursor-pointer"
                       >
-                        <button 
+                        <button type="button" aria-label="button"  
                           onClick={(e) => { e.stopPropagation(); openCollectionModal(item.id); }}
-                          className="absolute top-1 right-1 bg-black/60 p-1.5 rounded-full z-10 hover:bg-black/80 transition-colors"
+                          className="absolute top-1 right-1 bg-[#0c0c0e]/60 p-1.5 rounded-full z-10 hover:bg-[#0c0c0e]/80 transition-colors"
                         >
-                          <FolderPlus className="w-3.5 h-3.5 text-white" />
+                          <FolderPlus className="size-3.5 text-white" />
                         </button>
                         {item.video.thumbnail_url || item.video.main_product_image_url ? (
-                          <img src={item.video.thumbnail_url || item.video.main_product_image_url} alt="Video thumbnail" className="w-full h-full object-cover" />
+                          <img src={item.video.thumbnail_url || item.video.main_product_image_url} alt="Video thumbnail" className="size-full object-cover" />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-zinc-800 text-zinc-600">No Image</div>
+                          <div className="size-full flex items-center justify-center bg-zinc-800 text-zinc-600">No Image</div>
                         )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-85 pointer-events-none" />
                         <div className="absolute bottom-2 left-2 flex items-center shadow-sm">
-                          <Play className="w-3.5 h-3.5 fill-white text-white opacity-90 mr-1" />
+                          <Play className="size-3.5 fill-white text-white opacity-90 mr-1" />
                           <span className="text-white text-[12px] font-bold tracking-wide">
                             {item.video.views > 999 ? (item.video.views / 1000).toFixed(1) + 'K' : item.video.views || 0}
                           </span>
@@ -303,23 +304,23 @@ export default function Saved() {
               <div>
                 {followedCreators.length === 0 ? (
                   <div className="py-16 text-center text-zinc-500 flex flex-col items-center">
-                    <svg className="w-12 h-12 text-zinc-700 mb-3" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
+                    <svg className="size-12 text-zinc-700 mb-3" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
                     <p className="text-sm font-medium">No followed creators yet.</p>
                     <p className="text-xs text-zinc-600 mt-1">Creators you follow will appear here.</p>
                   </div>
                 ) : (
-                  <div className="flex flex-col space-y-3 mb-6">
+                  <div className="flex flex-col gap-y-3 mb-6">
                     {followedCreators.map((profile) => (
-                      <button 
+                      <button type="button" aria-label="button"  
                         key={profile.id} 
                         onClick={() => navigate(`/profile`)} 
                         className="w-full flex items-center p-4 bg-[#151518] hover:bg-white/5 rounded-2xl transition-all text-left border border-white/5 shadow-md"
                       >
-                        <div className="w-[50px] h-[50px] rounded-full overflow-hidden bg-zinc-850 shrink-0 mr-4 border border-white/10">
+                        <div className="size-[50px] rounded-full overflow-hidden bg-zinc-850 shrink-0 mr-4 border border-white/10">
                           {profile.avatar_url ? (
-                            <img src={profile.avatar_url} alt={profile.username} className="w-full h-full object-cover" />
+                            <img src={profile.avatar_url} alt={profile.username} className="size-full object-cover" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-white/40 bg-zinc-800 text-lg uppercase font-semibold">
+                            <div className="size-full flex items-center justify-center text-white/40 bg-zinc-800 text-lg uppercase font-semibold">
                               {profile.username?.charAt(0)}
                             </div>
                           )}
@@ -328,7 +329,7 @@ export default function Saved() {
                           <h4 className="font-semibold text-white text-[15px] tracking-tight">{profile.username}</h4>
                           {profile.bio && <p className="text-zinc-500 text-[13px] truncate whitespace-nowrap overflow-hidden pr-2 mt-0.5">{profile.bio}</p>}
                         </div>
-                        <ChevronRight className="w-5 h-5 text-zinc-600 group-hover:text-white transition-colors" />
+                        <ChevronRight className="size-5 text-zinc-600 group-hover:text-white transition-colors" />
                       </button>
                     ))}
                   </div>
@@ -348,10 +349,10 @@ export default function Saved() {
                     >
                       <div className="w-full aspect-[4/3] rounded-2xl overflow-hidden border border-white/5 shadow-md bg-zinc-900 border-b-0 rounded-b-none relative">
                         {collection.image_url ? (
-                          <img src={collection.image_url} alt={collection.name} className="w-full h-full object-cover" />
+                          <img src={collection.image_url} alt={collection.name} className="size-full object-cover" />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-[#151518] text-zinc-600">
-                             <Bookmark className="w-8 h-8 text-zinc-700" strokeWidth={1.5} />
+                          <div className="size-full flex items-center justify-center bg-[#151518] text-zinc-600">
+                             <Bookmark className="size-8 text-zinc-700" strokeWidth={1.5} />
                           </div>
                         )}
                       </div>
@@ -364,11 +365,11 @@ export default function Saved() {
                 </div>
 
                 {/* New Collection Button */}
-                <button 
+                <button type="button" aria-label="button"  
                   onClick={handleCreateCollection}
-                  className="w-full flex items-center justify-center space-x-2 bg-[#151518] border border-white/5 text-white/90 font-medium text-[15px] py-4 rounded-xl hover:bg-white/5 transition-all active:scale-[0.98] mb-8 shadow-sm"
+                  className="w-full flex items-center justify-center gap-x-2 bg-[#151518] border border-white/5 text-white/90 font-medium text-[15px] py-4 rounded-xl hover:bg-white/5 transition-all active:scale-[0.98] mb-8 shadow-sm"
                 >
-                  <Plus className="w-4 h-4 text-white/70" />
+                  <Plus className="size-4 text-white/70" />
                   <span>New Collection</span>
                 </button>
               </div>
@@ -384,7 +385,7 @@ export default function Saved() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-center items-end sm:items-center sm:p-4"
+            className="fixed inset-0 z-50 bg-[#0c0c0e]/60 backdrop-blur-sm flex justify-center items-end sm:items-center sm:p-4"
             onClick={() => setCollectionModalOpen(false)}
           >
             <motion.div
@@ -392,45 +393,45 @@ export default function Saved() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="bg-[#0c0c0e] w-full max-w-md rounded-t-3xl sm:rounded-3xl border border-white/10 px-6 py-6 pb-safe max-h-[85vh] overflow-hidden flex flex-col"
+              className="bg-[#0c0c0e] w-full max-w-md rounded-t-3xl sm:rounded-3xl border border-white/10 p-6 pb-safe max-h-[85vh] overflow-hidden flex flex-col"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4 mt-2">
                 <h3 className="text-xl font-bold text-white tracking-tight">Save to Collection</h3>
-                <button 
+                <button type="button" aria-label="button"  
                   onClick={() => setCollectionModalOpen(false)}
                   className="p-2 -mr-2 bg-white/5 rounded-full hover:bg-white/10"
                 >
-                  <X className="w-5 h-5 text-white" />
+                  <X className="size-5 text-white" />
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto no-scrollbar pb-6 space-y-3 mt-2">
-                <button
+              <div className="flex-1 overflow-y-auto no-scrollbar pb-6 gap-y-3 mt-2">
+                <button type="button" aria-label="button" 
                   onClick={() => {
                     handleCreateCollection();
                   }}
                   className="w-full flex items-center p-4 bg-white/5 hover:bg-white/10 rounded-2xl transition-colors border border-white/10 border-dashed"
                 >
-                  <div className="w-12 h-12 rounded-xl bg-[#ef2950]/20 flex items-center justify-center mr-4">
-                    <Plus className="w-6 h-6 text-[#ef2950]" />
+                  <div className="size-12 rounded-xl bg-[#ef2950]/20 flex items-center justify-center mr-4">
+                    <Plus className="size-6 text-[#ef2950]" />
                   </div>
                   <span className="font-semibold text-white/90">Create New Collection</span>
                 </button>
 
                 {collections.map(col => (
-                  <button
+                  <button type="button" aria-label="button" 
                     key={col.id}
                     onClick={() => handleAddToCollection(col.id)}
                     disabled={savingToCollection}
                     className="w-full flex items-center p-3 bg-[#151518] hover:bg-white/5 border border-white/5 rounded-2xl transition-colors disabled:opacity-50"
                   >
-                    <div className="w-14 h-14 rounded-xl overflow-hidden bg-zinc-900 border border-white/5 shrink-0">
+                    <div className="size-14 rounded-xl overflow-hidden bg-zinc-900 border border-white/5 shrink-0">
                       {col.image_url ? (
-                        <img src={col.image_url} alt={col.name} className="w-full h-full object-cover" />
+                        <img src={col.image_url} alt={col.name} className="size-full object-cover" />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Bookmark className="w-5 h-5 text-zinc-600" />
+                        <div className="size-full flex items-center justify-center">
+                          <Bookmark className="size-5 text-zinc-600" />
                         </div>
                       )}
                     </div>

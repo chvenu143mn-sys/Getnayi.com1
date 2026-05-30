@@ -16,6 +16,7 @@ import SharedCollection from './pages/SharedCollection';
 import CreatorVerification from './pages/CreatorVerification';
 import CreatorDashboard from './pages/CreatorDashboard';
 import ShortUrlRedirect from './pages/ShortUrlRedirect';
+import UpdatePasswordPage from './pages/UpdatePassword';
 import { isSupabaseConfigured } from './lib/supabase';
 import { Database } from 'lucide-react';
 
@@ -24,9 +25,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   
   if (loading) {
     return (
-      <div className="h-[100dvh] bg-black text-white relative flex flex-col font-sans">
-        <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-6">
-           <div className="w-12 h-12 bg-zinc-800 rounded-2xl animate-pulse"></div>
+      <div className="h-[100dvh] bg-[#0c0c0e] text-white relative flex flex-col font-sans">
+        <div className="flex-1 flex flex-col items-center justify-center p-8 gap-y-6">
+           <div className="size-12 bg-zinc-800 rounded-2xl animate-pulse"></div>
            <div className="w-32 h-4 bg-zinc-800 rounded-md animate-pulse"></div>
         </div>
       </div>
@@ -39,7 +40,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function MainLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="max-w-md mx-auto relative h-[100dvh] bg-black shadow-2xl flex flex-col overflow-hidden">
+    <div className="max-w-md mx-auto relative h-[100dvh] bg-[#0c0c0e] shadow-2xl flex flex-col overflow-hidden">
       <div className="flex-1 overflow-y-auto w-full relative no-scrollbar pb-[calc(60px+env(safe-area-inset-bottom))]">
         {children}
       </div>
@@ -50,8 +51,8 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 
 function FeedLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="max-w-md mx-auto relative h-[100dvh] bg-black shadow-2xl overflow-hidden">
-      <div className="w-full h-full">
+    <div className="max-w-md mx-auto relative h-[100dvh] bg-[#0c0c0e] shadow-2xl overflow-hidden">
+      <div className="size-full">
         {children}
       </div>
       <BottomNav />
@@ -61,9 +62,9 @@ function FeedLayout({ children }: { children: React.ReactNode }) {
 
 function SetupScreen() {
   return (
-    <div className="min-h-[100dvh] bg-black text-white flex flex-col items-center justify-center p-6 text-center">
-      <div className="w-16 h-16 bg-blue-500/20 text-blue-500 rounded-2xl flex items-center justify-center mb-6">
-        <Database className="w-8 h-8" />
+    <div className="min-h-[100dvh] bg-[#0c0c0e] text-white flex flex-col items-center justify-center p-6 text-center">
+      <div className="size-16 bg-blue-500/20 text-blue-500 rounded-2xl flex items-center justify-center mb-6">
+        <Database className="size-8" />
       </div>
       <h1 className="text-2xl font-bold mb-4">Supabase Required</h1>
       <p className="text-zinc-400 mb-8 max-w-sm">
@@ -72,20 +73,20 @@ function SetupScreen() {
       
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 w-full max-w-sm text-left shadow-lg">
         <h2 className="font-semibold text-sm mb-3 flex items-center text-zinc-300">
-          <span className="w-5 h-5 rounded-full bg-white text-black flex items-center justify-center text-xs mr-2">1</span>
+          <span className="size-5 rounded-full bg-white text-black flex items-center justify-center text-xs mr-2">1</span>
           Add Variables to .env
         </h2>
-        <pre className="text-xs font-mono text-zinc-500 bg-black p-3 rounded-lg overflow-x-auto border border-zinc-800">
+        <pre className="text-xs font-mono text-zinc-500 bg-[#0c0c0e] p-3 rounded-lg overflow-x-auto border border-zinc-800">
           VITE_SUPABASE_URL="https://..."<br/>
           VITE_SUPABASE_ANON_KEY="ey..."
         </pre>
         
         <h2 className="font-semibold text-sm mt-5 mb-3 flex items-center text-zinc-300">
-          <span className="w-5 h-5 rounded-full bg-white text-black flex items-center justify-center text-xs mr-2">2</span>
+          <span className="size-5 rounded-full bg-white text-black flex items-center justify-center text-xs mr-2">2</span>
           Run Schema Script
         </h2>
         <p className="text-xs text-zinc-500 leading-relaxed">
-          Open the <code className="bg-black border border-zinc-800 px-1 py-0.5 rounded text-white/80">database.sql</code> file provided in this workspace and execute it in your Supabase SQL Editor to set up tables and storage.
+          Open the <code className="bg-[#0c0c0e] border border-zinc-800 px-1 py-0.5 rounded text-white/80">database.sql</code> file provided in this workspace and execute it in your Supabase SQL Editor to set up tables and storage.
         </p>
       </div>
     </div>
@@ -98,6 +99,7 @@ function AppContent() {
   return (
     <Routes>
       <Route path="/auth" element={!user ? <AuthPage /> : <Navigate to="/" />} />
+      <Route path="/update-password" element={<UpdatePasswordPage />} />
       <Route path="/" element={<FeedLayout><Feed /></FeedLayout>} />
       <Route path="/video/:videoId" element={<FeedLayout><Feed /></FeedLayout>} />
       <Route path="/explore" element={<MainLayout><Explore /></MainLayout>} />

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2, Share2, Play, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { motion, AnimatePresence } from 'motion/react';
+import { m as motion, AnimatePresence } from 'motion/react';
 
 export default function Collection() {
   const { id } = useParams();
@@ -129,7 +129,7 @@ export default function Collection() {
   if (loading) {
     return (
       <div className="flex-1 w-full bg-[#0c0c0e] text-white flex flex-col h-full items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-[#ef2950]" />
+        <Loader2 className="size-8 animate-spin text-[#ef2950]" />
       </div>
     );
   }
@@ -138,29 +138,29 @@ export default function Collection() {
     return (
       <div className="flex-1 w-full bg-[#0c0c0e] text-white flex flex-col h-full items-center justify-center">
         <p>Collection not found.</p>
-        <button onClick={() => navigate(-1)} className="mt-4 px-4 py-2 bg-white/10 rounded-lg">Go Back</button>
+        <button type="button" aria-label="button"  onClick={() => navigate(-1)} className="mt-4 px-4 py-2 bg-white/10 rounded-lg">Go Back</button>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 w-full bg-black text-white font-sans flex flex-col h-full selection:bg-white/20 pb-[calc(60px+env(safe-area-inset-bottom))]">
+    <div className="flex-1 w-full bg-[#0c0c0e] text-white font-sans flex flex-col h-full selection:bg-white/20 pb-[calc(60px+env(safe-area-inset-bottom))]">
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-black/80 backdrop-blur-md pt-6 pb-4 px-5 flex items-center justify-between">
+      <div className="sticky top-0 z-20 bg-[#0c0c0e]/80 backdrop-blur-md pt-6 pb-4 px-5 flex items-center justify-between">
         <div className="flex items-center">
-          <button onClick={() => navigate('/saved')} className="p-2 -ml-2 text-white/90 hover:text-white transition-colors">
-            <ArrowLeft className="w-6 h-6" />
+          <button type="button" aria-label="button"  onClick={() => navigate('/saved')} className="p-2 -ml-2 text-white/90 hover:text-white transition-colors">
+            <ArrowLeft className="size-6" />
           </button>
           <h2 className="text-[19px] font-semibold text-white ml-2 tracking-wide">{collection.name}</h2>
         </div>
-        <button 
+        <button type="button" aria-label="button"  
           onClick={() => {
             setSelectedVideos(videos.slice(0, MAX_SHARE).map(v => v.video.id));
             setShareModalOpen(true);
           }}
           className="p-2 -mr-2 text-white/90 hover:text-white transition-colors bg-white/10 rounded-full"
         >
-          <Share2 className="w-5 h-5" />
+          <Share2 className="size-5" />
         </button>
       </div>
       
@@ -178,12 +178,12 @@ export default function Collection() {
                 className="aspect-[3/4] bg-zinc-900 overflow-hidden relative group cursor-pointer"
               >
                 {item.video.thumbnail_url || item.video.main_product_image_url ? (
-                  <img src={item.video.thumbnail_url || item.video.main_product_image_url} alt="Video thumbnail" className="w-full h-full object-cover" />
+                  <img src={item.video.thumbnail_url || item.video.main_product_image_url} alt="Video thumbnail" className="size-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-zinc-600 bg-zinc-800 text-xs">No img</div>
+                  <div className="size-full flex items-center justify-center text-zinc-600 bg-zinc-800 text-xs">No img</div>
                 )}
-                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <Play className="w-8 h-8 fill-white/80 text-white/80" />
+                <div className="absolute inset-0 bg-[#0c0c0e]/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Play className="size-8 fill-white/80 text-white/80" />
                 </div>
               </div>
             ))}
@@ -198,7 +198,7 @@ export default function Collection() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-end"
+            className="fixed inset-0 z-50 bg-[#0c0c0e]/80 backdrop-blur-sm flex flex-col justify-end"
             onClick={() => setShareModalOpen(false)}
           >
             <motion.div
@@ -206,7 +206,7 @@ export default function Collection() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="bg-[#151518] w-full max-w-md mx-auto rounded-t-3xl border-t border-white/10 px-6 py-6 pb-safe max-h-[85vh] flex flex-col"
+              className="bg-[#151518] w-full max-w-md mx-auto rounded-t-3xl border-t border-white/10 p-6 pb-safe max-h-[85vh] flex flex-col"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-2">
@@ -225,27 +225,27 @@ export default function Collection() {
                       className={`aspect-[3/4] bg-zinc-900 rounded-lg overflow-hidden relative cursor-pointer border-2 transition-colors ${isSelected ? 'border-[#ef2950]' : 'border-transparent'}`}
                     >
                       {item.video.thumbnail_url || item.video.main_product_image_url ? (
-                        <img src={item.video.thumbnail_url || item.video.main_product_image_url} className="w-full h-full object-cover" />
+                        <img src={item.video.thumbnail_url || item.video.main_product_image_url} className="size-full object-cover"  alt="" />
                       ) : (
-                        <div className="w-full h-full bg-zinc-800" />
+                        <div className="size-full bg-zinc-800" />
                       )}
                       
-                      <div className={`absolute top-2 right-2 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'border-[#ef2950] bg-[#ef2950]' : 'border-white/50 bg-black/20'}`}>
-                        {isSelected && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                      <div className={`absolute top-2 right-2 size-5 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'border-[#ef2950] bg-[#ef2950]' : 'border-white/50 bg-[#0c0c0e]/20'}`}>
+                        {isSelected && <Check className="size-3 text-white" strokeWidth={3} />}
                       </div>
                     </div>
                   );
                 })}
               </div>
 
-              <div className="pt-2 flex space-x-3">
-                <button 
+              <div className="pt-2 flex gap-x-3">
+                <button type="button" aria-label="button"  
                   onClick={() => setShareModalOpen(false)}
                   className="flex-1 py-3.5 rounded-xl font-semibold bg-white/5 hover:bg-white/10 transition-colors"
                 >
                   Cancel
                 </button>
-                <button 
+                <button type="button" aria-label="button"  
                   onClick={handleShare}
                   className="flex-1 py-3.5 rounded-xl font-semibold bg-[#ef2950] hover:bg-[#ff3b61] text-white transition-colors"
                 >

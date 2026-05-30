@@ -39,6 +39,17 @@ export interface Video {
   status?: 'active' | 'pending_review' | 'rejected';
   category_id?: string;
   categories?: Category;
+  metrics?: {
+    likes: number;
+    comments: number;
+    saves: number;
+    views: number;
+  };
+  user_state?: {
+    is_liked: boolean;
+    is_saved: boolean;
+    is_followed: boolean;
+  };
 }
 
 export interface Category {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion } from 'motion/react';
+import { m as motion, AnimatePresence } from 'motion/react';
 import { ShieldCheck } from 'lucide-react';
 
 export default function Notifications() {
@@ -52,12 +52,12 @@ export default function Notifications() {
   ];
 
   return (
-    <div className="flex-1 w-full text-white font-sans flex flex-col h-full bg-black">
+    <div className="flex-1 w-full text-white font-sans flex flex-col h-full bg-[#0c0c0e]">
       {/* Header Tabs */}
       <div className="sticky top-0 z-20 bg-[#0c0c0e] pt-6 border-b border-white/5">
-        <div className="flex px-5 space-x-7 overflow-x-auto scrollbar-none pb-3">
+        <div className="flex px-5 gap-x-7 overflow-x-auto scrollbar-none pb-3">
           {tabs.map((tab) => (
-            <button
+            <button type="button" aria-label="button" 
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`relative pb-2 text-[15px] font-medium tracking-wide whitespace-nowrap transition-colors ${
@@ -93,12 +93,12 @@ export default function Notifications() {
                           <path d="M12 2L6 8C6 11 9 12 12 14.5C15 12 18 11 18 8L12 2ZM12 22L18 16C18 13 15 12 12 9.5C9 12 6 13 6 16L12 22Z" fill="white"/>
                        </svg>
                     ) : (
-                      <ShieldCheck className="w-[28px] h-[28px] text-white" strokeWidth={2} />
+                      <ShieldCheck className="size-[28px] text-white" strokeWidth={2} />
                     )}
                   </div>
                 ) : (
-                  <div className="w-[52px] h-[52px] rounded-full overflow-hidden shadow-md bg-zinc-800 border border-white/5">
-                    <img src={notif.user?.image} alt={notif.user?.name} className="w-full h-full object-cover" />
+                  <div className="size-[52px] rounded-full overflow-hidden shadow-md bg-zinc-800 border border-white/5">
+                    <img src={notif.user?.image} alt={notif.user?.name} className="size-full object-cover" />
                   </div>
                 )}
               </div>
@@ -119,8 +119,8 @@ export default function Notifications() {
               
               {/* Right Thumbnail */}
               {notif.targetImage && (
-                <div className="w-[56px] h-[56px] rounded-xl overflow-hidden shrink-0 mt-0.5 shadow-sm bg-zinc-800 border border-white/5">
-                  <img src={notif.targetImage} alt="Reference" className="w-full h-full object-cover" />
+                <div className="size-[56px] rounded-xl overflow-hidden shrink-0 mt-0.5 shadow-sm bg-zinc-800 border border-white/5">
+                  <img src={notif.targetImage} alt="Reference" className="size-full object-cover" />
                 </div>
               )}
             </div>

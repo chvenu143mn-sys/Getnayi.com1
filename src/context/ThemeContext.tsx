@@ -13,20 +13,18 @@ const ThemeContext = createContext<ThemeContextType>({
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('midnight');
-
-  useEffect(() => {
+  const [theme, setTheme] = useState<Theme>(() => {
     const savedTheme = localStorage.getItem('app-theme') as Theme;
-    if (savedTheme === 'dark-grey') {
-      setTheme('dark-grey');
-    }
-  }, []);
+    return savedTheme === 'dark-grey' ? 'dark-grey' : 'midnight';
+  });
 
-  const toggleTheme = () => {
-    const newTheme = theme === 'midnight' ? 'dark-grey' : 'midnight';
-    setTheme(newTheme);
-    localStorage.setItem('app-theme', newTheme);
-  };
+  const toggleTheme = React.useCallback(() => {
+    setTheme((prev) => {
+      const newTheme = prev === 'midnight' ? 'dark-grey' : 'midnight';
+      localStorage.setItem('app-theme', newTheme);
+      return newTheme;
+    });
+  }, []);
 
   useEffect(() => {
     if (theme === 'dark-grey') {
@@ -38,8 +36,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, [theme]);
 
+  const value = React.useMemo(() => ({ theme, toggleTheme }), [theme, toggleTheme]);
+
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );

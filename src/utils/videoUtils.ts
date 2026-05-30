@@ -42,12 +42,19 @@ export function parseVideoProduct(caption: string | null | undefined): ParsedPro
       
       const parseList = (val: any): string[] => {
         if (!val) return [];
-        if (Array.isArray(val)) return val.map(item => String(item).trim()).filter(Boolean);
+        if (Array.isArray(val)) {
+          return val.flatMap(item => {
+            const s = String(item).trim();
+            return s ? [s] : [];
+          });
+        }
         if (typeof val === 'string') {
           return val
             .split('\n')
-            .map(line => line.trim().replace(/^•\s*/, ''))
-            .filter(Boolean);
+            .flatMap(line => {
+              const s = line.trim().replace(/^•\s*/, '');
+              return s ? [s] : [];
+            });
         }
         return [];
       };
@@ -73,7 +80,10 @@ export function parseVideoProduct(caption: string | null | undefined): ParsedPro
   }
 
   // Fallback if not JSON: Parse standard caption lines for productName estimation
-  const lines = trimmed.split('\n').map(l => l.trim()).filter(Boolean);
+  const lines = trimmed.split('\n').flatMap(l => {
+    const s = l.trim();
+    return s ? [s] : [];
+  });
   const guessedName = lines[0] || 'Linked Product';
   return {
     ...defaultProduct,
@@ -82,11 +92,13 @@ export function parseVideoProduct(caption: string | null | undefined): ParsedPro
   };
 }
 
+const inrFormatter = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  maximumFractionDigits: 0
+});
+
 export function formatINR(price: number | null | undefined): string {
   if (price === null || price === undefined) return '';
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0
-  }).format(price);
+  return inrFormatter.format(price);
 }

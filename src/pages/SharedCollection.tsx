@@ -30,7 +30,7 @@ export default function SharedCollection() {
         if (error) throw error;
         
         // Sort videos based on the order in the videoIds array to preserve the share order
-        const sortedData = [...(data || [])].sort(
+        const sortedData = (data || []).toSorted(
           (a, b) => videoIds.indexOf(a.id) - videoIds.indexOf(b.id)
         );
         
@@ -47,17 +47,17 @@ export default function SharedCollection() {
   if (loading) {
     return (
       <div className="flex-1 w-full bg-[#0c0c0e] text-white flex flex-col h-full items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-[#ef2950]" />
+        <Loader2 className="size-8 animate-spin text-[#ef2950]" />
       </div>
     );
   }
 
   return (
-    <div className="flex-1 w-full bg-black text-white font-sans flex flex-col h-full selection:bg-white/20 pb-[calc(60px+env(safe-area-inset-bottom))]">
+    <div className="flex-1 w-full bg-[#0c0c0e] text-white font-sans flex flex-col h-full selection:bg-white/20 pb-[calc(60px+env(safe-area-inset-bottom))]">
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-black/80 backdrop-blur-md pt-6 pb-4 px-5 flex items-center">
-        <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-white/90 hover:text-white transition-colors">
-          <ArrowLeft className="w-6 h-6" />
+      <div className="sticky top-0 z-20 bg-[#0c0c0e]/80 backdrop-blur-md pt-6 pb-4 px-5 flex items-center">
+        <button type="button" aria-label="button"  onClick={() => navigate(-1)} className="p-2 -ml-2 text-white/90 hover:text-white transition-colors">
+          <ArrowLeft className="size-6" />
         </button>
         <div className="ml-2 flex flex-col">
           <h2 className="text-[19px] font-semibold text-white tracking-wide truncate">{name}</h2>
@@ -79,12 +79,12 @@ export default function SharedCollection() {
                 className="aspect-[3/4] bg-zinc-900 overflow-hidden relative group cursor-pointer"
               >
                 {video.thumbnail_url || video.main_product_image_url ? (
-                  <img src={video.thumbnail_url || video.main_product_image_url} alt="Video thumbnail" className="w-full h-full object-cover" />
+                  <img src={video.thumbnail_url || video.main_product_image_url} alt="Video thumbnail" className="size-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-zinc-600 bg-zinc-800 text-xs">No img</div>
+                  <div className="size-full flex items-center justify-center text-zinc-600 bg-zinc-800 text-xs">No img</div>
                 )}
-                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <Play className="w-8 h-8 fill-white/80 text-white/80" />
+                <div className="absolute inset-0 bg-[#0c0c0e]/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Play className="size-8 fill-white/80 text-white/80" />
                 </div>
               </div>
             ))}
