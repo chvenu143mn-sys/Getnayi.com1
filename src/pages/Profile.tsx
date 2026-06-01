@@ -330,7 +330,7 @@ export default function ProfilePage() {
                 <img src={profile.avatar_url} alt="Profile" className="size-full object-cover" />
               ) : (
                 <div className="size-full bg-zinc-800 flex items-center justify-center text-white/40 font-serif italic text-2xl font-bold">
-                  {profile?.username?.charAt(0).toLowerCase() || 'u'}
+                  {profile?.username?.charAt(0)?.toLowerCase() || 'u'}
                 </div>
               )}
             </motion.div>
@@ -688,7 +688,7 @@ export default function ProfilePage() {
                          <img src={profile.avatar_url} alt="Profile" className="size-full object-cover" />
                       ) : (
                          <div className="size-full bg-zinc-800 flex items-center justify-center text-white/40 font-serif italic text-lg font-bold">
-                           {profile?.username?.charAt(0).toLowerCase() || 'u'}
+                           {profile?.username?.charAt(0)?.toLowerCase() || 'u'}
                          </div>
                       )}
                     </div>

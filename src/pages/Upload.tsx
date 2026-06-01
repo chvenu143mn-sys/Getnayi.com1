@@ -778,16 +778,16 @@ export default function Upload() {
     }
   };
 
+  if (!user) {
+    return <GuestGate type="upload" />;
+  }
+
   if (approvalStatus === 'loading' || approvalStatus !== 'approved') {
     return <CreatorVerificationFlow approvalStatus={approvalStatus} setApprovalStatus={setApprovalStatus} />;
   }
 
   if (isSuccess) {
     return <UploadSuccessState uploadedVideoStatus={uploadedVideoStatus} />;
-  }
-
-  if (!user) {
-    return <GuestGate type="upload" />;
   }
 
   return (
