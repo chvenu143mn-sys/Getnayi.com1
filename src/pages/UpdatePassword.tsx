@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { m as motion } from 'motion/react';
+import { motion } from 'motion/react';
 
 export default function UpdatePasswordPage() {
   const [password, setPassword] = useState('');

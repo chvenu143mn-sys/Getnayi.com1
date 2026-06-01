@@ -1,7 +1,7 @@
 import { Home, Plus, User, Search, MessageSquare } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '../lib/utils';
-import { m as motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 
 export function BottomNav() {
   const location = useLocation();

@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import { Readable } from 'stream';
 import { createServer as createViteServer } from 'vite';
 import { createClient } from '@supabase/supabase-js';
 import * as cheerio from 'cheerio';
@@ -20,6 +21,56 @@ import cookieParser from 'cookie-parser';
 import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
 import { parse } from 'tldts';
+import { GoogleGenAI } from '@google/genai';
+
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+
+// Background processor for video metadata
+const analyzeVideoMetadata = async (supabaseAdminClient: any, videoId: string, caption: string, productContext: string) => {
+  if (!supabaseAdminClient || !process.env.GEMINI_API_KEY) return;
+  try {
+    // Check if the user already provided tags during upload
+    const { data: currentVideo } = await supabaseAdminClient.from('videos').select('tags, search_aliases').eq('id', videoId).single();
+    const existingTags = currentVideo?.tags || [];
+    
+    // If the user already provided robust tags manually, we might just skip the background run or only augment aliases
+    // But let's generate them to be sure, and then merge.
+    
+    const prompt = `Analyze this e-commerce video context and generate relevant search tags, categories, hashtags, and semantic synonyms for indexing in a database.
+Caption: "${caption || ''}"
+Product URL/Info: "${productContext || ''}"
+
+Return ONLY a valid JSON object with this exact structure, no markdown formatting:
+{
+  "tags": ["keyword1", "keyword2", "#hashtag1"],
+  "search_aliases": "comma separated string of synonyms and related concepts that people might search for"
+}`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json'
+      }
+    });
+
+    const text = response.text;
+    if (text) {
+      const parsed = JSON.parse(text);
+      
+      const newTags = Array.isArray(parsed.tags) ? parsed.tags : [];
+      const mergedTags = Array.from(new Set([...existingTags, ...newTags])).slice(0, 15); // keep unique up to 15
+      
+      await supabaseAdminClient.from('videos').update({
+        tags: mergedTags,
+        search_aliases: parsed.search_aliases || ''
+      }).eq('id', videoId);
+      console.log(`[AI Analysis] Successfully tagged video ${videoId}`);
+    }
+  } catch (err: any) {
+    console.error(`[AI Analysis Error] on video ${videoId}:`, err.message);
+  }
+};
 
 // Helper to check if a URL is an allowed ecommerce marketplace securely using eTLD+1 brand label
 function isAllowedMarketplace(targetUrl: string): boolean {
@@ -203,6 +254,10 @@ function fetchPageHtmlWithNoTls(targetUrl: string): Promise<string> {
         let data = '';
         res.on('data', (chunk) => {
           data += chunk;
+          if (data.length > 2 * 1024 * 1024) {
+             res.destroy();
+             reject(new Error('Response too large'));
+          }
         });
         res.on('end', () => {
           resolve(data);
@@ -244,11 +299,13 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN || 'placeholder_token',
 });
 
-// Admin Supabase client for backend operations (bypasses RLS)
-const supabaseAdmin = process.env.VITE_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
-  ? createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
-      auth: { persistSession: false }
-    })
+// Server-side Supabase client for backend operations
+const supabaseAdmin = process.env.VITE_SUPABASE_URL
+  ? createClient(
+      process.env.VITE_SUPABASE_URL, 
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key', 
+      { auth: { persistSession: false } }
+    )
   : null;
 
 
@@ -304,7 +361,7 @@ function setupCronJobs() {
     const { data: stuckVideos, error } = await supabaseAdmin
       .from('videos')
       .select('id, video_url, created_at')
-      .eq('status', 'processing')
+      .in('status', ['processing', 'pending_review'])
       .lt('created_at', fifteenMinsAgo);
 
     if (error) {
@@ -571,6 +628,10 @@ async function startServer() {
         redis.incr(`video_view_cache:${videoId}`)
       ]);
 
+      if (userId) {
+        adjustInterestScore(userId, videoId, 'view').catch(e => console.error("View score adjust error:", e));
+      }
+
       res.json({ 
         success: true, 
         buffered: true, 
@@ -650,6 +711,119 @@ async function startServer() {
     }
   });
 
+  // --- CREATOR TRUST SYSTEM ---
+  async function adjustCreatorTrustScore(videoId: string, actionText: string) {
+    if (!supabaseAdmin) return;
+    try {
+      let increment = 0;
+      switch (actionText) {
+        case 'save': increment = 0.5; break;
+        case 'share': increment = 0.5; break;
+        case 'product_click': increment = 1.0; break;
+        // removed automated report penalty to prevent mass fake-report exploit: case 'report': increment = -2.0; break;
+      }
+
+      if (increment === 0) return;
+
+      const { data: video, error: videoError } = await supabaseAdmin.from('videos').select('user_id').eq('id', videoId).single();
+      if (videoError || !video?.user_id) return;
+
+      const creatorId = video.user_id;
+
+      const { error } = await supabaseAdmin.rpc('adjust_creator_trust_score', {
+        p_creator_id: creatorId,
+        p_increment: increment
+      });
+
+      if (error) {
+        console.error(`Error adjusting trust score for creator ${creatorId}:`, error);
+      }
+    } catch (err) {
+      console.error("Failed to adjust creator trust score:", err);
+    }
+  };
+
+  // --- INTEREST SCORING SYSTEM ---
+  // Helper to adjust interest scores based on actions
+  async function adjustInterestScore(userId: string, videoId: string, actionText: string) {
+    if (!supabaseAdmin) return;
+    try {
+      // 1. Find category of the video
+      const { data: video, error: videoError } = await supabaseAdmin.from('videos').select('category_id').eq('id', videoId).single();
+      if (videoError || !video?.category_id) return;
+      
+      const categoryId = video.category_id;
+      
+      // 2. Define scoring increments
+      let increment = 0;
+      switch (actionText) {
+        case 'view': increment = 5; break;
+        case 'like': increment = 10; break;
+        case 'comment': increment = 15; break;
+        case 'save': increment = 20; break;
+        case 'share': increment = 20; break;
+        case 'product_click': increment = 20; break;
+        case 'report': increment = -50; break;
+      }
+      
+      if (increment === 0) return;
+
+      // 3. Upsert into user_interests table
+      const { error } = await supabaseAdmin.rpc('increment_interest_score', {
+        p_user_id: userId,
+        p_category_id: categoryId,
+        p_increment: increment
+      });
+      
+      if (error) {
+        console.error(`Error incrementing score for user ${userId}, category ${categoryId}:`, error);
+        // Fallback if RPC doesn't exist
+        const { data: current } = await supabaseAdmin.from('user_interests').select('score').eq('user_id', userId).eq('category_id', categoryId).single();
+        const score = current ? Number(current.score) + increment : 50 + increment;
+        
+        await supabaseAdmin.from('user_interests').upsert(
+          { user_id: userId, category_id: categoryId, score: Math.min(score, 1000) }, // Cap at 1000 to prevent infinite growth
+          { onConflict: 'user_id,category_id' }
+        );
+      }
+    } catch (err) {
+      console.error("Failed to adjust interest score:", err);
+    }
+  };
+
+  app.post('/api/user/interests', verifyAuth, express.json(), async (req, res) => {
+    try {
+      if (!supabaseAdmin) throw new Error('Database not configured');
+      const user = (req as any).user;
+      const { categoryIds } = req.body;
+      
+      if (!Array.isArray(categoryIds)) {
+        return res.status(400).json({ error: 'categoryIds must be an array' });
+      }
+
+      // Fetch all categories to handle "all categories" correctly
+      const { data: allCats } = await supabaseAdmin.from('categories').select('id');
+      const allCategoryIds = (allCats || []).map(c => c.id);
+
+      const isAllCategories = categoryIds.length === allCategoryIds.length;
+      
+      const rows = categoryIds.map((catId: string) => ({
+        user_id: user.id,
+        category_id: catId,
+        score: isAllCategories ? 50.0 : 100.0, // Initial score rules
+      }));
+
+      if (rows.length > 0) {
+        await supabaseAdmin.from('user_interests').upsert(rows, { onConflict: 'user_id,category_id' });
+      }
+      
+      res.json({ success: true, count: rows.length });
+    } catch (err: any) {
+      console.error("Error setting interests:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.post('/api/engagement/:action', verifyAuth, engagementLimiter, async (req, res) => {
     try {
       const { action } = req.params;
@@ -686,6 +860,12 @@ async function startServer() {
           break;
         default:
           return res.status(400).json({ error: 'Invalid engagement action' });
+      }
+
+      // Adjust interest and trust scores asynchronously
+      if (videoId && ['like', 'save', 'comment', 'report'].includes(action)) {
+        adjustInterestScore(user.id, videoId, action).catch(e => console.error("Score adjust error:", e));
+        adjustCreatorTrustScore(videoId, action).catch(e => console.error("Trust score adjust error:", e));
       }
 
       res.json({ success: true, action });
@@ -1063,7 +1243,7 @@ async function startServer() {
           .from('videos')
           .update({ status: 'active' })
           .like('video_url', videoUrlLike)
-          .eq('status', 'processing');
+          .in('status', ['processing', 'pending_review']);
 
         if (error) {
           console.error('[Webhook] Failed to update video status:', error);
@@ -1144,6 +1324,80 @@ async function startServer() {
   });
 
   // PATCH Profile (My Profile)
+  const searchCache = new Map<string, { data: any, timestamp: number }>();
+  const SEARCH_CACHE_TTL_MS = 1000 * 60 * 5; // 5 minutes cache
+
+  app.get('/api/search', rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }), async (req, res) => {
+    try {
+      if (!supabaseAdmin) throw new Error('Database Admin client not configured');
+      const { q } = req.query;
+      if (!q || typeof q !== 'string' || q.trim() === '') {
+        return res.json({ videos: [] });
+      }
+
+      const queryTerm = q.trim();
+      const cacheKey = `search:${queryTerm.toLowerCase()}`;
+      
+      if (searchCache.has(cacheKey)) {
+        const cached = searchCache.get(cacheKey)!;
+        if (Date.now() - cached.timestamp < SEARCH_CACHE_TTL_MS) {
+          return res.json(cached.data);
+        } else {
+          searchCache.delete(cacheKey);
+        }
+      }
+
+      // We use ilike to hit pg_trgm indices on caption and search_aliases
+      // For tags, since they are array of text, we can use contained by or just ilike on array text casting if needed
+      let searchData: any = null;
+      let { data, error } = await supabaseAdmin
+        .from('videos')
+        .select(`
+          *,
+          categories (id, name),
+          profiles!inner (id, username, avatar_url, is_brand, trust_score),
+          likes(count),
+          comments(count),
+          saved_videos(count)
+        `)
+        .eq('status', 'active')
+        .or(`caption.ilike.%${queryTerm}%,search_aliases.ilike.%${queryTerm}%,tags.cs.{${queryTerm}},profiles.username.ilike.%${queryTerm}%`)
+        .limit(20);
+
+      if (error && (error.message.includes('search_aliases') || error.message.includes('tags') || error.message.includes('trust_score'))) {
+         console.warn("Missing database columns for search, falling back to basic search...");
+         const retry = await supabaseAdmin
+          .from('videos')
+          .select(`
+            *,
+            categories (id, name),
+            profiles!inner (id, username, avatar_url, is_brand),
+            likes(count),
+            comments(count),
+            saved_videos(count)
+          `)
+          .eq('status', 'active')
+          .or(`caption.ilike.%${queryTerm}%,profiles.username.ilike.%${queryTerm}%`)
+          .limit(20);
+          data = retry.data;
+          error = retry.error;
+      }
+
+      if (error) {
+        console.error('Search query error:', error);
+        return res.status(500).json({ error: error.message });
+      }
+
+      const responseData = { videos: data || [] };
+      searchCache.set(cacheKey, { data: responseData, timestamp: Date.now() });
+
+      return res.json(responseData);
+    } catch (err: any) {
+      console.error('Search handler error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Advanced Feed, Comments, and Followers end-points with cursor-based pagination
   app.get('/api/feed', async (req, res) => {
     try {
@@ -1151,15 +1405,36 @@ async function startServer() {
       const limitNum = parseInt(limit as string) || 10;
       
       let userId: string | null = null;
+      let userInterests: string[] = [];
+      let userInterestScores = new Map<string, number>();
+      
       if (req.headers.authorization && supabaseAdmin) {
         const token = req.headers.authorization.split(' ')[1];
         if (token && token !== 'null') {
           const { data: { user } } = await supabaseAdmin.auth.getUser(token);
-          if (user) userId = user.id;
+          if (user) {
+            userId = user.id;
+            // Fetch dynamically ranked interests from DB
+            const { data: dbInterests } = await supabaseAdmin
+              .from('user_interests')
+              .select('category_id, score')
+              .eq('user_id', user.id)
+              .order('score', { ascending: false })
+              .limit(10);
+              
+            if (dbInterests && dbInterests.length > 0) {
+              userInterests = dbInterests.map(i => i.category_id);
+              dbInterests.forEach(i => userInterestScores.set(i.category_id, i.score));
+            } else {
+              userInterests = user.user_metadata?.interests || [];
+              userInterests.forEach(catId => userInterestScores.set(catId, 50.0));
+            }
+          }
         }
       }
       
-      const selectQuery = `*, categories (id, name), profiles (id, username, avatar_url, is_brand), likes(count), comments(count), saved_videos(count)`;
+      const DB_HAS_TRUST_SCORE = process.env.DISABLE_TRUST_SCORE !== 'true';
+      let selectQuery = `*, categories (id, name), profiles (id, username, avatar_url, is_brand, trust_score), likes(count), comments(count), saved_videos(count)`;
 
       let rawVideos: any[] = [];
       let finalNextCursor: string | null = null;
@@ -1182,12 +1457,24 @@ async function startServer() {
           const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
           let query = supabaseAdmin!.from('videos')
             .select(selectQuery)
+            .eq('status', 'active')
             .gte('created_at', sevenDaysAgo)
-            .limit(300); // Fetch up to 300 recent videos to score globally
+            .limit(300); 
           
           if (categoryId) query = query.eq('category_id', categoryId);
           
-          const { data, error } = await query;
+          let { data, error } = await query;
+          
+          if (error && error.message.includes('trust_score')) {
+             console.warn("Falling back feed trending query without trust_score...");
+             selectQuery = `*, categories (id, name), profiles (id, username, avatar_url, is_brand), likes(count), comments(count), saved_videos(count)`;
+             let retryQuery = supabaseAdmin!.from('videos').select(selectQuery).eq('status', 'active').gte('created_at', sevenDaysAgo).limit(300);
+             if (categoryId) retryQuery = retryQuery.eq('category_id', categoryId);
+             const retryRes = await retryQuery;
+             data = retryRes.data;
+             error = retryRes.error;
+          }
+          
           if (error) throw error;
           
           let scoredVideos = (data || []).map((v: any) => {
@@ -1195,14 +1482,17 @@ async function startServer() {
             const commentsCount = v.comments && v.comments.length > 0 && v.comments[0].count !== undefined ? v.comments[0].count : (v.comments?.length || 0);
             const viewsCount = v.views || 0;
 
+            // Creator Trust multiplier
+            const trustScore = v.profiles?.trust_score ?? 50.0;
+            const trustMultiplier = Math.max(0.1, trustScore / 50.0); // e.g. score of 100 gives 2x boost, score of 10 gives 0.2x penalty
+
             // HackerNews / Reddit Hot Scoring Formula
-            // Score = (Engagement) / (Age in hours + 2)^Gravity
-            const engagementScore = (likesCount * 3) + (commentsCount * 5) + (viewsCount * 0.1);
+            const engagementScore = ((likesCount * 3) + (commentsCount * 5) + (viewsCount * 0.1));
             
             const ageInHours = (Date.now() - new Date(v.created_at).getTime()) / (1000 * 60 * 60);
             const gravity = 1.8;
             
-            const finalScore = engagementScore / Math.pow(ageInHours + 2, gravity);
+            const finalScore = (engagementScore * trustMultiplier) / Math.pow(ageInHours + 2, gravity);
             
             return {
               ...v,
@@ -1211,7 +1501,7 @@ async function startServer() {
           });
 
           // Sort by the composite score
-          scoredVideos.sort((a, b) => b._ranking_score - a._ranking_score);
+          scoredVideos.sort((a: any, b: any) => b._ranking_score - a._ranking_score);
           
           trendingVideos = scoredVideos;
           try {
@@ -1227,16 +1517,78 @@ async function startServer() {
         rawVideos = trendingVideos.slice(offset, offset + limitNum);
         finalNextCursor = offset + limitNum < trendingVideos.length ? (offset + limitNum).toString() : null;
       } else {
-        let query = supabaseAdmin!.from('videos').select(selectQuery).order('created_at', { ascending: false }).limit(limitNum);
+        // Personalized Ranking algorithm based on user interest scores
+        const candidatePoolSize = 250;
+        const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
         
-        if (categoryId) query = query.eq('category_id', categoryId);
-        if (cursor) query = query.lt('created_at', cursor);
+        // Fetch a pool of recent active videos
+        let query = supabaseAdmin!.from('videos')
+          .select(selectQuery)
+          .eq('status', 'active')
+          .gte('created_at', fourteenDaysAgo)
+          .limit(candidatePoolSize);
         
-        const { data, error } = await query;
+        if (categoryId) {
+          query = query.eq('category_id', categoryId);
+        } else if (userInterests.length > 0) {
+          // ensure relevancy pool
+          query = query.in('category_id', userInterests);
+        }
+        
+        let { data, error } = await query;
+        
+        if (error && error.message.includes('trust_score')) {
+            console.warn("Falling back feed latest query without trust_score...");
+            selectQuery = `*, categories (id, name), profiles (id, username, avatar_url, is_brand), likes(count), comments(count), saved_videos(count)`;
+            let retryQuery = supabaseAdmin!.from('videos').select(selectQuery).eq('status', 'active').gte('created_at', fourteenDaysAgo).limit(candidatePoolSize);
+            if (categoryId) retryQuery = retryQuery.eq('category_id', categoryId);
+            else if (userInterests.length > 0) retryQuery = retryQuery.in('category_id', userInterests);
+            
+            const retryRes = await retryQuery;
+            data = retryRes.data;
+            error = retryRes.error;
+        }
+        
         if (error) throw error;
+        
+        let candidateVideos = data || [];
+        
+        // Apply AI Studio Interest Score Ranking
+        let scoredVideos = candidateVideos.map((v: any) => {
+            const likesCount = v.likes && v.likes.length > 0 && v.likes[0].count !== undefined ? v.likes[0].count : (v.likes?.length || 0);
+            const commentsCount = v.comments && v.comments.length > 0 && v.comments[0].count !== undefined ? v.comments[0].count : (v.comments?.length || 0);
+            const viewsCount = v.views || 0;
 
-        rawVideos = data || [];
-        finalNextCursor = data && data.length === limitNum ? data[data.length - 1].created_at : null;
+            const trustScore = v.profiles?.trust_score ?? 50.0;
+            const trustMultiplier = Math.max(0.1, trustScore / 50.0);
+
+            let interestScore = userInterestScores.get(v.category_id);
+            if (interestScore === undefined) interestScore = 50.0; // Neutral 
+            const interestMultiplier = Math.max(0.1, interestScore / 50.0);
+
+            // Engagement baseline 
+            const engagementScore = 1 + (likesCount * 3) + (commentsCount * 5) + (viewsCount * 0.1);
+            
+            const ageInHours = Math.max(0.1, (Date.now() - new Date(v.created_at).getTime()) / (1000 * 60 * 60));
+            // Lower gravity than trending to allow high-interest older videos to surface
+            const gravity = 1.35; 
+            
+            const finalScore = (engagementScore * trustMultiplier * interestMultiplier) / Math.pow(ageInHours + 2, gravity);
+            
+            return {
+              ...v,
+              _ranking_score: finalScore
+            };
+        });
+
+        // Sort by the personalized composite score
+        scoredVideos.sort((a: any, b: any) => b._ranking_score - a._ranking_score);
+
+        const offset = cursor ? parseInt(cursor as string) : 0;
+        rawVideos = scoredVideos.slice(offset, offset + limitNum);
+        // Note: For large ultra-scale, user feeds would be materialized. 
+        // Here we just limit the overall scroll depth to our dynamic ranking pool width.
+        finalNextCursor = offset + limitNum < scoredVideos.length ? (offset + limitNum).toString() : null;
       }
       
       // Enrich with user state and clean up the counts
@@ -1458,11 +1810,129 @@ async function startServer() {
     }
   });
 
+  app.post('/api/scrape-url', verifyAuth, express.json(), async (req, res) => {
+    try {
+      const { product_url } = req.body;
+      if (!product_url || typeof product_url !== 'string') {
+        return res.status(400).json({ error: 'product_url is required and must be a string' });
+      }
+
+      const validator = (await import('validator')).default;
+      if (!validator.isURL(product_url, { protocols: ['http', 'https'], require_protocol: true })) {
+        return res.status(400).json({ error: 'Invalid URL format' });
+      }
+
+      const parsedUrl = new URL(product_url);
+      const hostname = parsedUrl.hostname.toLowerCase();
+      
+      const isIpAddress = validator.isIP(hostname) || /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname);
+      if (hostname === 'localhost' || hostname === '127.0.0.1' || isIpAddress || hostname.endsWith('.local') || hostname.includes('0x')) {
+         return res.status(400).json({ error: 'Local or internal IP addresses are not allowed.' });
+      }
+
+      // Fetch the product page content
+      let scrapedText = '';
+      try {
+        const html = await fetchPageHtmlWithNoTls(product_url);
+        const $ = cheerio.load(html);
+        
+        const title = $('title').text() || $('meta[property="og:title"]').attr('content') || '';
+        const description = $('meta[name="description"]').attr('content') || $('meta[property="og:description"]').attr('content') || '';
+        scrapedText = `Product Title: ${title}\nDescription: ${description}`;
+      } catch (err) {
+        console.error('Failed to scrape product page', err);
+        // We gracefully fallback to an empty string
+      }
+      
+      return res.json({ success: true, data: { scrapedText } });
+    } catch (err: any) {
+       console.error('/api/scrape-url error', err);
+       return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Generate Metadata logic using Gemini
+  app.post('/api/generate-metadata', verifyAuth, express.json(), async (req, res) => {
+    try {
+      const { product_url, caption } = req.body;
+      if (!product_url || typeof product_url !== 'string') {
+        return res.status(400).json({ error: 'product_url is required' });
+      }
+
+      const validator = (await import('validator')).default;
+      if (!validator.isURL(product_url, { protocols: ['http', 'https'], require_protocol: true })) {
+        return res.status(400).json({ error: 'Invalid URL format' });
+      }
+
+      let scrapedText = '';
+      try {
+        const html = await fetchPageHtmlWithNoTls(product_url);
+        const $ = cheerio.load(html);
+        const title = $('title').text() || $('meta[property="og:title"]').attr('content') || '';
+        const description = $('meta[name="description"]').attr('content') || $('meta[property="og:description"]').attr('content') || '';
+        scrapedText = `Product Title: ${title}\nDescription: ${description}`;
+      } catch (err) {
+        console.error('Failed to scrape product page', err);
+      }
+
+      const prompt = `Analyze this e-commerce video context and generate relevant metadata.
+Product URL: "${product_url}"
+Scraped Context: "${scrapedText}"
+Creator's Review: "${caption || ''}"
+
+Based on the above, generate a highly optimized set of metadata to categorize this content and improve search discovery.
+Generate ONLY a valid JSON object answering this shape exactly:
+{
+  "hashtags": ["#tag1", "#tag2"],
+  "tags": ["keyword1", "keyword2"],
+  "categories": ["category1"],
+  "suggested_caption": "Engaging text here...",
+  "product_highlights": "• Highlight 1\\n• Highlight 2\\n• Highlight 3",
+  "honest_review_notes": "Pros:\\n...\\nCons:\\n...\\nThings to know:\\n..."
+}`;
+
+      const { Type } = await import('@google/genai');
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+           responseMimeType: 'application/json',
+           responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                 hashtags: { type: Type.ARRAY, items: { type: Type.STRING } },
+                 tags: { type: Type.ARRAY, items: { type: Type.STRING } },
+                 categories: { type: Type.ARRAY, items: { type: Type.STRING } },
+                 suggested_caption: { type: Type.STRING },
+                 product_highlights: { type: Type.STRING },
+                 honest_review_notes: { type: Type.STRING }
+              }
+           }
+        }
+      });
+
+      const text = response.text;
+      let generated = {};
+      if (text) {
+         try {
+            generated = JSON.parse(text);
+         } catch(e) {
+            console.error("Gemini JSON parse error", e, text);
+         }
+      }
+
+      return res.json({ success: true, data: generated });
+    } catch (err: any) {
+      console.error('/api/generate-metadata error details:', err.status, err.message, err);
+      return res.status(500).json({ error: err.message || 'Error generating metadata' });
+    }
+  });
+
   // Create Video logic in DB
   app.post('/api/link-preview', async (req, res) => {
     try {
       const { url } = req.body;
-      if (!url || !validator.isURL(url, { protocols: ['http', 'https'], require_protocol: true })) {
+      if (!url || typeof url !== 'string' || !validator.isURL(url, { protocols: ['http', 'https'], require_protocol: true })) {
         return res.status(400).json({ error: 'Invalid URL format' });
       }
 
@@ -1480,23 +1950,9 @@ async function startServer() {
       try {
         let html = '';
         try {
-          const response = await fetch(url, {
-            headers: { 
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Accept': 'text/html,application/xhtml+xml'
-            },
-            signal: AbortSignal.timeout(4000)
-          });
-          
-          if (response.ok) {
-            html = await response.text();
-          } else {
-            // Unobtrusive fallback to non-TLS fetcher
-            html = await fetchPageHtmlWithNoTls(url).catch(() => '');
-          }
+          html = await fetchPageHtmlWithNoTls(url);
         } catch (fetchErr: any) {
-          // Unobtrusive fallback to non-TLS fetcher on any fetch exception
-          html = await fetchPageHtmlWithNoTls(url).catch(() => '');
+          // ignore or handle if needed
         }
 
         if (html) {
@@ -1533,7 +1989,7 @@ async function startServer() {
     try {
       const { 
         video_url, thumbnail_url, main_product_image_url, 
-        caption, product_url, real_life_image_url, is_verified_real, force_unverified_url, category_id
+        caption, product_url, real_life_image_url, is_verified_real, force_unverified_url, category_id, tags
       } = req.body;
 
       if (!product_url) {
@@ -1611,7 +2067,7 @@ async function startServer() {
         }
       }
 
-      let status = 'processing';
+      let status = 'pending_review';
 
       // Step 5: Strict eTLD+1 Root Parsing ecommerce check via tldts
       const isMarketplace = isAllowedMarketplace(safeProductUrl);
@@ -1683,6 +2139,7 @@ async function startServer() {
         product_url: safeProductUrl,
         ...(real_life_image_url ? { real_life_image_url, is_verified_real } : {}),
         ...(category_id ? { category_id } : {}),
+        ...(tags && Array.isArray(tags) ? { tags } : {}),
         status, 
       }).select().single();
 
@@ -1698,13 +2155,21 @@ async function startServer() {
                 product_url: safeProductUrl,
                 ...(real_life_image_url ? { real_life_image_url, is_verified_real } : {}),
                 ...(category_id ? { category_id } : {}),
+                ...(tags && Array.isArray(tags) ? { tags } : {})
              }).select().single();
              
              if (fallback.error) return res.status(400).json({ error: fallback.error.message });
+             
+             // Run AI analysis asynchronously
+             analyzeVideoMetadata(supabaseAdmin, fallback.data.id, fallback.data.caption, fallback.data.product_url).catch(console.error);
+             
              return res.json({ success: true, data: fallback.data, status: 'active (status column missing fallback)' });
          }
          return res.status(400).json({ error: error.message });
       }
+
+      // Run AI analysis asynchronously
+      analyzeVideoMetadata(supabaseAdmin, data.id, data.caption, data.product_url).catch(console.error);
 
       return res.json({ success: true, data, status });
     } catch (err: any) {
@@ -1738,6 +2203,50 @@ async function startServer() {
       res.json({ status: data.status, encodeProgress: data.encodeProgress });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Server-side high-compatibility HLS/TS streaming proxy
+  app.get('/api/stream/:videoId/*', async (req, res) => {
+    try {
+      const { videoId } = req.params;
+      const relativePath = req.params[0];
+      if (!videoId || !relativePath) {
+        return res.status(400).send('Invalid video parameters');
+      }
+
+      const deliveryHostname = process.env.BUNNY_DELIVERY_HOSTNAME || 'vz-238d4a06-b02.b-cdn.net';
+      const cdnUrl = `https://${deliveryHostname}/${videoId}/${relativePath}`;
+
+      const headers: Record<string, string> = {
+        'Referer': 'http://localhost:3000'
+      };
+
+      const proxyRes = await fetch(cdnUrl, { headers });
+      if (!proxyRes.ok) {
+        console.warn(`[Proxy Stream Warning] Failed to fetch ${cdnUrl}: Status ${proxyRes.status}`);
+        return res.status(proxyRes.status).send(`Failed to fetch streaming asset: ${proxyRes.statusText}`);
+      }
+
+      const contentType = proxyRes.headers.get('content-type');
+      if (contentType) {
+        res.setHeader('content-type', contentType);
+      }
+
+      if (relativePath.endsWith('.ts')) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      } else if (relativePath.endsWith('.m3u8')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      }
+
+      if (proxyRes.body) {
+        Readable.fromWeb(proxyRes.body as any).pipe(res);
+      } else {
+        res.status(500).send('No streaming response body available');
+      }
+    } catch (error: any) {
+      console.error('[Proxy Stream Error]:', error);
+      res.status(500).send(error.message);
     }
   });
 

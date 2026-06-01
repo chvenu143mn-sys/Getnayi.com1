@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Search, ChevronRight, Loader2 } from 'lucide-react';
-import { m as motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../lib/supabase';
 import { Profile } from '../types';
 
 export default function Explore() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Profile[]>([]);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
   const handleSearchClick = (query: string) => {
@@ -14,6 +14,8 @@ export default function Explore() {
   };
 
   useEffect(() => {
+    const controller = new AbortController();
+
     const search = async () => {
       if (!searchQuery.trim()) {
         setSearchResults([]);
@@ -21,24 +23,28 @@ export default function Explore() {
       }
       setIsSearching(true);
       try {
-        const { data, error } = await supabase
-          .from('public_profiles')
-          .select('*')
-          .ilike('username', `%${searchQuery}%`)
-          .limit(10);
+        const req = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`, {
+          signal: controller.signal
+        });
+        const { videos } = await req.json();
         
-        if (data) {
-          setSearchResults(data);
+        if (videos) {
+          setSearchResults(videos);
         }
-      } catch (err) {
-        console.error(err);
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.error(err);
+        }
       } finally {
         setIsSearching(false);
       }
     };
 
-    const debounce = setTimeout(search, 300);
-    return () => clearTimeout(debounce);
+    const debounce = setTimeout(search, 500);
+    return () => {
+      clearTimeout(debounce);
+      controller.abort();
+    };
   }, [searchQuery]);
 
   return (
@@ -67,23 +73,23 @@ export default function Explore() {
             </h3>
             <div className="flex flex-col gap-y-3">
                {searchResults.length === 0 && !isSearching ? (
-                 <p className="text-zinc-500 text-sm">No creators found.</p>
+                 <p className="text-zinc-500 text-sm">No videos found.</p>
                ) : (
-                 searchResults.map((profile) => (
-                   <button type="button" aria-label="button"  key={profile.id} onClick={() => alert('Creator profile coming soon')} className="w-full flex items-center p-3 bg-[#151518] hover:bg-white/5 rounded-xl transition-colors text-left border border-white/5">
-                     <div className="size-12 rounded-full overflow-hidden bg-zinc-800 mr-4">
-                       {profile.avatar_url ? (
-                         <img src={profile.avatar_url} alt={profile.username} className="size-full object-cover" />
-                       ) : (
-                         <div className="size-full flex items-center justify-center text-white/40">{profile.username?.charAt(0)}</div>
-                       )}
-                     </div>
-                     <div className="flex-1">
-                       <h4 className="font-semibold text-white text-[15px]">{profile.username}</h4>
-                       {profile.bio && <p className="text-zinc-500 text-[13px] truncate whitespace-nowrap overflow-hidden max-w-[200px]">{profile.bio}</p>}
+                 <div className="grid grid-cols-2 gap-3">
+                 {searchResults.map((video) => (
+                   <button type="button" aria-label="button" key={video.id} onClick={() => alert('Feed scroll to incoming')} className="relative aspect-[9/16] bg-zinc-900 rounded-xl overflow-hidden group">
+                     {video.thumbnail_url ? (
+                        <img src={video.thumbnail_url} alt={video.caption} className="size-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                     ) : (
+                        <div className="size-full flex items-center justify-center text-zinc-700 bg-zinc-900">No Image</div>
+                     )}
+                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-3 text-left">
+                        <p className="text-white text-xs line-clamp-2 mt-auto font-medium">{video.caption || 'No caption'}</p>
+                        {video.profiles && <p className="text-zinc-400 text-[11px] mt-1">@{video.profiles.username}</p>}
                      </div>
                    </button>
-                 ))
+                 ))}
+                 </div>
                )}
             </div>
           </section>

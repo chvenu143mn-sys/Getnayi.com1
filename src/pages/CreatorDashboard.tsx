@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { m as motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   Eye, 
   Heart, 

@@ -6,9 +6,10 @@ import { useTheme } from '../context/ThemeContext';
 import { Profile, Video } from '../types';
 import { parseVideoProduct } from '../utils/videoUtils';
 import { Loader2, Settings, Play, Edit3, X, ImagePlus, Instagram, Link2, Trash2, Moon, SunMoon, Lock, Bell, Shield, Palette, HelpCircle, ChevronRight, Bookmark, TrendingUp } from 'lucide-react';
-import { m as motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { GuestGate } from '../components/GuestGate';
+import { ProfileImageCropper } from '../components/ProfileImageCropper';
 
 export default function ProfilePage() {
   const { user, signOut } = useAuth();
@@ -25,6 +26,8 @@ export default function ProfilePage() {
   const [editInstagram, setEditInstagram] = useState('');
   const [editTiktok, setEditTiktok] = useState('');
   const [avatarObj, setAvatarObj] = useState<{ file: File; preview: string } | null>(null);
+  const [cropperSrc, setCropperSrc] = useState<string | null>(null);
+  const [pendingFileName, setPendingFileName] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -100,22 +103,20 @@ export default function ProfilePage() {
       const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
       if (!validTypes.includes(file.type)) {
         setEditError("Invalid file format. Only JPG, PNG, and WebP are allowed.");
-        setAvatarObj(null);
+        setCropperSrc(null);
         return;
       }
       
       const maxSizeInBytes = 5 * 1024 * 1024; // 5MB
       if (file.size > maxSizeInBytes) {
         setEditError("Image is too large. Maximum size is 5MB.");
-        setAvatarObj(null);
+        setCropperSrc(null);
         return;
       }
       
       setEditError(null);
-      setAvatarObj({
-        file,
-        preview: URL.createObjectURL(file)
-      });
+      setPendingFileName(file.name);
+      setCropperSrc(URL.createObjectURL(file));
     }
   };
 
@@ -141,6 +142,7 @@ export default function ProfilePage() {
         
         const res = await fetch('/api/bunny/upload-image', {
           method: 'POST',
+          credentials: 'include',
           headers: { 
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
@@ -167,6 +169,7 @@ export default function ProfilePage() {
         
       const res = await fetch('/api/profiles/me', {
         method: 'PATCH',
+        credentials: 'include',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -230,7 +233,12 @@ export default function ProfilePage() {
         const match = videoObj.video_url.match(/https?:\/\/[^\/]+\/([a-f0-9\-]+)\//i);
         if (match && match[1]) {
           try {
-            await fetch(`/api/bunny/delete/${match[1]}`, { method: 'DELETE' });
+            const sessionData = await supabase.auth.getSession();
+            const token = sessionData.data.session?.access_token;
+            await fetch(`/api/bunny/delete/${match[1]}`, { 
+              method: 'DELETE', 
+              headers: token ? { 'Authorization': `Bearer ${token}` } : undefined
+            });
             console.log("Deleted video from Bunny Stream:", match[1]);
           } catch (bunnyErr) {
             console.error("Failed to delete video from Bunny Stream:", bunnyErr);
@@ -541,7 +549,7 @@ export default function ProfilePage() {
               <h2 className="text-xl font-display font-semibold text-white mb-8">Update Profile</h2>
 
               <form onSubmit={saveProfile} className="gap-y-5">
-                <div className="flex justify-center mb-8">
+                <div className="flex flex-col items-center mb-8">
                   <div 
                     className="relative size-28 rounded-full border border-white/10 bg-zinc-900 flex items-center justify-center cursor-pointer group overflow-hidden shadow-xl"
                     onClick={() => fileInputRef.current?.click()}
@@ -557,6 +565,17 @@ export default function ProfilePage() {
                       <ImagePlus className="size-6 text-white" />
                     </div>
                   </div>
+                  
+                  {/* Photo Standard Dimensions & Crop Notice */}
+                  <div className="mt-4 text-center max-w-[280px]">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-[#ef2950] block mb-1">
+                      Instagram Recommended
+                    </span>
+                    <p className="text-[11px] text-zinc-400 font-medium leading-normal">
+                      Profile photos are best at 1:1 aspect ratio (320 × 320 px). If not set, we'll open a crop preview to align your photo perfectly.
+                    </p>
+                  </div>
+
                   <input 
                     type="file" 
                     accept="image/*"
@@ -798,6 +817,27 @@ export default function ProfilePage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Interactive Profile Picture Cropper Modal */}
+      {cropperSrc && (
+        <ProfileImageCropper
+          imageSrc={cropperSrc}
+          fileName={pendingFileName}
+          onCropCompleted={(croppedFile, croppedPreviewUrl) => {
+            setAvatarObj({
+              file: croppedFile,
+              preview: croppedPreviewUrl
+            });
+            setCropperSrc(null);
+          }}
+          onCancel={() => {
+            setCropperSrc(null);
+            if (fileInputRef.current) {
+              fileInputRef.current.value = '';
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

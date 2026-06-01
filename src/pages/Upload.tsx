@@ -9,7 +9,12 @@ import * as tus from 'tus-js-client';
 import { Profile, CreatorApplication } from '../types';
 import validator from 'validator';
 import { GuestGate } from '../components/GuestGate';
-import { m as motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
+import { extractStoreName } from '../utils/videoUtils';
+import { CreatorVerificationFlow } from '../components/upload/CreatorVerificationFlow';
+import { UploadSuccessState } from '../components/upload/UploadSuccessState';
+
+import { UploadAccordion } from '../components/upload/UploadAccordion';
 
 export default function Upload() {
   const { user } = useAuth();
@@ -20,13 +25,6 @@ export default function Upload() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [application, setApplication] = useState<CreatorApplication | null>(null);
   const [approvalStatus, setApprovalStatus] = useState<'loading' | 'unauthorized' | 'pending' | 'rejected' | 'approved'>('loading');
-
-  const [appPortfolioUrl, setAppPortfolioUrl] = useState('');
-  const [appSocialUrl, setAppSocialUrl] = useState('');
-  const [appNotes, setAppNotes] = useState('');
-  const [isSubmittingApp, setIsSubmittingApp] = useState(false);
-  const [onboardingType, setOnboardingType] = useState<'creator' | 'brand'>('creator');
-  const [showForm, setShowForm] = useState(false);
   
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -60,6 +58,10 @@ export default function Upload() {
   const [couponInstructions, setCouponInstructions] = useState('');
   const [couponTerms, setCouponTerms] = useState('');
   
+  const [hashtags, setHashtags] = useState<string>('');
+  const [tags, setTags] = useState<string>('');
+  const [isExtractingMetadata, setIsExtractingMetadata] = useState(false);
+  
   const [isMuted, setIsMuted] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -75,6 +77,8 @@ export default function Upload() {
   const [filmstripFrames, setFilmstripFrames] = useState<string[]>([]);
   const [showProductDrawer, setShowProductDrawer] = useState(false);
   const [productSearch, setProductSearch] = useState('');
+  
+  const [expandedSection, setExpandedSection] = useState<string | null>('core');
 
   // Validate URL as user types with debounce and backend resolution
   useEffect(() => {
@@ -127,6 +131,7 @@ export default function Upload() {
 
         const response = await fetch('/api/link-preview', {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url: targetUrl })
         });
@@ -222,7 +227,7 @@ export default function Upload() {
         // Intercept chvenu143mn@gmail.com - auto-approve, activate full admin & creator privileges
         if (user.email?.toLowerCase() === 'chvenu143mn@gmail.com') {
           try {
-            await fetch('/api/user/grant-and-approve', { method: 'POST' });
+            await fetch('/api/user/grant-and-approve', { method: 'POST', credentials: 'include' });
           } catch (e) {
             console.error("Failed to sync backend approval status:", e);
           }
@@ -291,36 +296,60 @@ export default function Upload() {
     fetchStatus();
   }, [user]);
 
-  const submitApplication = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-    
-    setIsSubmittingApp(true);
-    setError(null);
+  const handleExtractMetadata = async () => {
+    if (!productUrl) {
+      alert("Please enter a product URL first to extract metadata.");
+      return;
+    }
+    setIsExtractingMetadata(true);
     try {
-      const finalNotes = onboardingType === 'brand'
-        ? `Role: Brand\n\nNotes:\n${appNotes}`
-        : `Role: Creator\n\nNotes:\n${appNotes}`;
+      const sessionData = await supabase.auth.getSession();
+      const token = sessionData.data.session?.access_token;
+      
+      const res = await fetch('/api/generate-metadata', {
+        method: 'POST',
+        headers: {
+           'Content-Type': 'application/json',
+           'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ product_url: productUrl, caption })
+      });
+      if (!res.ok) throw new Error("Metadata generation failed.");
+      
+      const resData = await res.json();
+      const generated = resData?.data;
 
-      const { data, error } = await supabase
-        .from('creator_applications')
-        .insert({
-           user_id: user.id,
-           portfolio_url: appPortfolioUrl,
-           social_url: appSocialUrl,
-           notes: finalNotes,
-           status: 'pending'
-        })
-        .select()
-        .single();
-        
-      if (error) throw error;
-      setApplication(data);
-      setApprovalStatus('pending');
+      if (generated) {
+        if (generated.hashtags) {
+           setHashtags(Array.isArray(generated.hashtags) ? generated.hashtags.join(' ') : generated.hashtags);
+        }
+        if (generated.tags) {
+           setTags(Array.isArray(generated.tags) ? generated.tags.join(', ') : generated.tags);
+        }
+        if (generated.suggested_caption) {
+           setCaption(prev => prev || generated.suggested_caption);
+        }
+        if (generated.product_highlights) {
+           setProductUses(prev => prev || generated.product_highlights);
+           setExpandedSection('structured');
+        }
+        if (generated.honest_review_notes) {
+           setThingsToKnow(prev => prev || generated.honest_review_notes);
+           setExpandedSection('structured');
+        }
+        if (generated.categories && Array.isArray(generated.categories) && generated.categories.length > 0) {
+           const aiCat = generated.categories[0].toLowerCase();
+           const match = categories.find(c => c.name.toLowerCase().includes(aiCat) || aiCat.includes(c.name.toLowerCase()));
+           if (match) {
+             setCategoryId(match.id);
+           }
+        }
+      }
     } catch (err: any) {
-       setError(err.message || 'Failed to submit application.');
+      console.error(err);
+      alert("Could not generate AI metadata. Please try again.");
     } finally {
-       setIsSubmittingApp(false);
+      setIsExtractingMetadata(false);
     }
   };
 
@@ -525,6 +554,7 @@ export default function Upload() {
       
       const createRes = await fetch('/api/bunny/create', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -574,6 +604,7 @@ export default function Upload() {
         // Step 1: Get presigned URL
         const presignRes = await fetch('/api/bunny/presign-image', {
           method: 'POST',
+          credentials: 'include',
           headers: { 
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
@@ -623,9 +654,14 @@ export default function Upload() {
         submitProductUrl = 'https://' + submitProductUrl;
       }
 
+      const parsedTags = tags.split(',').map(t => t.trim()).filter(Boolean);
+      const parsedHashtags = hashtags.split(' ').map(t => t.trim().startsWith('#') ? t.trim() : `#${t.trim()}`).filter(t => t !== '#');
+      const allTags = [...parsedTags, ...parsedHashtags];
+
       // Insert into DB using backend for strict URL validation
       const insertResponse = await fetch('/api/videos', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${sessionData.data.session?.access_token}`
@@ -653,7 +689,8 @@ export default function Upload() {
           real_life_image_url: finalRealLifeImageUrl || undefined,
           is_verified_real: finalRealLifeImageUrl ? true : false,
           force_unverified_url: forceUnverified,
-          category_id: categoryId || undefined
+          category_id: categoryId || undefined,
+          tags: allTags.length > 0 ? allTags : undefined
         })
       });
 
@@ -675,7 +712,7 @@ export default function Upload() {
       
       if (createdBunnyVideoId) {
         // Attempt to clean up the orphaned video on Bunny Stream
-        fetch(`/api/bunny/delete/${createdBunnyVideoId}`, { method: 'DELETE' })
+        fetch(`/api/bunny/delete/${createdBunnyVideoId}`, { method: 'DELETE', credentials: 'include' })
           .then(res => res.json())
           .then(() => console.log(`Cleaned up failed video upload ${createdBunnyVideoId}`))
           .catch(cleanupErr => console.error('Failed to cleanup Bunny video:', cleanupErr));
@@ -685,422 +722,12 @@ export default function Upload() {
     }
   };
 
-  if (approvalStatus === 'loading') {
-    return (
-      <div className="flex-1 w-full bg-[#0c0c0e] text-white pt-safe flex flex-col h-full font-sans">
-        <div className="max-w-md mx-auto w-full flex-1 flex flex-col px-6 pb-8">
-          {/* Header */}
-          <header className="flex items-center justify-between py-6 sticky top-0 bg-[#0c0c0e] z-15">
-            <button type="button" aria-label="button"  className="text-zinc-500 p-1 cursor-not-allowed" disabled>
-              <ArrowLeft className="size-6" strokeWidth={2.5} />
-            </button>
-            <h1 className="text-[17px] font-semibold tracking-wide text-zinc-400 text-center flex-1 pr-6">
-              Checking status...
-            </h1>
-          </header>
-
-          <div className="flex-1 flex flex-col">
-            {/* Step Indicators with soft pulsing matching the actual UI layout */}
-            <div className="w-full flex items-center justify-between max-w-[280px] mx-auto mt-2 mb-10 relative px-2">
-              <div className="absolute top-[18px] left-[30px] right-[30px] h-[1px] bg-zinc-800 -z-5" />
-              
-              {/* Stage 1: Apply */}
-              <div className="flex flex-col items-center gap-2 animate-pulse">
-                <div className="size-[36px] rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center font-bold text-[14px] text-zinc-600">
-                  1
-                </div>
-                <span className="text-[12px] font-medium tracking-wide text-zinc-500">Apply</span>
-              </div>
-
-              {/* Stage 2: Review */}
-              <div className="flex flex-col items-center gap-2 animate-pulse delay-75">
-                <div className="size-[36px] rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center font-bold text-[14px] text-zinc-600">
-                  2
-                </div>
-                <span className="text-[12px] font-medium tracking-wide text-zinc-500">Review</span>
-              </div>
-
-              {/* Stage 3: Verified */}
-              <div className="flex flex-col items-center gap-2 animate-pulse delay-150">
-                <div className="size-[36px] rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center font-bold text-[14px] text-zinc-600">
-                  3
-                </div>
-                <span className="text-[12px] font-medium text-zinc-500 tracking-wide">Verified</span>
-              </div>
-            </div>
-
-            {/* Skeleton Content Body */}
-            <div className="flex-1 flex flex-col items-center text-center">
-              {/* Pulsing Wavy Medallion Emblem */}
-              <div className="size-24 rounded-full bg-[#1c1c1e] border-2 border-zinc-800/80 mb-6 flex items-center justify-center shadow-lg animate-pulse">
-                <div className="size-12 rounded-full bg-zinc-800/50" />
-              </div>
-
-              {/* Title texts skeleton */}
-              <div className="w-48 h-6 bg-zinc-900 rounded-md animate-pulse mb-3" />
-              <div className="w-64 h-4 bg-zinc-900 rounded-md animate-pulse mb-8" />
-
-              {/* Checklist skeleton card container */}
-              <div className="w-full bg-[#111113] border border-zinc-800/80 rounded-[20px] p-5 flex flex-col gap-5 text-left shadow-md animate-pulse">
-                {[
-                  "w-1/2",
-                  "w-2/3",
-                  "w-5/12",
-                  "w-3/4"
-                ].map((widthClass, i) => (
-                  <div key={i} className="flex items-center gap-4">
-                    <div className="size-[18px] rounded-full bg-zinc-900 border border-zinc-800/60 shrink-0" />
-                    <div className={cn("h-3.5 bg-zinc-800/40 rounded-md", widthClass)} />
-                  </div>
-                ))}
-              </div>
-
-              {/* CTA Button skeleton */}
-              <div className="w-full h-[54px] bg-zinc-900 border border-zinc-800/50 rounded-2.5xl animate-pulse mt-10" />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (approvalStatus !== 'approved') {
-    return (
-      <div className="flex-1 w-full bg-[#0c0c0e] text-white pt-safe flex flex-col h-full font-sans">
-        <div className="max-w-md mx-auto w-full flex-1 flex flex-col px-6 pb-8">
-          {/* Header resembling the image */}
-          <header className="flex items-center justify-between py-6 sticky top-0 bg-[#0c0c0e] z-15">
-            <button type="button" aria-label="button"  
-              onClick={() => {
-                if (showForm) {
-                  setShowForm(false);
-                } else {
-                  navigate(-1);
-                }
-              }} 
-              className="text-white hover:text-zinc-300 transition-colors p-1"
-            >
-              <ArrowLeft className="size-6" strokeWidth={2.5} />
-            </button>
-            <h1 className="text-[17px] font-semibold tracking-wide text-white text-center flex-1 pr-6">
-              {onboardingType === 'creator' ? "Creator Verification" : "Brand Verification"}
-            </h1>
-          </header>
-
-          <div className="flex-1 flex flex-col">
-            {/* Step Indicators perfectly matching prompt image */}
-            <div className="w-full flex items-center justify-between max-w-[280px] mx-auto mt-2 mb-10 relative px-2">
-              <div className="absolute top-[18px] left-[30px] right-[30px] h-[1px] bg-zinc-800 -z-5" />
-              
-              {/* Step 1: Apply */}
-              <div className="flex flex-col items-center gap-2">
-                <div className={cn(
-                  "size-[36px] rounded-full flex items-center justify-center font-bold text-[14px] transition-all duration-300",
-                  (approvalStatus === 'unauthorized' || approvalStatus === 'rejected' || approvalStatus === 'pending')
-                    ? "bg-[#ef2950] text-white shadow-[0_0_15px_rgba(239,41,80,0.4)]"
-                    : "bg-zinc-900 text-zinc-500 border border-zinc-800"
-                )}>
-                  1
-                </div>
-                <span className={cn(
-                  "text-[12px] font-medium tracking-wide",
-                  (approvalStatus === 'unauthorized' || approvalStatus === 'rejected') ? "text-white" : "text-zinc-500"
-                )}>
-                  Apply
-                </span>
-              </div>
-
-              {/* Step 2: Review */}
-              <div className="flex flex-col items-center gap-2">
-                <div className={cn(
-                  "size-[36px] rounded-full flex items-center justify-center font-bold text-[14px] transition-all duration-300",
-                  approvalStatus === 'pending'
-                    ? "bg-[#ef2950] text-white shadow-[0_0_15px_rgba(239,41,80,0.4)]"
-                    : "bg-[#161618] text-zinc-500 border border-zinc-800"
-                )}>
-                  2
-                </div>
-                <span className={cn(
-                  "text-[12px] font-medium tracking-wide",
-                  approvalStatus === 'pending' ? "text-white" : "text-zinc-500"
-                )}>
-                  Review
-                </span>
-              </div>
-
-              {/* Step 3: Verified */}
-              <div className="flex flex-col items-center gap-2">
-                <div className="size-[36px] rounded-full bg-[#161618] text-zinc-500 font-bold text-[14px] flex items-center justify-center border border-zinc-800">
-                  3
-                </div>
-                <span className="text-[12px] font-medium text-zinc-500 tracking-wide">
-                  Verified
-                </span>
-              </div>
-            </div>
-
-            {/* Check progress state / Pending details */}
-            {approvalStatus === 'pending' ? (
-              <div className="flex-1 flex flex-col items-center justify-center py-6">
-                <div className="size-16 bg-amber-500/10 text-amber-500 rounded-2xl flex items-center justify-center mb-6 border border-amber-500/20 shadow-lg shadow-amber-500/5">
-                  <Loader2 className="size-8 animate-spin" />
-                </div>
-                <h3 className="font-bold text-xl mb-3 text-white">Application Under Review</h3>
-                <p className="text-zinc-400 text-[13.5px] leading-relaxed text-center max-w-xs px-2">
-                  Our moderators are currently reviewing your submitted onboarding details. We will automatically activate your posting access as soon as your application is approved! You'll receive a confirmation email and in-app notification the moment you're ready to go.
-                </p>
-                <button type="button" aria-label="button"  
-                  onClick={() => navigate('/')} 
-                  className="mt-8 px-6 py-2.5 bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-xl text-xs font-semibold uppercase tracking-wider hover:bg-zinc-800/80 transition-all"
-                >
-                  Return to Feed
-                </button>
-              </div>
-            ) : (
-              /* Unauthorized or Rejected state */
-              <div className="flex-1 flex flex-col justify-between">
-                <div>
-                  {/* SEGMENT TOGGLE FOR CREATOR OR BRAND */}
-                  {!showForm && (
-                    <div className="flex bg-[#161618] p-1 rounded-xl border border-zinc-800 mb-8 max-w-[280px] mx-auto">
-                      <button aria-label="button" 
-                        type="button"
-                        onClick={() => {
-                          setOnboardingType('creator');
-                          setError(null);
-                        }}
-                        className={cn(
-                          "flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-lg transition-all duration-300",
-                          onboardingType === 'creator'
-                            ? "bg-[#ef2950] text-white shadow-md shadow-[#ef2950]/15"
-                            : "text-zinc-500 hover:text-zinc-300"
-                        )}
-                      >
-                        <User className="size-3.5" />
-                        Creator
-                      </button>
-                      <button aria-label="button" 
-                        type="button"
-                        onClick={() => {
-                          setOnboardingType('brand');
-                          setError(null);
-                        }}
-                        className={cn(
-                          "flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-lg transition-all duration-300",
-                          onboardingType === 'brand'
-                            ? "bg-[#2563eb] text-white shadow-md shadow-[#2563eb]/15"
-                            : "text-zinc-500 hover:text-zinc-300"
-                        )}
-                      >
-                        <Building className="size-3.5" />
-                        Brand
-                      </button>
-                    </div>
-                  )}
-
-                  {!showForm ? (
-                    /* SCREEN A: Checklist view exactly matching user's uploaded mockup file */
-                    <div className="flex flex-col items-center text-center">
-                      
-                      {/* Image Medallion / Wavy Seal Badge */}
-                      <div className="relative mb-6">
-                        <div className="absolute inset-0 bg-[#f97316]/10 blur-2xl rounded-full" />
-                        <svg className="size-24" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          {/* Radial gradient backing for 3D metallic feel */}
-                          <path d="M50 5C53.8 11.2 59.5 12.3 65.5 10.1C71.5 7.9 76.5 11.4 78 17.5C79.4 23.6 84.7 26.5 88.3 31.4C91.9 36.3 90.2 42.1 91 48.2C91.8 54.3 94.4 59.5 92.5 65.3C90.6 71.1 86 73.9 83 79.2C80 84.5 77.2 90.5 71.3 92.4C65.4 94.3 60.5 90.7 54.4 91.5C48.3 92.3 43.1 96.9 37.1 95C31.1 93.1 27.2 88.5 22 85C16.8 81.5 10.4 80.5 8 74.6C5.6 68.7 8.3 62.9 7 56.8C5.7 50.7 2.1 45.4 3.5 39.4C4.9 33.4 9.9 30.6 12 24.8C14.1 19 12.7 12.4 18.2 9.5C23.7 6.6 29.5 9.5 35.5 7.5C41.5 5.5 46.2-1.2 50 5Z" fill="url(#goldGrad)" className="drop-shadow-lg" />
-                          <circle cx="50" cy="50" r="28" fill="#121214" stroke="url(#goldInner)" strokeWidth="1.5" />
-                          
-                          {/* Keyhole / Seal emblem inside the rosette */}
-                          <path d="M50 34C45.5 34 42 37.5 42 42V46.5C39.5 46.5 38 48 38 50.5V61.5C38 64 39.5 65.5 42 65.5H58C60.5 65.5 62 64 62 61.5V50.5C62 48 60.5 46.5 58 46.5V42C58 37.5 54.5 34 50 34ZM45.5 42C45.5 39.5 47.5 37.5 50 37.5C52.5 37.5 54.5 39.5 54.5 42V46.5H45.5V42ZM50 52C51.4 52 52.5 53.1 52.5 54.5C52.5 55.5 51.9 56.4 51 56.8V61.5H49V56.8C48.1 56.4 47.5 55.5 47.5 54.5C47.5 53.1 48.6 52 50 52Z" fill="url(#redGrad)" />
-                          
-                          <defs>
-                            <radialGradient id="goldGrad" cx="50%" cy="50%" r="50%">
-                              <stop offset="0%" stopColor="#fca5a5" />
-                              <stop offset="25%" stopColor="#f97316" />
-                              <stop offset="70%" stopColor="#ea580c" />
-                              <stop offset="100%" stopColor="#c2410c" />
-                            </radialGradient>
-                            <linearGradient id="goldInner" x1="0" y1="0" x2="1" y2="1">
-                              <stop offset="0%" stopColor="#fed7aa" />
-                              <stop offset="100%" stopColor="#ea580c" />
-                            </linearGradient>
-                            <linearGradient id="redGrad" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="#ef2950" />
-                              <stop offset="100%" stopColor="#b91c1c" />
-                            </linearGradient>
-                          </defs>
-                        </svg>
-                      </div>
-
-                      {/* Headline titles matching image prompt */}
-                      <h3 className="text-[20px] font-bold text-white tracking-wide mb-2.5">
-                        Build trust. Get verified.
-                      </h3>
-                      <p className="text-[14px] text-zinc-400 tracking-wide leading-relaxed max-w-[280px] mb-8">
-                        {onboardingType === 'creator'
-                          ? "Verification helps your audience trust your recommendations."
-                          : "Establish official authority as a validated Shopify brand store."}
-                      </p>
-
-                      {/* Checklist card with customized checks conforming to image mockup */}
-                      <div className="w-full bg-[#111113] border border-zinc-800/80 rounded-[20px] p-5 flex flex-col gap-4 text-left shadow-md">
-                        {[
-                          onboardingType === 'creator' ? 'Verify your identity' : 'Establish store authority',
-                          onboardingType === 'creator' ? 'Link social accounts' : 'Connect catalog endpoints',
-                          onboardingType === 'creator' ? 'Show real presence' : 'Get verified badge badge-check',
-                          'Agree to guidelines'
-                        ].map((text, i) => (
-                          <div key={i} className="flex items-center gap-3.5">
-                            <div className="size-[18px] rounded-full bg-[#ef2950]/15 border border-[#ef2950]/30 flex items-center justify-center shrink-0">
-                              <svg className="size-2.5 text-[#ef2950]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="4">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                              </svg>
-                            </div>
-                            <span className="text-[14px] font-medium text-zinc-200 tracking-wide">{text}</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* CTA Button */}
-                      <button type="button" aria-label="button"  
-                        onClick={() => setShowForm(true)}
-                        className="w-full mt-10 py-[17px] bg-[#ef2950] text-white font-semibold text-[15px] tracking-wide rounded-2.5xl flex items-center justify-center hover:bg-[#d61e40] transition-all duration-300 shadow-lg shadow-[#ef2950]/20 active:scale-[0.98]"
-                      >
-                        Start Verification
-                      </button>
-                    </div>
-                  ) : (
-                    /* SCREEN B: Under-the-hood Onboarding form input fields */
-                    <form onSubmit={submitApplication} className="gap-y-5 animate-fadeIn">
-                      <div className="mb-4">
-                        <p className="text-xs text-zinc-500 mb-2 uppercase tracking-widest font-bold">Step 1 — Submit Profile Links</p>
-                        <h2 className="text-lg font-bold text-zinc-100">
-                          {onboardingType === 'creator' ? "Creator Details Form" : "Brand Profile Form"}
-                        </h2>
-                      </div>
-
-                      <div className="gap-y-2">
-                        <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 ml-1">
-                          {onboardingType === 'creator' ? "Work Portfolio or Link" : "Official Brand Website / Catalog URL"}
-                        </label>
-                        <div className="relative">
-                          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                            <LinkIcon className="size-4 text-zinc-500" />
-                          </div>
-                          <input
-                            type="url"
-                            required
-                            value={appPortfolioUrl}
-                            onChange={(e) => setAppPortfolioUrl(e.target.value)}
-                            placeholder={onboardingType === 'creator' ? "https://example.com/portfolio-or-social" : "https://brandstorefront.com"}
-                            className="w-full bg-zinc-950 border border-zinc-900 text-white placeholder-zinc-600 rounded-xl focus:ring-2 focus:ring-[#ef2950] focus:border-transparent py-3.5 pl-11 pr-4 outline-none transition-all"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="gap-y-2">
-                        <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 ml-1">
-                          {onboardingType === 'creator' ? "Social profile handle link (Optional)" : "Official Brand Social Channel link"}
-                        </label>
-                        <div className="relative">
-                          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                            <Globe className="size-4 text-zinc-500" />
-                          </div>
-                          <input
-                            type="url"
-                            required={onboardingType === 'brand'}
-                            value={appSocialUrl}
-                            onChange={(e) => setAppSocialUrl(e.target.value)}
-                            placeholder={onboardingType === 'creator' ? "https://instagram.com/username" : "https://instagram.com/brandname"}
-                            className="w-full bg-zinc-950 border border-zinc-900 text-white placeholder-zinc-600 rounded-xl focus:ring-2 focus:ring-[#ef2950] focus:border-transparent py-3.5 pl-11 pr-4 outline-none transition-all"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="gap-y-2">
-                        <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 ml-1">
-                          {onboardingType === 'creator' ? "Tell us about your style & vibe" : "Brand overview catalog details"}
-                        </label>
-                        <div className="relative">
-                          <div className="absolute top-3.5 left-4 pointer-events-none">
-                            <FileText className="size-4 text-zinc-500" />
-                          </div>
-                          <textarea
-                            required
-                            value={appNotes}
-                            onChange={(e) => setAppNotes(e.target.value)}
-                            placeholder={onboardingType === 'creator' ? "Tell us about yourself, your favorite product categories, or what inspires your try-on videos..." : "Introduce your brand catalog size, product categories, and goals for partnering with creators..."}
-                            rows={4}
-                            className="w-full bg-zinc-950 border border-zinc-900 text-white placeholder-zinc-600 rounded-xl focus:ring-2 focus:ring-[#ef2950] focus:border-transparent py-3.5 pl-11 pr-4 outline-none transition-all resize-none"
-                          />
-                        </div>
-                      </div>
-
-                      {error && (
-                        <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-500 text-sm rounded-xl font-medium">
-                          {error}
-                        </div>
-                      )}
-
-                      <div className="flex gap-4 pt-2">
-                        <button aria-label="button" 
-                          type="button"
-                          onClick={() => setShowForm(false)}
-                          className="flex-1 border border-zinc-800 text-zinc-300 font-semibold py-4 rounded-xl hover:bg-zinc-900 transition-all font-sans text-sm"
-                        >
-                          Back
-                        </button>
-                        <button aria-label="button" 
-                          type="submit"
-                          disabled={isSubmittingApp}
-                          className="flex-1 bg-[#ef2950] hover:bg-[#d61e40] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-[#ef2950]/20 flex justify-center items-center text-sm"
-                        >
-                          {isSubmittingApp ? <Loader2 className="size-5 animate-spin" /> : 'Request Access'}
-                        </button>
-                      </div>
-                    </form>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
+  if (approvalStatus === 'loading' || approvalStatus !== 'approved') {
+    return <CreatorVerificationFlow approvalStatus={approvalStatus} setApprovalStatus={setApprovalStatus} />;
   }
 
   if (isSuccess) {
-    if (uploadedVideoStatus === 'pending_review') {
-      return (
-        <div className="flex-1 w-full bg-[#0c0c0e] text-white flex flex-col h-full items-center justify-center p-6 text-center">
-          <div className="size-20 bg-yellow-500/20 text-yellow-500 rounded-full flex flex-col items-center justify-center mb-6">
-            <AlertCircle className="size-10" />
-          </div>
-          <h2 className="text-2xl font-bold tracking-tight mb-2">Under Review</h2>
-          <p className="text-zinc-400 text-center max-w-sm mb-6">
-            Since this store is new to us, we’ll quickly review your post to keep the community safe.
-          </p>
-          <button type="button" aria-label="button"  
-            onClick={() => navigate('/profile')}
-            className="px-8 py-3 bg-white text-black font-semibold rounded-full hover:bg-zinc-200 transition-colors"
-          >
-            Go to Profile
-          </button>
-        </div>
-      );
-    }
-
-    return (
-      <div className="flex-1 w-full bg-[#0c0c0e] text-white flex flex-col h-full items-center justify-center p-6">
-        <div className="size-20 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mb-6 animate-bounce">
-          <CheckCircle className="size-10" />
-        </div>
-        <h2 className="text-2xl font-bold tracking-tight mb-2">Post is live!</h2>
-        <p className="text-zinc-400 text-center max-w-xs">
-          Your video is out there. Heading to your profile...
-        </p>
-      </div>
-    );
+    return <UploadSuccessState uploadedVideoStatus={uploadedVideoStatus} />;
   }
 
   if (!user) {
@@ -1240,7 +867,15 @@ export default function Upload() {
                   )}
                   <div className="min-w-0">
                     <p className="text-zinc-200 text-xs font-semibold truncate font-sans">{urlMetadata.title}</p>
-                    <p className="text-zinc-500 text-[10px] uppercase tracking-wider font-bold font-mono">{urlMetadata.domain}</p>
+                    <p className="text-zinc-500 text-[10px] uppercase tracking-wider font-bold font-mono flex flex-wrap items-center gap-1.5 mt-0.5">
+                      <span>{urlMetadata.domain}</span>
+                      {extractStoreName(productUrl) && extractStoreName(productUrl) !== 'Store' && (
+                        <>
+                          <span className="text-zinc-700 font-sans">•</span>
+                          <span className="text-emerald-400 font-sans font-bold normal-case">detected: {extractStoreName(productUrl)}</span>
+                        </>
+                      )}
+                    </p>
                   </div>
                 </div>
                 <span className="flex items-center gap-1 bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/10 px-2 py-0.5 rounded-full text-[10px] font-bold font-sans tracking-wide shrink-0">
@@ -1308,83 +943,80 @@ export default function Upload() {
             />
           </div>
 
-          <div className="border-t border-zinc-900 pt-6 gap-y-5">
-            <h3 className="text-[15px] font-bold text-white pl-1 flex items-center gap-2">
-              <svg className="size-4 text-[#ef2950]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
-              Structured Product Information
-            </h3>
+          <UploadAccordion
+            title="Search Discovery & Tags"
+            icon={<Search className="size-5 text-purple-400" />}
+            isOpen={expandedSection === 'search'}
+            onToggle={() => setExpandedSection(expandedSection === 'search' ? null : 'search')}
+          >
+            <div className="flex items-center justify-end mb-2">
+              <button 
+                type="button" 
+                onClick={handleExtractMetadata}
+                disabled={isExtractingMetadata || !productUrl}
+                className="flex items-center gap-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 px-3 py-1.5 rounded-lg text-[12px] font-bold tracking-wide transition-colors disabled:opacity-50"
+              >
+                {isExtractingMetadata ? <Loader2 className="size-3.5 animate-spin" /> : <Tag className="size-3.5" />}
+                Autofill Metadata
+              </button>
+            </div>
             
             <div className="flex flex-col">
-              <label className="text-[13px] font-medium text-zinc-400 font-sans tracking-wide mb-2 pl-1">Product Uses (Add bullet points)</label>
+              <label className="text-[13px] font-medium text-zinc-400 font-sans tracking-wide mb-2 pl-1">Hashtags</label>
+              <input 
+                type="text"
+                value={hashtags}
+                onChange={(e) => setHashtags(e.target.value)}
+                placeholder="e.g. #fashion #style"
+                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm"
+              />
+            </div>
+
+            <div className="flex flex-col">
+              <label className="text-[13px] font-medium text-zinc-400 font-sans tracking-wide mb-2 pl-1">Search Keywords / Tags</label>
+              <input 
+                type="text"
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+                placeholder="e.g. casual top, blue dress, pure cotton (comma separated)"
+                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm"
+              />
+            </div>
+          </UploadAccordion>
+
+          <UploadAccordion
+            title="Structured Product Review"
+            icon={<FileText className="size-5 text-[#ef2950]" />}
+            isOpen={expandedSection === 'structured'}
+            onToggle={() => setExpandedSection(expandedSection === 'structured' ? null : 'structured')}
+          >
+            <div className="flex flex-col">
+              <label className="text-[13px] font-medium text-zinc-400 font-sans tracking-wide mb-2 pl-1">Key Highlights & Specs (Add bullet points)</label>
               <textarea 
                 value={productUses}
                 onChange={(e) => setProductUses(e.target.value)}
-                placeholder="e.g.&#10;• Daily workspace wear&#10;• Perfect for heavy coding sessions&#10;• Traveling companion"
-                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm min-h-[90px]"
+                placeholder="e.g.&#10;• Perfect for heavy coding sessions&#10;• Battery life: up to 30 hours&#10;• Extreme comfort and lightweight design"
+                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm min-h-[120px]"
               />
             </div>
 
             <div className="flex flex-col">
-              <label className="text-[13px] font-medium text-zinc-400 font-sans tracking-wide mb-2 pl-1">Key Specifications</label>
-              <textarea 
-                value={keySpecs}
-                onChange={(e) => setKeySpecs(e.target.value)}
-                placeholder="e.g.&#10;• Battery life: up to 30 hours&#10;• Bluetooth 5.2 connectivity&#10;• Sweat and dust proof"
-                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm min-h-[90px]"
-              />
-            </div>
-
-            <div className="flex flex-col">
-              <label className="text-[13px] font-medium text-zinc-400 font-sans tracking-wide mb-2 pl-1">Key Benefits</label>
-              <textarea 
-                value={benefits}
-                onChange={(e) => setBenefits(e.target.value)}
-                placeholder="e.g.&#10;• Reduces active outside ambient ear strain&#10;• Extremely pocket friendly lightweight design&#10;• Rich audio bass equalizer"
-                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm min-h-[90px]"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col">
-                <label className="text-[13px] font-medium text-zinc-400 font-sans tracking-wide mb-2 pl-1">Best For</label>
-                <input 
-                  type="text"
-                  value={bestFor}
-                  onChange={(e) => setBestFor(e.target.value)}
-                  placeholder="e.g. Techies, Audiophiles"
-                  className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm"
-                />
-              </div>
-
-              <div className="flex flex-col">
-                <label className="text-[13px] font-medium text-zinc-400 font-sans tracking-wide mb-2 pl-1">What I Liked</label>
-                <input 
-                  type="text"
-                  value={whatILiked}
-                  onChange={(e) => setWhatILiked(e.target.value)}
-                  placeholder="e.g. Fast Charging support"
-                  className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm"
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col">
-              <label className="text-[13px] font-medium text-zinc-400 font-sans tracking-wide mb-2 pl-1">Things to Know (Heads Up)</label>
+              <label className="text-[13px] font-medium text-zinc-400 font-sans tracking-wide mb-2 pl-1">Honest Review (Pros, Cons & Things to Know)</label>
               <textarea 
                 value={thingsToKnow}
                 onChange={(e) => setThingsToKnow(e.target.value)}
-                placeholder="e.g. Passive call noise isolation only, requires USB-C charger (not in box)"
-                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm min-h-[60px]"
+                placeholder="e.g. Loved the fast charging support and sound quality. Heads up: The ear tips take some time to align, requires a USB-C charger (not in box)."
+                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm min-h-[90px]"
               />
             </div>
-          </div>
+          </UploadAccordion>
 
-          <div className="border-t border-zinc-900 pt-6 gap-y-4">
-            <h3 className="text-[15px] font-bold text-white pl-1 flex items-center gap-2">
-              <svg className="size-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" /></svg>
-              Coupon Code (Optional)
-            </h3>
-
+          <UploadAccordion
+            title="Coupon & Discounts (Optional)"
+            icon={<Tag className="size-5 text-emerald-400" />}
+            isOpen={expandedSection === 'coupon'}
+            onToggle={() => setExpandedSection(expandedSection === 'coupon' ? null : 'coupon')}
+          >
             <div className="flex flex-col">
               <label className="text-[13px] font-medium text-zinc-400 font-sans tracking-wide mb-2 pl-1">Promo Coupon Code</label>
               <div className="flex gap-2">
@@ -1414,63 +1046,58 @@ export default function Upload() {
             </div>
 
             <div className="flex flex-col">
-              <label className="text-[13px] font-medium text-zinc-400 font-sans tracking-wide mb-2 pl-1">Coupon Instructions</label>
-              <input 
-                type="text"
+              <label className="text-[13px] font-medium text-zinc-400 font-sans tracking-wide mb-2 pl-1">Coupon Details (Instructions & Terms)</label>
+              <textarea 
                 value={couponInstructions}
                 onChange={(e) => setCouponInstructions(e.target.value)}
-                placeholder="e.g. Valid on first order only, minimum purchase ₹2,000"
-                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm"
+                placeholder="e.g. Valid on first order only, minimum purchase ₹2,000. Cannot be combined with other discounts."
+                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm min-h-[70px]"
               />
             </div>
+          </UploadAccordion>
 
+          <UploadAccordion
+            title="Product Images & Verification"
+            icon={<Camera className="size-5 text-blue-400" />}
+            isOpen={expandedSection === 'images'}
+            onToggle={() => setExpandedSection(expandedSection === 'images' ? null : 'images')}
+          >
             <div className="flex flex-col">
-              <label className="text-[13px] font-medium text-zinc-400 font-sans tracking-wide mb-2 pl-1">Coupon Terms & Conditions</label>
-              <input 
-                type="text"
-                value={couponTerms}
-                onChange={(e) => setCouponTerms(e.target.value)}
-                placeholder="e.g. Cannot be combined with other discounts. Apply during checkout."
-                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm"
-              />
+              <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-3 pl-1">Product Image * (Official photo)</label>
+              <div className="flex items-center gap-x-3 overflow-x-auto pb-1 scrollbar-none snap-x">
+                {mainProductPreview && (
+                  <div className="size-[84px] rounded-2xl overflow-hidden shrink-0 snap-start border border-white/5 shadow-sm bg-zinc-900 relative">
+                    <img src={mainProductPreview} className="size-full object-cover"  alt="" />
+                    <button type="button" aria-label="button"  onClick={() => { setMainProductFile(null); setMainProductPreview(null); }} className="absolute top-1 right-1 bg-[#0c0c0e]/50 rounded-full p-1"><X className="size-4" /></button>
+                  </div>
+                )}
+                {!mainProductPreview && (
+                  <label className="size-[84px] rounded-2xl shrink-0 snap-start border border-white/10 bg-[#151518] flex items-center justify-center hover:bg-white/5 transition-colors cursor-pointer shadow-sm relative">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-500"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                    <input type="file" accept="image/*" onChange={handleMainProductChange} className="hidden" />
+                  </label>
+                )}
+              </div>
             </div>
-          </div>
-
-          <div className="flex flex-col border-t border-zinc-900 pt-6">
-            <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-3 pl-1">Product Image * (Official photo)</label>
-            <div className="flex items-center gap-x-3 overflow-x-auto pb-1 scrollbar-none snap-x">
-              {mainProductPreview && (
-                <div className="size-[84px] rounded-2xl overflow-hidden shrink-0 snap-start border border-white/5 shadow-sm bg-zinc-900 relative">
-                  <img src={mainProductPreview} className="size-full object-cover"  alt="" />
-                  <button type="button" aria-label="button"  onClick={() => { setMainProductFile(null); setMainProductPreview(null); }} className="absolute top-1 right-1 bg-[#0c0c0e]/50 rounded-full p-1"><X className="size-4" /></button>
-                </div>
-              )}
-              {!mainProductPreview && (
-                <label className="size-[84px] rounded-2xl shrink-0 snap-start border border-white/10 bg-[#151518] flex items-center justify-center hover:bg-white/5 transition-colors cursor-pointer shadow-sm relative">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-500"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                  <input type="file" accept="image/*" onChange={handleMainProductChange} className="hidden" />
-                </label>
-              )}
+            
+            <div className="flex flex-col">
+              <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-3 pl-1">Real Life Photo (Optional)</label>
+              <div className="flex items-center gap-x-3 overflow-x-auto pb-1 scrollbar-none snap-x">
+                {realLifePreview && (
+                  <div className="size-[84px] rounded-2xl overflow-hidden shrink-0 snap-start border border-white/5 shadow-sm bg-zinc-900 relative">
+                    <img src={realLifePreview} className="size-full object-cover"  alt="" />
+                    <button type="button" aria-label="button"  onClick={() => { setRealLifeFile(null); setRealLifePreview(null); }} className="absolute top-1 right-1 bg-[#0c0c0e]/50 rounded-full p-1"><X className="size-4" /></button>
+                  </div>
+                )}
+                {!realLifePreview && (
+                  <label className="size-[84px] rounded-2xl shrink-0 snap-start border border-white/10 bg-[#151518] flex items-center justify-center hover:bg-white/5 transition-colors cursor-pointer shadow-sm relative">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-500"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                    <input type="file" accept="image/*" onChange={handleRealLifeChange} className="hidden" />
+                  </label>
+                )}
+              </div>
             </div>
-          </div>
-          
-          <div className="flex flex-col">
-            <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-3 pl-1">Real Life Photo (Optional)</label>
-            <div className="flex items-center gap-x-3 overflow-x-auto pb-1 scrollbar-none snap-x">
-              {realLifePreview && (
-                <div className="size-[84px] rounded-2xl overflow-hidden shrink-0 snap-start border border-white/5 shadow-sm bg-zinc-900 relative">
-                  <img src={realLifePreview} className="size-full object-cover"  alt="" />
-                  <button type="button" aria-label="button"  onClick={() => { setRealLifeFile(null); setRealLifePreview(null); }} className="absolute top-1 right-1 bg-[#0c0c0e]/50 rounded-full p-1"><X className="size-4" /></button>
-                </div>
-              )}
-              {!realLifePreview && (
-                <label className="size-[84px] rounded-2xl shrink-0 snap-start border border-white/10 bg-[#151518] flex items-center justify-center hover:bg-white/5 transition-colors cursor-pointer shadow-sm relative">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-500"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                  <input type="file" accept="image/*" onChange={handleRealLifeChange} className="hidden" />
-                </label>
-              )}
-            </div>
-          </div>
+          </UploadAccordion>
         </div>
 
       </div>

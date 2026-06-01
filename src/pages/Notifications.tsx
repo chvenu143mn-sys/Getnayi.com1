@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { m as motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { ShieldCheck } from 'lucide-react';
 
 export default function Notifications() {

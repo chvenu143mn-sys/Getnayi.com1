@@ -25,6 +25,7 @@ export default function SharedCollection() {
         const { data, error } = await supabase
           .from('videos')
           .select('*')
+          .eq('status', 'active')
           .in('id', videoIds);
 
         if (error) throw error;

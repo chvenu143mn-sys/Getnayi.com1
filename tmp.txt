@@ -1,0 +1,62 @@
+1:import React, { useEffect, useRef, useState, useCallback } from 'react';
+38:    if (isNaN(timeInSeconds) || !isFinite(timeInSeconds)) return "0:00";
+41:    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+48:        return `/api/stream/${match[1]}/playlist.m3u8`;
+51:    return video.video_url?.replace('usercontent-getnayi.com', 'vz-238d4a06-b02.b-cdn.net') || '';
+54:  const [isPlaying, setIsPlaying] = useState(false);
+55:  const [isMuted, setIsMuted] = useState(getGlobalMuted());
+56:  const [hasError, setHasError] = useState(false);
+57:  const [isBuffering, setIsBuffering] = useState(true);
+60:  const [isLiked, setIsLiked] = useState(video.user_state?.is_liked ?? false);
+61:  const [likesCount, setLikesCount] = useState(video.metrics?.likes ?? 0);
+62:  const [isSaved, setIsSaved] = useState(video.user_state?.is_saved ?? false);
+63:  const [savesCount, setSavesCount] = useState(video.metrics?.saves ?? 0);
+65:  const [viewsCount, setViewsCount] = useState(video.metrics?.views ?? video.views ?? 0);
+67:  const [isFollowing, setIsFollowing] = useState(video.user_state?.is_followed ?? false);
+69:  const [showHeartAnim, setShowHeartAnim] = useState(false);
+70:  const [showVerifiedInfo, setShowVerifiedInfo] = useState(false);
+73:  const [hasViewedLocallyThisSession, setHasViewedLocallyThisSession] = useState(false);
+97:  const [showReportModal, setShowReportModal] = useState(false);
+98:  const [reportCategory, setReportCategory] = useState<{id: string, label: string, priority: string, description?: string, color?: string} | null>(null);
+99:  const [reportStep, setReportStep] = useState<1 | 2>(1);
+100:  const [reportReason, setReportReason] = useState('');
+101:  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+102:  const [hasReported, setHasReported] = useState(false);
+105:  const [showProductDetails, setShowProductDetails] = useState(false);
+106:  const [detailsActiveSection, setDetailsActiveSection] = useState<'main' | 'coupon'>('main');
+107:  const [isCopied, setIsCopied] = useState(false);
+108:  const [showPurchaseDisclaimer, setShowPurchaseDisclaimer] = useState(false);
+109:  const [fullscreenImageUrl, setFullscreenImageUrl] = useState<string | null>(null);
+111:  const [isFollowingLoading, setIsFollowingLoading] = useState(false);
+112:  const [isSharing, setIsSharing] = useState(false);
+116:  const [showAuthModal, setShowAuthModal] = useState(false);
+117:  const [authModalReason, setAuthModalReason] = useState('');
+118:  const [currentTime, setCurrentTime] = useState<number>(0);
+119:  const [duration, setDuration] = useState<number>(0);
+120:  const [isScrubbing, setIsScrubbing] = useState<boolean>(false);
+130:      return (
+138:      return (
+145:      return (
+151:    return (
+159:  useEffect(() => {
+168:    return () => window.removeEventListener(MUTE_STATE_EVENT, handleMuteChange);
+172:  useEffect(() => {
+209:    return () => clearTimeout(viewTimer);
+213:  useEffect(() => {
+225:  useEffect(() => {
+227:    if (!videoElement || !resolvedVideoUrl || hasError) return;
+265:    return () => {
+276:  useEffect(() => {
+293:  useEffect(() => {
+308:    return () => {
+314:    if (!videoRef.current) return;
+329:      return;
+344:      return;
+388:      return;
+436:      return;
+438:    if (!video.user_id || video.user_id === user.id) return;
+474:    if (isSharing) return;
+537:      return;
+548:    if (!user || !reportCategory) return;
+582:  return (
+1335:                      <span className="text-white font-semibold">Returns & Refunds:</span> All cancellation requests, returns, refunds, or support queries are the entire, sole responsibility of the merchant store and the brand/influencer who uploaded this link.

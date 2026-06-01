@@ -23,6 +23,22 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email text;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone text;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS revenue numeric default 0;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS stripe_customer_id text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS trust_score numeric default 50.0 not null;
+
+CREATE INDEX IF NOT EXISTS idx_profiles_trust_score ON public.profiles(trust_score DESC);
+
+CREATE OR REPLACE FUNCTION public.adjust_creator_trust_score(p_creator_id uuid, p_increment numeric)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE public.profiles
+  SET 
+    trust_score = GREATEST(0.0, LEAST(trust_score + p_increment, 100.0))
+  WHERE id = p_creator_id;
+END;
+$$;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS stripe_subscription_id text;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_premium boolean default false;
 
@@ -52,6 +68,8 @@ CREATE TABLE IF NOT EXISTS public.videos (
 -- Ensure views and status columns exist if the table was created previously without them
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS views integer default 0;
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS status text default 'active' check (status in ('active', 'pending_review', 'rejected', 'processing'));
+ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS tags text[] default '{}';
+ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS search_aliases text;
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS product_url text;
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS thumbnail_url text;
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS main_product_image_url text;
@@ -574,6 +592,8 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- Fast fuzzy search matches for creators & video captions
 CREATE INDEX IF NOT EXISTS idx_videos_caption_trgm ON public.videos USING gin (caption gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_videos_search_aliases_trgm ON public.videos USING gin (search_aliases gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_videos_tags_gin ON public.videos USING gin (tags);
 CREATE INDEX IF NOT EXISTS idx_profiles_username_trgm ON public.profiles USING gin (username gin_trgm_ops);
 
 -- Avoid file-sorting operations by indexing category feeds pre-sorted
@@ -581,5 +601,58 @@ CREATE INDEX IF NOT EXISTS idx_videos_category_status_created ON public.videos (
 
 -- Fast tracking of admin actions audit trail
 CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_created_at_desc ON public.admin_audit_logs (created_at DESC);
+
+-- 20. User Interest Scores table
+CREATE TABLE IF NOT EXISTS public.user_interests (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  category_id uuid references public.categories(id) on delete cascade not null,
+  score numeric default 50.0 not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  unique(user_id, category_id)
+);
+
+ALTER TABLE public.user_interests ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view their own interests" ON public.user_interests;
+CREATE POLICY "Users can view their own interests" ON public.user_interests FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert their own interests" ON public.user_interests;
+CREATE POLICY "Users can insert their own interests" ON public.user_interests FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update their own interests" ON public.user_interests;
+CREATE POLICY "Users can update their own interests" ON public.user_interests FOR UPDATE USING (auth.uid() = user_id);
+
+-- Create index for faster feed sorting
+CREATE INDEX IF NOT EXISTS idx_user_interests_user_score ON public.user_interests(user_id, score DESC);
+
+-- 21. Interest System RPC Functions
+CREATE OR REPLACE FUNCTION public.increment_interest_score(p_user_id uuid, p_category_id uuid, p_increment numeric)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  INSERT INTO public.user_interests (user_id, category_id, score, updated_at)
+  VALUES (p_user_id, p_category_id, 50.0 + p_increment, now())
+  ON CONFLICT (user_id, category_id)
+  DO UPDATE SET 
+    score = LEAST(user_interests.score + p_increment, 1000.0),
+    updated_at = now();
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.apply_interest_decay()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  -- Decay all scores by 2% (0.98 multiplier)
+  UPDATE public.user_interests
+  SET score = score * 0.98;
+END;
+$$;
+
 
 

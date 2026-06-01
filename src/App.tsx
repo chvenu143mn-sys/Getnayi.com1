@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { BottomNav } from './components/BottomNav';
@@ -17,6 +17,7 @@ import CreatorVerification from './pages/CreatorVerification';
 import CreatorDashboard from './pages/CreatorDashboard';
 import ShortUrlRedirect from './pages/ShortUrlRedirect';
 import UpdatePasswordPage from './pages/UpdatePassword';
+import Interests from './pages/Interests';
 import { isSupabaseConfigured } from './lib/supabase';
 import { Database } from 'lucide-react';
 
@@ -94,12 +95,35 @@ function SetupScreen() {
 }
 
 function AppContent() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return (
+      <div className="h-[100dvh] bg-[#0c0c0e] text-white relative flex flex-col font-sans">
+        <div className="flex-1 flex flex-col items-center justify-center p-8 gap-y-6">
+           <div className="size-12 bg-zinc-800 rounded-2xl animate-pulse"></div>
+           <div className="w-32 h-4 bg-zinc-800 rounded-md animate-pulse"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (user) {
+    const hasOnboarded = user.user_metadata?.onboarded === true;
+    if (!hasOnboarded && location.pathname !== '/interests') {
+      return <Navigate to="/interests" replace />;
+    }
+    if (hasOnboarded && (location.pathname === '/interests' || location.pathname === '/auth')) {
+      return <Navigate to="/" replace />;
+    }
+  }
 
   return (
     <Routes>
-      <Route path="/auth" element={!user ? <AuthPage /> : <Navigate to="/" />} />
+      <Route path="/auth" element={!user ? <MainLayout><AuthPage /></MainLayout> : <Navigate to="/" replace />} />
       <Route path="/update-password" element={<UpdatePasswordPage />} />
+      <Route path="/interests" element={<ProtectedRoute><MainLayout><Interests /></MainLayout></ProtectedRoute>} />
       <Route path="/" element={<FeedLayout><Feed /></FeedLayout>} />
       <Route path="/video/:videoId" element={<FeedLayout><Feed /></FeedLayout>} />
       <Route path="/explore" element={<MainLayout><Explore /></MainLayout>} />

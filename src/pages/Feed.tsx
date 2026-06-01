@@ -5,7 +5,7 @@ import { VideoPlayer } from '../components/VideoPlayer';
 import { VideoPlayerSkeleton } from '../components/VideoPlayerSkeleton';
 import { Loader2, Play, Menu, Search } from 'lucide-react';
 import { useInView } from 'react-intersection-observer';
-import { m as motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { Link, useParams } from 'react-router-dom';
 
@@ -102,7 +102,13 @@ export default function Feed() {
       if (selectedCategory) params.append('categoryId', selectedCategory);
       if (currentCursor) params.append('cursor', currentCursor);
 
-      const res = await fetch(`/api/feed?${params.toString()}`);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const res = await fetch(`/api/feed?${params.toString()}`, {
+        headers: session ? {
+          'Authorization': `Bearer ${session.access_token}`
+        } : undefined
+      });
       if (!res.ok) {
         throw new Error(`Failed to fetch feed: ${await res.text()}`);
       }

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Getnayi</string>
+    <string name="title_activity_main">Getnayi</string>
+    <string name="package_name">com.getnayi.app</string>
+    <string name="custom_url_scheme">com.getnayi.app</string>
+</resources>

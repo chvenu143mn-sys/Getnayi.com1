@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import DOMPurify from 'dompurify';
-import { m as motion, AnimatePresence } from 'motion/react';
-import { Mail } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Mail, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function AuthPage() {
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [isLogin, setIsLogin] = useState(false);
   const [showEmailForm, setShowEmailForm] = useState(false);
@@ -61,6 +63,7 @@ export default function AuthPage() {
       } else {
         const response = await fetch('/api/auth/signup', {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             email,
@@ -87,7 +90,7 @@ export default function AuthPage() {
 
 
   return (
-    <div className="relative flex items-end sm:items-center justify-center min-h-[100dvh] bg-[#0c0c0e] overflow-hidden pb-[env(safe-area-inset-bottom)]">
+    <div className="relative flex items-center justify-center min-h-[calc(100dvh-60px)] bg-[#0c0c0e] overflow-hidden pb-8">
       
       {/* Background Image full screen */}
       <div className="absolute inset-0 z-0">
@@ -100,6 +103,15 @@ export default function AuthPage() {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-black/30" />
       </div>
+
+      {/* Back button */}
+      <button
+        onClick={() => navigate(-1)}
+        className="absolute top-4 left-4 z-20 size-10 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-md flex items-center justify-center border border-white/10 text-white active:scale-95 transition-all"
+        aria-label="Go back"
+      >
+        <ArrowLeft className="size-5" />
+      </button>
 
       <motion.div 
         initial={{ opacity: 0, y: 30 }}
@@ -142,7 +154,7 @@ export default function AuthPage() {
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 10 }}
-              className="gap-y-4"
+              className="flex flex-col gap-y-4 w-full"
             >
               <button aria-label="button"  
                 type="button" 
@@ -176,7 +188,7 @@ export default function AuthPage() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -10 }}
               onSubmit={handleAuth} 
-              className="gap-y-3"
+              className="flex flex-col gap-y-3 w-full"
             >
               {!isLogin && !showForgotPassword && (
                 <div>

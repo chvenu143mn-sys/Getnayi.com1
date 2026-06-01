@@ -88,7 +88,7 @@ export default function Admin() {
       'Content-Type': 'application/json',
       ...options.headers
     };
-    return fetch(url, { ...options, headers });
+    return fetch(url, { credentials: 'include', ...options, headers });
   }
 
   useEffect(() => {

@@ -102,3 +102,63 @@ export function formatINR(price: number | null | undefined): string {
   if (price === null || price === undefined) return '';
   return inrFormatter.format(price);
 }
+
+export function extractStoreName(urlStr: string | null | undefined): string {
+  if (!urlStr) return '';
+  try {
+    const url = new URL(urlStr);
+    const hostname = url.hostname.toLowerCase();
+    
+    // Remove www.
+    let cleanHostname = hostname.replace(/^www\./, '');
+    
+    // If it's a myshopify sub-domain, e.g., mystore.myshopify.com
+    if (cleanHostname.endsWith('.myshopify.com')) {
+      const shopPrefix = cleanHostname.replace(/\.myshopify\.com$/, '');
+      return shopPrefix.charAt(0).toUpperCase() + shopPrefix.slice(1);
+    }
+    
+    const mappings: { [key: string]: string } = {
+      'amazon': 'Amazon',
+      'flipkart': 'Flipkart',
+      'myntra': 'Myntra',
+      'shopify': 'Shopify',
+      'ajio': 'Ajio',
+      'meesho': 'Meesho',
+      'nykaa': 'Nykaa',
+      'tatacliq': 'Tata CLiQ',
+      'snapdeal': 'Snapdeal',
+      'ebay': 'eBay',
+      'etsy': 'Etsy',
+      'aliexpress': 'AliExpress',
+      'zara': 'Zara',
+      'hm': 'H&M',
+      'nike': 'Nike',
+      'adidas': 'Adidas',
+      'puma': 'Puma',
+      'macys': 'Macy\'s',
+      'walmart': 'Walmart',
+      'target': 'Target',
+      'bestbuy': 'Best Buy',
+      'apple': 'Apple',
+      'samsung': 'Samsung'
+    };
+    
+    const parts = cleanHostname.split('.');
+    for (const part of parts) {
+      if (mappings[part]) {
+        return mappings[part];
+      }
+    }
+    
+    // Fallback: use first main domain segment capitalized
+    const candidate = parts[0];
+    if (candidate && candidate !== 'co' && candidate !== 'com' && candidate !== 'org' && candidate !== 'net') {
+      return candidate.charAt(0).toUpperCase() + candidate.slice(1);
+    }
+    
+    return 'Store';
+  } catch (e) {
+    return 'Store';
+  }
+}

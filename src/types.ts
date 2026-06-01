@@ -45,6 +45,7 @@ export interface Video {
     saves: number;
     views: number;
   };
+  tags?: string[];
   user_state?: {
     is_liked: boolean;
     is_saved: boolean;

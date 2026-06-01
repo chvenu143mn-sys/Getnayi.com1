@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { PlaySquare, Search, Filter, Trash2, Eye, ShieldCheck, CheckCircle, XCircle, Tag, ExternalLink } from 'lucide-react';
+import { PlaySquare, Search, Filter, Trash2, Eye, ShieldCheck, CheckCircle, XCircle, Tag, ExternalLink, Sparkles, Loader2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { puter } from '@heyputer/puter.js';
 
 interface AdminVideosProps {
   videos: any[];
@@ -23,6 +24,68 @@ export default function AdminVideos({
 }: AdminVideosProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'pending_review' | 'rejected'>('all');
+  const [isRetagging, setIsRetagging] = useState(false);
+  const [retagProgress, setRetagProgress] = useState(0);
+  const [retaggingTargetId, setRetaggingTargetId] = useState<string | null>(null);
+
+  const handleAutoTag = async (video: any, isBulk = false) => {
+    try {
+      if (!isBulk) setRetaggingTargetId(video.id);
+      
+      const prompt = `You are an AI assistant categorizing short videos.
+Available Categories:
+${categories.map(c => c.name).join(', ')}
+
+Video Details:
+Caption: "${video.caption || ''}"
+URL: ${video.product_url || 'None'}
+
+Please choose the BEST single category from the list above for this video. If none fit well, output "Unassigned".
+Respond ONLY with the exact category name as a plain string, nothing else.`;
+
+      const aiResponse = await puter.ai.chat(prompt, { model: 'deepseek/deepseek-v4-flash' });
+      let catName = aiResponse?.message?.content as string;
+      
+      if (typeof catName === 'string') {
+         catName = catName.trim().replace(/["']/g, ''); // cleanup
+         if (catName !== 'Unassigned') {
+            const matched = categories.find(c => c.name.toLowerCase() === catName?.toLowerCase());
+            if (matched) {
+               await handleUpdateVideoCategory(video.id, matched.id);
+               if (!isBulk) alert(`Auto-tagged as: ${matched.name}`);
+            } else if (!isBulk) {
+               alert(`AI suggested "${catName}" but it doesn't strictly match existing categories.`);
+            }
+         } else if (!isBulk) {
+            alert('AI could not confidently assign a category.');
+         }
+      }
+    } catch (e: any) {
+      console.error(e);
+      if (!isBulk) alert('Auto-tagging failed: ' + e.message);
+    } finally {
+      if (!isBulk) setRetaggingTargetId(null);
+    }
+  };
+
+  const handleBulkRetag = async () => {
+    const unassigned = videos.filter(v => !v.category_id);
+    if (!unassigned.length) return alert('No unassigned videos found.');
+    if (!window.confirm(`Auto-tag ${unassigned.length} unassigned videos using AI in the background?`)) return;
+
+    setIsRetagging(true);
+    let done = 0;
+    
+    for (const v of unassigned) {
+       await handleAutoTag(v, true);
+       done++;
+       setRetagProgress(Math.floor((done / unassigned.length) * 100));
+    }
+    
+    setIsRetagging(false);
+    setRetagProgress(0);
+    alert('Background backfilling complete!');
+  };
 
   const filtered = videos.filter(v => {
     const matchesSearch = 
@@ -66,10 +129,18 @@ export default function AdminVideos({
           </select>
         </div>
 
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-end gap-4">
           <span className="text-zinc-500 text-xs font-mono">
             {filtered.length} of {videos.length} indices loaded
           </span>
+          <button
+            onClick={handleBulkRetag}
+            disabled={isRetagging}
+            className="flex items-center gap-2 px-3 py-1.5 bg-[#4F46E5]/10 text-[#4F46E5] hover:bg-[#4F46E5]/20 border border-[#4F46E5]/20 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all disabled:opacity-50"
+          >
+            {isRetagging ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+            {isRetagging ? `Retagging (${retagProgress}%)` : 'AI Bulk Retag'}
+          </button>
         </div>
       </div>
 
@@ -130,6 +201,14 @@ export default function AdminVideos({
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                       </select>
+                      <button
+                        onClick={() => handleAutoTag(v)}
+                        disabled={retaggingTargetId === v.id}
+                        className="p-1.5 bg-[#4F46E5]/10 text-[#4F46E5] hover:bg-[#4F46E5]/20 text-xs rounded-lg transition-all"
+                        title="AI Auto-tag"
+                      >
+                        {retaggingTargetId === v.id ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+                      </button>
                     </div>
                   </td>
                   <td className="py-4 px-5">

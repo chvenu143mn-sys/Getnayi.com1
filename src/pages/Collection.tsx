@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2, Share2, Play, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { m as motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function Collection() {
   const { id } = useParams();
@@ -76,6 +76,7 @@ export default function Collection() {
     try {
       const res = await fetch('/api/shorten', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ longUrl: longRelativeUrl })
       });
