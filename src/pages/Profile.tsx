@@ -354,15 +354,19 @@ export default function ProfilePage() {
         {/* Stats */}
         <div className="flex justify-between w-[90%] max-w-[300px] mb-6 pt-2">
           <div className="flex flex-col items-center">
-             <div className="font-bold text-[18px] text-white">142</div>
+             <div className="font-bold text-[18px] text-white">{videos.length}</div>
              <span className="text-[13px] font-medium text-white/60">Posts</span>
           </div>
           <div className="flex flex-col items-center">
-             <div className="font-bold text-[18px] text-white">128K</div>
+             <div className="font-bold text-[18px] text-white">
+               {followersCount > 999 ? (followersCount / 1000).toFixed(1) + 'K' : followersCount}
+             </div>
              <span className="text-[13px] font-medium text-white/60">Followers</span>
           </div>
           <div className="flex flex-col items-center">
-             <div className="font-bold text-[18px] text-white">320</div>
+             <div className="font-bold text-[18px] text-white">
+               {followingCount > 999 ? (followingCount / 1000).toFixed(1) + 'K' : followingCount}
+             </div>
              <span className="text-[13px] font-medium text-white/60">Following</span>
           </div>
         </div>
@@ -374,9 +378,17 @@ export default function ProfilePage() {
           transition={{ duration: 0.3, delay: 0.2 }}
           className="text-[#e0e0e0] text-[15px] max-w-sm mb-5 font-normal leading-[1.6] tracking-wide w-full"
         >
-           <p>Skincare | Beauty | Lifestyle ✨</p>
-           <p>Honest reviews & real results</p>
-           <p>Let's glow together ❤️</p>
+          {profile?.bio ? (
+            profile.bio.split('\n').map((line, idx) => (
+              <p key={idx}>{line}</p>
+            ))
+          ) : (
+            <>
+              <p>Skincare | Beauty | Lifestyle ✨</p>
+              <p>Honest reviews & real results</p>
+              <p>Let's glow together ❤️</p>
+            </>
+          )}
         </motion.div>
 
         {/* Social Icons */}

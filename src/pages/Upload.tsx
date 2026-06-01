@@ -24,7 +24,31 @@ export default function Upload() {
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [application, setApplication] = useState<CreatorApplication | null>(null);
-  const [approvalStatus, setApprovalStatus] = useState<'loading' | 'unauthorized' | 'pending' | 'rejected' | 'approved'>('loading');
+  const [approvalStatus, setApprovalStatus] = useState<'loading' | 'unauthorized' | 'pending' | 'rejected' | 'approved'>(() => {
+    try {
+      const supabaseKey = Object.keys(localStorage).find(key => key.startsWith('sb-') && key.endsWith('-auth-token'));
+      if (supabaseKey) {
+        const authDataStr = localStorage.getItem(supabaseKey);
+        if (authDataStr) {
+          const authData = JSON.parse(authDataStr);
+          const email = authData?.user?.email;
+          const id = authData?.user?.id;
+          if (email?.toLowerCase() === 'chvenu143mn@gmail.com') {
+            return 'approved';
+          }
+          if (id) {
+            const cached = localStorage.getItem(`creator_approval_${id}`);
+            if (cached === 'approved' || cached === 'pending' || cached === 'rejected' || cached === 'unauthorized') {
+              return cached as any;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return 'loading';
+  });
   
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -222,16 +246,37 @@ export default function Upload() {
   useEffect(() => {
     if (!user) return;
     
+    // Instantly check cache or special email to render without flickering loaders
+    const isSpecialEmail = user.email?.toLowerCase() === 'chvenu143mn@gmail.com';
+    if (isSpecialEmail) {
+      setApprovalStatus('approved');
+    } else {
+      const cached = localStorage.getItem(`creator_approval_${user.id}`);
+      if (cached === 'approved' || cached === 'pending' || cached === 'rejected' || cached === 'unauthorized') {
+        setApprovalStatus(cached as any);
+      }
+    }
+    
     async function fetchStatus() {
       try {
         // Intercept chvenu143mn@gmail.com - auto-approve, activate full admin & creator privileges
         if (user.email?.toLowerCase() === 'chvenu143mn@gmail.com') {
           try {
-            await fetch('/api/user/grant-and-approve', { method: 'POST', credentials: 'include' });
+            const sessionData = await supabase.auth.getSession();
+            const token = sessionData.data.session?.access_token;
+            await fetch('/api/user/grant-and-approve', { 
+              method: 'POST', 
+              credentials: 'include',
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
           } catch (e) {
             console.error("Failed to sync backend approval status:", e);
           }
           setApprovalStatus('approved');
+          // Cache status in local storage
+          localStorage.setItem(`creator_approval_${user.id}`, 'approved');
           setApplication({
             id: 'auto-admin-app',
             user_id: user.id,
@@ -262,6 +307,7 @@ export default function Upload() {
           
         if (profileData?.can_upload || profileData?.is_admin) {
            setApprovalStatus('approved');
+           localStorage.setItem(`creator_approval_${user.id}`, 'approved');
            setProfile(profileData);
            return;
         }
@@ -277,19 +323,29 @@ export default function Upload() {
         if (error) {
            console.log("No creator apps schema or error", error);
            setApprovalStatus('unauthorized');
+           localStorage.setItem(`creator_approval_${user.id}`, 'unauthorized');
         } else if (apps && apps.length > 0) {
            const latestApp = apps[0];
            setApplication(latestApp);
-           if (latestApp.status === 'pending') setApprovalStatus('pending');
-           else if (latestApp.status === 'rejected') setApprovalStatus('rejected');
-           else setApprovalStatus('unauthorized'); // fallback
+           if (latestApp.status === 'pending') {
+             setApprovalStatus('pending');
+             localStorage.setItem(`creator_approval_${user.id}`, 'pending');
+           } else if (latestApp.status === 'rejected') {
+             setApprovalStatus('rejected');
+             localStorage.setItem(`creator_approval_${user.id}`, 'rejected');
+           } else {
+             setApprovalStatus('unauthorized'); // fallback
+             localStorage.setItem(`creator_approval_${user.id}`, 'unauthorized');
+           }
         } else {
            setApprovalStatus('unauthorized');
+           localStorage.setItem(`creator_approval_${user.id}`, 'unauthorized');
         }
         setProfile(profileData);
       } catch (err) {
         console.error("fetchStatus error", err);
         setApprovalStatus('unauthorized');
+        localStorage.setItem(`creator_approval_${user.id}`, 'unauthorized');
       }
     }
     
