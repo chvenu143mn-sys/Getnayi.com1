@@ -3463,6 +3463,48 @@ ${dynamicUrls.join('')}
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
+    
+    // Explicit endpoints for PWA assets to guarantee correct serving, mime types, and prevent falling through to HTML catch-all
+    app.get('/manifest.webmanifest', (req, res) => {
+      res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+      res.sendFile(path.join(distPath, 'manifest.webmanifest'));
+    });
+
+    app.get('/manifest.json', (req, res) => {
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.sendFile(path.join(distPath, 'manifest.json'));
+    });
+
+    app.get('/sw.js', (req, res) => {
+      res.setHeader('Content-Type', 'text/javascript; charset=utf-8');
+      res.sendFile(path.join(distPath, 'sw.js'));
+    });
+
+    app.get('/icon-192.png', (req, res) => {
+      res.setHeader('Content-Type', 'image/png');
+      res.sendFile(path.join(distPath, 'icon-192.png'));
+    });
+
+    app.get('/icon-512.png', (req, res) => {
+      res.setHeader('Content-Type', 'image/png');
+      res.sendFile(path.join(distPath, 'icon-512.png'));
+    });
+
+    app.get('/favicon-32x32.png', (req, res) => {
+      res.setHeader('Content-Type', 'image/png');
+      res.sendFile(path.join(distPath, 'favicon-32x32.png'));
+    });
+
+    app.get('/favicon-16x16.png', (req, res) => {
+      res.setHeader('Content-Type', 'image/png');
+      res.sendFile(path.join(distPath, 'favicon-16x16.png'));
+    });
+
+    app.get('/apple-touch-icon.png', (req, res) => {
+      res.setHeader('Content-Type', 'image/png');
+      res.sendFile(path.join(distPath, 'apple-touch-icon.png'));
+    });
+
     app.use(express.static(distPath, { index: false, dotfiles: 'ignore' })); // Use index:false so / doesn't serve the plain index.html by default if we want to intercept it later
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
