@@ -1,7 +1,7 @@
 const CACHE_NAME = 'getnayi-cache-v1';
 const ASSETS_TO_CACHE = [
   '/',
-  '/manifest.json',
+  '/manifest.webmanifest',
   '/icon-192.png',
   '/icon-512.png',
   '/favicon-32x32.png',
