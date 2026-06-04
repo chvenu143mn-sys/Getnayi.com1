@@ -303,6 +303,37 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN || 'placeholder_token',
 });
 
+let isRedisDisabledDueToError = false;
+
+function isRedisEnabled(): boolean {
+  if (isRedisDisabledDueToError) return false;
+  
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  
+  if (!url || !token) return false;
+  if (url.includes('placeholder') || token.includes('placeholder')) return false;
+  
+  return true;
+}
+
+function handleRedisError(err: any, contextDescription: string) {
+  const errMsg = err?.message || String(err);
+  if (
+    errMsg.includes('WRONGPASS') || 
+    errMsg.includes('unauthorized') || 
+    errMsg.includes('Unauthorized') || 
+    errMsg.includes('unauthorized_client')
+  ) {
+    if (!isRedisDisabledDueToError) {
+      isRedisDisabledDueToError = true;
+      console.warn(`[Redis] Authentication error detected in ${contextDescription}: WRONGPASS or Invalid Token. Disabling Upstash Redis integration gracefully to prevent log spam.`);
+    }
+  } else {
+    console.error(`[Redis] Error in ${contextDescription}:`, err);
+  }
+}
+
 // Server-side Supabase client for backend operations
 const supabaseAdmin = process.env.VITE_SUPABASE_URL
   ? createClient(
@@ -315,8 +346,8 @@ const supabaseAdmin = process.env.VITE_SUPABASE_URL
 
 // Middleware for rate limiting via Upstash Redis
 const rateLimitMiddleware = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (!process.env.UPSTASH_REDIS_REST_URL) {
-    return next(); // Skip if Redis is not configured
+  if (!isRedisEnabled()) {
+    return next(); // Skip if Redis is not configured or disabled
   }
 
   const ip = req.ip || 'unknown';
@@ -340,7 +371,7 @@ const rateLimitMiddleware = async (req: express.Request, res: express.Response, 
     }
     next();
   } catch (err) {
-    console.error('Rate limit error:', err);
+    handleRedisError(err, 'rateLimitMiddleware');
     next(); // Fail open so app doesn't crash on Redis failure
   }
 };
@@ -489,7 +520,7 @@ async function startServer() {
   const app = express();
   app.set('trust proxy', 'loopback, linklocal, uniquelocal');
   app.use(cookieParser(process.env.COOKIE_SECRET || crypto.randomBytes(32).toString('hex')));
-  const PORT = 3000;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
   // Setup Observability (APM) and structured request logging (e.g. for Datadog ingestion)
   const apmLog = (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -622,7 +653,7 @@ async function startServer() {
       
       const token = userId || sessionToken;
 
-      if (!process.env.UPSTASH_REDIS_REST_URL) {
+      if (!isRedisEnabled()) {
         return res.json({ success: true, buffered: false });
       }
 
@@ -658,7 +689,7 @@ async function startServer() {
         views: updatedViewsCount 
       });
     } catch (err: any) {
-      console.error('Error in Redis view buffering:', err);
+      handleRedisError(err, 'viewBufferingRoute');
       // Fallback open to permit safe client-direct write on database on failure
       res.json({ success: true, buffered: false });
     }
@@ -667,7 +698,7 @@ async function startServer() {
   // Background cron to flush Redis views to Database every minute
   // (In production, replace dummy supabase call with server-side SDK call using Service Role Key)
   setInterval(async () => {
-    if (!process.env.UPSTASH_REDIS_REST_URL || !supabaseAdmin) return;
+    if (!isRedisEnabled() || !supabaseAdmin) return;
     try {
       // Pop up to 100 views at a time to prevent blocking
       const promises = [];
@@ -693,7 +724,7 @@ async function startServer() {
         console.log(`[Worker] Successfully flushed ${promises.length} views from queue.`);
       }
     } catch (e) {
-      console.error('[Worker] Error flushing Redis views', e);
+      handleRedisError(e, 'backgroundViewFlushWorker');
     }
   }, 10000);
 
@@ -1169,7 +1200,7 @@ async function startServer() {
       const authHeader = req.headers.authorization;
       
       // Upload rate limit (5 per hour)
-      if (process.env.UPSTASH_REDIS_REST_URL) {
+      if (isRedisEnabled()) {
          try {
             const user = (req as any).user;
             const authMatch = user?.id || req.ip || 'unknown';
@@ -1184,7 +1215,7 @@ async function startServer() {
                 }
             }
          } catch (redisError: any) {
-            console.error('Upload rate limit Redis error (failing open):', redisError);
+            handleRedisError(redisError, 'uploadRateLimit');
          }
       }
 
@@ -1615,11 +1646,11 @@ async function startServer() {
         let trendingVideos: any[] = [];
         let cached = null;
         try {
-          if (process.env.UPSTASH_REDIS_REST_URL) {
+          if (isRedisEnabled()) {
             cached = await redis.get(cacheKey);
           }
         } catch (cacheError) {
-          console.error("Redis error fetching cached trending feed:", cacheError);
+          handleRedisError(cacheError, 'getTrendingFeedCache');
         }
         
         if (cached) {
@@ -1676,11 +1707,11 @@ async function startServer() {
           
           trendingVideos = scoredVideos;
           try {
-            if (process.env.UPSTASH_REDIS_REST_URL) {
+            if (isRedisEnabled()) {
               await redis.set(cacheKey, JSON.stringify(trendingVideos), { ex: 300 }); 
             }
           } catch (cacheError) {
-            console.error("Redis error setting trending cache:", cacheError);
+            handleRedisError(cacheError, 'setTrendingFeedCache');
           }
         }
 
@@ -1848,7 +1879,7 @@ async function startServer() {
       const spamPhrases = ['free crypto', 'click my bio', 'link in bio', 'subscribe', 'followers', 'cash app'];
       const isSpam = urlRegex.test(content) || spamPhrases.some(phrase => content.toLowerCase().includes(phrase));
 
-      if (isSpam && process.env.UPSTASH_REDIS_REST_URL) {
+      if (isSpam && isRedisEnabled()) {
          try {
             // Track spam hits
             const spamKey = `spam:comments:${user.id}`;
@@ -1864,7 +1895,7 @@ async function startServer() {
               }
             }
          } catch (redisError) {
-            console.error("Spam tracking Redis error:", redisError);
+            handleRedisError(redisError, 'spamTracking');
          }
          return res.status(403).json({ error: 'Comment blocked due to spam policy' });
       }
@@ -1887,7 +1918,7 @@ async function startServer() {
       }
 
       // Rate Limit: Detect rapid identical comments
-      if (process.env.UPSTASH_REDIS_REST_URL) {
+      if (isRedisEnabled()) {
          try {
             const recentKey = `recent_comment:${user.id}:${Buffer.from(content).toString('base64')}`;
             const hasRecent = await redis.get(recentKey);
@@ -1905,7 +1936,7 @@ async function startServer() {
             }
             await redis.set(recentKey, '1', { ex: 5 }); // 5 second cooldown for same exact string
          } catch (redisError) {
-            console.error("Rapid identical comment Redis error (failing open):", redisError);
+            handleRedisError(redisError, 'rapidIdenticalCommentRateLimit');
          }
       }
 
@@ -2365,7 +2396,7 @@ Example: {"productName": "Awesome Shirt", "productPrice": "1499"}`;
       }
 
       // User-Based Rate Limits via Redis (3 per 12 hours)
-      if (process.env.UPSTASH_REDIS_REST_URL) {
+      if (isRedisEnabled()) {
          try {
             const key = `feed_upload_limit:${user.id}`;
             const current = await redis.incr(key);
