@@ -81,14 +81,18 @@ function isAllowedMarketplace(targetUrl: string): boolean {
     }
     const brand = parsed.domainWithoutSuffix.toLowerCase();
     const knownMarketplaces = [
-      'amazon', 'flipkart', 'myntra', 'shopify', 'ajio', 'meesho', 
+      'amazon', 'amzn', 'flipkart', 'myntra', 'shopify', 'ajio', 'meesho', 
       'nykaa', 'tatacliq', 'snapdeal', 'ebay', 'etsy', 'aliexpress', 
       'zara', 'hm', 'nike', 'adidas', 'puma', 'macys', 'walmart', 
-      'target', 'bestbuy', 'apple', 'samsung'
+      'target', 'bestbuy', 'apple', 'samsung', 'croma', 'reliancedigital'
     ];
     
     // Check if the eTLD+1 brand label matches one of the marketplaces exactly
     if (knownMarketplaces.includes(brand)) {
+      return true;
+    }
+
+    if (parsed.hostname && parsed.hostname.toLowerCase() === 'a.co') {
       return true;
     }
 
@@ -351,18 +355,16 @@ export function getStripe(): Stripe | null {
 
 function setupCronJobs() {
   // Sweeper for stuck processing videos (in case webhook fails)
-  cron.schedule('*/10 * * * *', async () => {
+  cron.schedule('*/1 * * * *', async () => {
     console.log('🧹 [CRON] Sweeping stuck processing videos...');
     if (!supabaseAdmin) return;
     
-    // Find videos stuck in 'processing' state older than 15 minutes
-    const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-    
+    // Find videos stuck in 'processing' states (that might still be processing on Bunny)
     const { data: stuckVideos, error } = await supabaseAdmin
       .from('videos')
-      .select('id, video_url, created_at')
-      .in('status', ['processing', 'pending_review'])
-      .lt('created_at', fifteenMinsAgo);
+      .select('id, video_url, created_at, status, product_url')
+      .eq('status', 'processing')
+      .limit(20);
 
     if (error) {
       console.error('❌ [CRON] Error finding stuck videos:', error);
@@ -392,11 +394,21 @@ function setupCronJobs() {
           const checkInfo = await response.json();
           // Status 3/4 = finished
           if (checkInfo.status === 4 || checkInfo.status === 3) {
-            console.log(`[CRON] Activating stuck video ${v.id} (Bunny GUID: ${guid})`);
-            await supabaseAdmin.from('videos').update({ status: 'active' }).eq('id', v.id);
+            let nextStatus = 'active';
+            if (v.product_url && !isAllowedMarketplace(v.product_url)) {
+              nextStatus = 'pending_review';
+            }
+            if (nextStatus !== 'pending_review') {
+              console.log(`[CRON] Activating stuck video ${v.id} (Bunny GUID: ${guid}) to ${nextStatus}`);
+              await supabaseAdmin.from('videos').update({ 
+                status: nextStatus
+              }).eq('id', v.id);
+            }
           } else if (checkInfo.status === 5 || checkInfo.status === 6) {
              console.log(`[CRON] Rejecting stuck video ${v.id} (Bunny GUID: ${guid})`);
-             await supabaseAdmin.from('videos').update({ status: 'rejected' }).eq('id', v.id);
+             await supabaseAdmin.from('videos').update({ 
+               status: 'rejected'
+             }).eq('id', v.id);
           }
         }
       } catch (err: any) {
@@ -477,7 +489,7 @@ async function startServer() {
   const app = express();
   app.set('trust proxy', 'loopback, linklocal, uniquelocal');
   app.use(cookieParser(process.env.COOKIE_SECRET || crypto.randomBytes(32).toString('hex')));
-  const PORT = process.env.PORT || 3000;
+  const PORT = 3000;
 
   // Setup Observability (APM) and structured request logging (e.g. for Datadog ingestion)
   const apmLog = (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -531,8 +543,15 @@ async function startServer() {
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
   
   // Apply globally to standard API routes to prevent abuse (e.g. DDOS / brute forcing)
-  app.use('/api', standardApiLimiter);
-  app.use('/api', rateLimitMiddleware);
+  app.use('/api', (req, res, next) => {
+    // Exclude streaming proxy from rate limits since it makes many chunk requests
+    if (req.path.startsWith('/stream')) return next();
+    standardApiLimiter(req, res, next);
+  });
+  app.use('/api', (req, res, next) => {
+    if (req.path.startsWith('/stream')) return next();
+    rateLimitMiddleware(req, res, next);
+  });
 
   // Rate limiter for coupon application (5 failures per hour)
   const couponRateLimiter = expressRateLimit({
@@ -1239,24 +1258,38 @@ async function startServer() {
       // Status 3 typically means "Finished/Ready" in Bunny stream
       if (VideoGuid && Status === 3) {
         const videoUrlLike = `%${VideoGuid}%`;
-        const { error } = await supabaseAdmin
+        const { data: videosToUpdate, error: fetchError } = await supabaseAdmin
           .from('videos')
-          .update({ status: 'active' })
+          .select('id, status, product_url')
           .like('video_url', videoUrlLike)
-          .in('status', ['processing', 'pending_review']);
+          .eq('status', 'processing');
 
-        if (error) {
-          console.error('[Webhook] Failed to update video status:', error);
-          
-          await supabaseAdmin.from('webhook_dead_letter_queue').insert({
-            payload: req.body,
-            error_message: 'Failed to update video record: ' + JSON.stringify(error)
-          });
-          
-          return res.status(500).json({ error: 'Failed to update database' });
+        if (fetchError) {
+           console.error('[Webhook] Failed to fetch video status:', fetchError);
+           return res.status(500).json({ error: 'Failed to fetch database' });
         }
-        
-        console.log(`[Webhook] Successfully activated video: ${VideoGuid}`);
+
+        if (videosToUpdate && videosToUpdate.length > 0) {
+           for (const video of videosToUpdate) {
+             let nextStatus = 'active';
+             if (video.product_url && !isAllowedMarketplace(video.product_url)) {
+               nextStatus = 'pending_review';
+             }
+             const { error } = await supabaseAdmin.from('videos').update({ 
+               status: nextStatus
+             }).eq('id', video.id);
+             
+             if (error) {
+               console.error('[Webhook] Failed to update video status:', error);
+               await supabaseAdmin.from('webhook_dead_letter_queue').insert({
+                 payload: req.body,
+                 error_message: 'Failed to update video record: ' + JSON.stringify(error)
+               });
+             } else {
+               console.log(`[Webhook] Successfully processed video: ${VideoGuid} to ${nextStatus}`);
+             }
+           }
+        }
       }
       
       return res.status(200).send('OK');
@@ -1330,27 +1363,15 @@ async function startServer() {
   app.get('/api/search', rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }), async (req, res) => {
     try {
       if (!supabaseAdmin) throw new Error('Database Admin client not configured');
-      const { q } = req.query;
-      if (!q || typeof q !== 'string' || q.trim() === '') {
+      const { q, category_id } = req.query;
+      
+      const qStr = (typeof q === 'string') ? q.trim() : '';
+
+      if (qStr === '' && !category_id) {
         return res.json({ videos: [] });
       }
 
-      const queryTerm = q.trim();
-      const cacheKey = `search:${queryTerm.toLowerCase()}`;
-      
-      if (searchCache.has(cacheKey)) {
-        const cached = searchCache.get(cacheKey)!;
-        if (Date.now() - cached.timestamp < SEARCH_CACHE_TTL_MS) {
-          return res.json(cached.data);
-        } else {
-          searchCache.delete(cacheKey);
-        }
-      }
-
-      // We use ilike to hit pg_trgm indices on caption and search_aliases
-      // For tags, since they are array of text, we can use contained by or just ilike on array text casting if needed
-      let searchData: any = null;
-      let { data, error } = await supabaseAdmin
+      let queryBuilder = supabaseAdmin
         .from('videos')
         .select(`
           *,
@@ -1360,13 +1381,67 @@ async function startServer() {
           comments(count),
           saved_videos(count)
         `)
-        .eq('status', 'active')
-        .or(`caption.ilike.%${queryTerm}%,search_aliases.ilike.%${queryTerm}%,tags.cs.{${queryTerm}},profiles.username.ilike.%${queryTerm}%`)
-        .limit(20);
+        .eq('status', 'active');
+
+      if (category_id) {
+         queryBuilder = queryBuilder.eq('category_id', category_id);
+      }
+
+      const orConditions: string[] = [];
+      let queryTerm = '';
+      if (qStr !== '') {
+        queryTerm = qStr;
+        const terms = queryTerm.split(/\s+/).filter(w => w.length > 2);
+        orConditions.push(`caption.ilike.%${queryTerm}%,search_aliases.ilike.%${queryTerm}%,tags.cs.{${queryTerm}}`);
+        for (const t of terms) {
+           orConditions.push(`caption.ilike.%${t}%`);
+        }
+        queryBuilder = queryBuilder.or(orConditions.join(','));
+      }
+
+      let { data: captionData, error } = await queryBuilder.limit(30);
 
       if (error && (error.message.includes('search_aliases') || error.message.includes('tags') || error.message.includes('trust_score'))) {
          console.warn("Missing database columns for search, falling back to basic search...");
-         const retry = await supabaseAdmin
+         
+         let retryBuilder = supabaseAdmin
+          .from('videos')
+          .select(`
+            *,
+            categories (id, name),
+            profiles!inner (id, username, avatar_url, is_brand),
+            likes(count),
+            comments(count),
+            saved_videos(count)
+          `)
+          .eq('status', 'active');
+          
+         if (category_id) {
+            retryBuilder = retryBuilder.eq('category_id', category_id);
+         }
+         
+         if (qStr !== '') {
+            const basicOrConditions = [`caption.ilike.%${queryTerm}%`];
+            const terms = queryTerm.split(/\s+/).filter(w => w.length > 2);
+            for (const t of terms) {
+               basicOrConditions.push(`caption.ilike.%${t}%`);
+            }
+            retryBuilder = retryBuilder.or(basicOrConditions.join(','));
+         }
+
+          const retry = await retryBuilder.limit(30);
+          captionData = retry.data;
+          error = retry.error;
+      }
+
+      if (error) {
+        console.error('Search query error:', error);
+        return res.status(500).json({ error: error.message });
+      }
+      
+      let usernameData: any[] = [];
+      if (qStr !== '') {
+        let usernameBuilder = supabaseAdmin
           .from('videos')
           .select(`
             *,
@@ -1377,24 +1452,51 @@ async function startServer() {
             saved_videos(count)
           `)
           .eq('status', 'active')
-          .or(`caption.ilike.%${queryTerm}%,profiles.username.ilike.%${queryTerm}%`)
-          .limit(20);
-          data = retry.data;
-          error = retry.error;
+          .ilike('profiles.username', `%${queryTerm}%`);
+          
+        if (category_id) {
+          usernameBuilder = usernameBuilder.eq('category_id', category_id);
+        }
+        
+        const usernameRes = await usernameBuilder.limit(30);
+        usernameData = usernameRes.data || [];
+        
+        // Ensure username filter applied using JS due to postgraphql limitations on inner join
+        usernameData = usernameData.filter((v: any) => v.profiles && v.profiles.username.toLowerCase().includes(queryTerm.toLowerCase()));
       }
 
-      if (error) {
-        console.error('Search query error:', error);
-        return res.status(500).json({ error: error.message });
+      // Merge and deduplicate results
+      const allResults = [...(captionData || []), ...usernameData];
+      const deduplicatedMap = new Map();
+      for (const video of allResults) {
+        if (!deduplicatedMap.has(video.id)) {
+          deduplicatedMap.set(video.id, video);
+        }
+      }
+      
+      let data = Array.from(deduplicatedMap.values());
+      
+      // Additional price filter (JS side since JSON string parse via SQL might be overly complex right now)
+      if (qStr !== '') {
+          const underMatch = queryTerm.toLowerCase().match(/(?:under|below|less than)\s*(?:rs\.?|inr|₹)?\s*(\d+)/);
+          if (underMatch) {
+             const maxPrice = parseInt(underMatch[1], 10);
+             data = data.filter((v: any) => {
+                try {
+                  const p = typeof v.caption === 'string' ? JSON.parse(v.caption) : v.caption;
+                  if (p && p.product_price) {
+                     return parseInt(p.product_price, 10) <= maxPrice;
+                  }
+                  return true; 
+                } catch(e) { return true; }
+             });
+          }
       }
 
-      const responseData = { videos: data || [] };
-      searchCache.set(cacheKey, { data: responseData, timestamp: Date.now() });
-
-      return res.json(responseData);
+      return res.json({ videos: data });
     } catch (err: any) {
-      console.error('Search handler error:', err);
-      res.status(500).json({ error: err.message });
+      console.error('Search Error:', err);
+      return res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -1531,8 +1633,8 @@ async function startServer() {
         if (categoryId) {
           query = query.eq('category_id', categoryId);
         } else if (userInterests.length > 0) {
-          // ensure relevancy pool
-          query = query.in('category_id', userInterests);
+          // ensure relevancy pool but also include uncategorized videos to avoid empty feeds
+          query = query.or(`category_id.in.(${userInterests.join(',')}),category_id.is.null`);
         }
         
         let { data, error } = await query;
@@ -1542,7 +1644,7 @@ async function startServer() {
             selectQuery = `*, categories (id, name), profiles (id, username, avatar_url, is_brand), likes(count), comments(count), saved_videos(count)`;
             let retryQuery = supabaseAdmin!.from('videos').select(selectQuery).eq('status', 'active').gte('created_at', fourteenDaysAgo).limit(candidatePoolSize);
             if (categoryId) retryQuery = retryQuery.eq('category_id', categoryId);
-            else if (userInterests.length > 0) retryQuery = retryQuery.in('category_id', userInterests);
+            else if (userInterests.length > 0) retryQuery = retryQuery.or(`category_id.in.(${userInterests.join(',')}),category_id.is.null`);
             
             const retryRes = await retryQuery;
             data = retryRes.data;
@@ -1875,12 +1977,20 @@ async function startServer() {
         console.error('Failed to scrape product page', err);
       }
 
-      const prompt = `Analyze this e-commerce video context and generate relevant metadata.
-Product URL: "${product_url}"
-Scraped Context: "${scrapedText}"
-Creator's Review: "${caption || ''}"
+      if (!process.env.GEMINI_API_KEY) {
+        // Fallback to client-side AI processing (e.g. Puter.js)
+        return res.json({ success: true, is_fallback: true, scrapedText });
+      }
 
-Based on the above, generate a highly optimized set of metadata to categorize this content and improve search discovery.
+      const prompt = `Analyze this e-commerce product and generate relevant metadata.
+Product URL: "${product_url}"
+Available Context from page: "${scrapedText}"
+User Provided Caption/Review: "${caption || ''}"
+
+Based on the URL, available context, and any general knowledge you have about this URL or brand, generate a highly optimized set of metadata to categorize this content and improve search discovery. 
+
+Even if the scraped context is limited or empty, use the URL domain, URL path, and any general knowledge to provide the best possible tags. DO NOT generate error messages or complaints in the tags (like "product information missing" or "context lacking"). If you truly have no information, provide generic e-commerce tags (e.g. "shopping", "product", "review") and a generic caption.
+
 Generate ONLY a valid JSON object answering this shape exactly:
 {
   "hashtags": ["#tag1", "#tag2"],
@@ -1891,7 +2001,8 @@ Generate ONLY a valid JSON object answering this shape exactly:
   "honest_review_notes": "Pros:\\n...\\nCons:\\n...\\nThings to know:\\n..."
 }`;
 
-      const { Type } = await import('@google/genai');
+      const { GoogleGenAI, Type } = await import('@google/genai');
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
@@ -1928,6 +2039,47 @@ Generate ONLY a valid JSON object answering this shape exactly:
     }
   });
 
+  app.post('/api/admin-auto-tag', verifyAuth, express.json(), async (req, res) => {
+    try {
+      if (!process.env.GEMINI_API_KEY) {
+        // Return a signal to use client-side puter
+        return res.json({ success: true, is_fallback: true });
+      }
+
+      const { prompt } = req.body;
+      if (!prompt) {
+        return res.status(400).json({ error: 'prompt is required' });
+      }
+
+      const { GoogleGenAI } = await import('@google/genai');
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt
+      });
+
+      return res.json({ success: true, text: response.text });
+    } catch (err: any) {
+      console.error('/api/admin-auto-tag error:', err);
+      return res.status(500).json({ error: err.message || 'Error generating AI tag' });
+    }
+  });
+
+  // Proxy image to avoid CORS
+  app.get('/api/proxy-image', async (req, res) => {
+    try {
+      const targetUrl = req.query.url as string;
+      if (!targetUrl) return res.status(400).send('URL required');
+      const response = await fetch(targetUrl);
+      if (!response.ok) throw new Error('Failed to fetch image');
+      const buffer = await response.arrayBuffer();
+      res.set('Content-Type', response.headers.get('content-type') || 'image/jpeg');
+      return res.send(Buffer.from(buffer));
+    } catch(err) {
+      return res.status(500).send('Proxy error');
+    }
+  });
+
   // Create Video logic in DB
   app.post('/api/link-preview', async (req, res) => {
     try {
@@ -1946,6 +2098,8 @@ Generate ONLY a valid JSON object answering this shape exactly:
 
       let title = '';
       let favicon = `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`; // fallback
+      let aiExtracted = { productName: '', productPrice: '' };
+      let possibleImage = '';
       
       try {
         let html = '';
@@ -1959,6 +2113,20 @@ Generate ONLY a valid JSON object answering this shape exactly:
           const $ = cheerio.load(html);
 
           title = $('meta[property="og:title"]').attr('content') || $('title').text() || '';
+          let ogImage = $('meta[property="og:image"]').attr('content') || '';
+          if (ogImage) {
+            try {
+              ogImage = new URL(ogImage, url).toString();
+            } catch(e) {
+              ogImage = '';
+            }
+          }
+          possibleImage = ogImage || $('img').first().attr('src') || '';
+          if (possibleImage && !possibleImage.startsWith('http')) {
+            try {
+              possibleImage = new URL(possibleImage, url).toString();
+            } catch(e) {}
+          }
           
           const iconHref = $('link[rel="icon"]').attr('href') || $('link[rel="shortcut icon"]').attr('href') || $('link[rel="apple-touch-icon"]').attr('href');
           if (iconHref) {
@@ -1968,6 +2136,36 @@ Generate ONLY a valid JSON object answering this shape exactly:
               // ignore
             }
           }
+          
+          // Automatically extract Product Name and Price in the background using Gemini AI
+          if (process.env.GEMINI_API_KEY) {
+             const description = $('meta[name="description"]').attr('content') || $('meta[property="og:description"]').attr('content') || '';
+             // Get a snippet of the body text to find price
+             const bodyText = $('body').text().replace(/\s+/g, ' ').slice(0, 3000);
+             try {
+                const { GoogleGenAI } = await import('@google/genai');
+                const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+                const prompt = `Extract the product name and price from this e-commerce page snippet. 
+Title: ${title}
+Description: ${description}
+Body Snippet: ${bodyText}
+
+Respond ONLY with a valid JSON object containing "productName" and "productPrice" (as a number or simple price string, e.g. "1499"). If you cannot extract them, leave them blank. Do not include markdown codeblocks or quotes.
+Example: {"productName": "Awesome Shirt", "productPrice": "1499"}`;
+
+                const aiResponse = await ai.models.generateContent({
+                    model: 'gemini-2.5-flash',
+                    contents: prompt
+                });
+                
+                const textResp = aiResponse.text.replace(/```json/gi, '').replace(/```/g, '').trim();
+                const parsed = JSON.parse(textResp);
+                if (parsed.productName) aiExtracted.productName = parsed.productName;
+                if (parsed.productPrice) aiExtracted.productPrice = parsed.productPrice;
+             } catch (aiErr) {
+                console.error('[link-preview] AI extraction failed:', aiErr);
+             }
+          }
         }
       } catch (err) {
         // Quietly fail or use fallbacks without cluttering the logs
@@ -1976,7 +2174,10 @@ Generate ONLY a valid JSON object answering this shape exactly:
       return res.json({ 
         title: title.trim() || hostname, 
         favicon, 
-        domain: hostname 
+        domain: hostname,
+        productName: aiExtracted.productName,
+        productPrice: aiExtracted.productPrice,
+        productImage: possibleImage
       });
 
     } catch (err: any) {
@@ -2067,11 +2268,11 @@ Generate ONLY a valid JSON object answering this shape exactly:
         }
       }
 
-      let status = 'pending_review';
-
-      // Step 5: Strict eTLD+1 Root Parsing ecommerce check via tldts
+      // Every uploaded post starts in a processing state
+      let status = 'processing';
+      
       const isMarketplace = isAllowedMarketplace(safeProductUrl);
-      const isProductPath = ['/p/', '/product/', '/item/', '/dp/', '/buy/'].some(p => pathname.includes(p));
+      const isProductPath = ['/p/', '/product/', '/item/', '/dp/', '/buy/', '/d/'].some(p => pathname.includes(p));
       const looksLikeProductUrl = isMarketplace || isProductPath;
 
       if (!looksLikeProductUrl && !force_unverified_url) {
@@ -2079,11 +2280,6 @@ Generate ONLY a valid JSON object answering this shape exactly:
               error: 'URL_NOT_MARKETPLACE', 
               message: 'Link doesn\'t look like an e-commerce platform.' 
           });
-      }
-
-      if (!looksLikeProductUrl && force_unverified_url) {
-          // Keep as pending review instead of processing if it failed the URL check
-          status = 'pending_review';
       }
 
       const user = (req as any).user;
@@ -2140,7 +2336,7 @@ Generate ONLY a valid JSON object answering this shape exactly:
         ...(real_life_image_url ? { real_life_image_url, is_verified_real } : {}),
         ...(category_id ? { category_id } : {}),
         ...(tags && Array.isArray(tags) ? { tags } : {}),
-        status, 
+        status,
       }).select().single();
 
       if (error) {
@@ -2174,6 +2370,57 @@ Generate ONLY a valid JSON object answering this shape exactly:
       return res.json({ success: true, data, status });
     } catch (err: any) {
       console.error('Video Upload API Error:', err);
+      return res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.put('/api/videos/:id', verifyAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { caption, tags } = req.body;
+      const user = (req as any).user;
+
+      if (!supabaseAdmin) throw new Error('Supabase admin not ready');
+
+      const { data: video, error: videoError } = await supabaseAdmin
+        .from('videos')
+        .select('user_id')
+        .eq('id', id)
+        .single();
+      
+      if (videoError || !video) {
+        return res.status(404).json({ error: 'Video not found' });
+      }
+
+      const { data: profile } = await supabaseAdmin.from('profiles').select('is_admin').eq('id', user.id).single();
+      const isAdmin = profile?.is_admin === true;
+
+      if (video.user_id !== user.id && !isAdmin) {
+        return res.status(403).json({ error: 'Not authorized to edit this video' });
+      }
+
+      const patch: any = {};
+      if (caption !== undefined) patch.caption = caption;
+      if (tags !== undefined && Array.isArray(tags)) patch.tags = tags;
+
+      if (Object.keys(patch).length === 0) {
+        return res.json({ success: true, message: 'No changes provided' });
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from('videos')
+        .update(patch)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      return res.json({ success: true, data });
+    } catch (err: any) {
+      console.error('Video Edit Error:', err);
       return res.status(400).json({ error: err.message });
     }
   });
@@ -2216,15 +2463,20 @@ Generate ONLY a valid JSON object answering this shape exactly:
       }
 
       const deliveryHostname = process.env.BUNNY_DELIVERY_HOSTNAME || 'vz-238d4a06-b02.b-cdn.net';
-      const cdnUrl = `https://${deliveryHostname}/${videoId}/${relativePath}`;
+      let cdnUrl = `https://${deliveryHostname}/${videoId}/${relativePath}`;
+      const qs = Object.entries(req.query).map(([k,v]) => `${k}=${v}`).join('&');
+      if (qs) cdnUrl += `?${qs}`;
 
       const headers: Record<string, string> = {
-        'Referer': 'http://localhost:3000'
+        'Referer': 'https://getnayi.com', // Setting referer explicitly since bunny edge might block localhost occasionally
+        'Origin': 'https://getnayi.com'
       };
 
       const proxyRes = await fetch(cdnUrl, { headers });
       if (!proxyRes.ok) {
-        console.warn(`[Proxy Stream Warning] Failed to fetch ${cdnUrl}: Status ${proxyRes.status}`);
+        if (proxyRes.status !== 404) {
+           console.warn(`[Proxy Stream Warning] Failed to fetch ${cdnUrl}: Status ${proxyRes.status}`);
+        }
         return res.status(proxyRes.status).send(`Failed to fetch streaming asset: ${proxyRes.statusText}`);
       }
 
@@ -2512,13 +2764,12 @@ Generate ONLY a valid JSON object answering this shape exactly:
     try {
       if (!supabaseAdmin) throw new Error('Supabase admin not configured');
       const adminId = (req as any).adminUser.id;
-      const { status, trust_score, is_verified_real, is_admin_verified_link, category_id, caption, product_url } = req.body;
+      const { status, trust_score, is_verified_real, category_id, caption, product_url } = req.body;
       const patch: any = {};
       
       if (status !== undefined) patch.status = status;
       if (trust_score !== undefined) patch.trust_score = Number(trust_score);
       if (is_verified_real !== undefined) patch.is_verified_real = !!is_verified_real;
-      if (is_admin_verified_link !== undefined) patch.is_admin_verified_link = !!is_admin_verified_link;
       if (category_id !== undefined) patch.category_id = category_id || null;
       if (caption !== undefined) patch.caption = caption;
       if (product_url !== undefined) patch.product_url = product_url || null;
@@ -2715,7 +2966,7 @@ Generate ONLY a valid JSON object answering this shape exactly:
       // Direct SELECT from videos table filtering items with active products
       const { data: videosData, error } = await supabaseAdmin
         .from('videos')
-        .select('id, caption, product_url, is_admin_verified_link, trust_score, created_at, profiles(username)')
+        .select('id, caption, product_url, trust_score, created_at, profiles(username)')
         .not('product_url', 'is', null)
         .order('created_at', { ascending: false });
 
@@ -2737,7 +2988,7 @@ Generate ONLY a valid JSON object answering this shape exactly:
           caption: v.caption,
           product_url: v.product_url,
           username: v.profiles?.username || 'user',
-          is_verified: v.is_admin_verified_link,
+          is_verified: isAllowedMarketplace(v.product_url),
           trust_score: v.trust_score,
           created_at: v.created_at,
           domain
@@ -3049,6 +3300,64 @@ Generate ONLY a valid JSON object answering this shape exactly:
     res.status(404).json({ error: 'API endpoint not found' });
   });
 
+  app.get('/sitemap.xml', async (req, res) => {
+    try {
+      if (!supabaseAdmin) {
+        return res.status(500).send('Database not configured');
+      }
+
+      const { data: videos, error } = await supabaseAdmin
+        .from('videos')
+        .select('id, updated_at, created_at')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1000);
+
+      if (error) {
+        throw error;
+      }
+
+      const baseUrl = process.env.VITE_APP_URL || 'https://aisles.app';
+
+      // Define static routes
+      const staticUrls = [
+        '',
+        '/explore',
+        '/search',
+        '/auth'
+      ].map(route => `
+        <url>
+          <loc>${baseUrl}${route}</loc>
+          <changefreq>daily</changefreq>
+          <priority>${route === '' ? '1.0' : '0.8'}</priority>
+        </url>`);
+
+      // Define dynamic video routes
+      const dynamicUrls = (videos || []).map(video => {
+        const lastMod = video.updated_at || video.created_at || new Date().toISOString();
+        return `
+        <url>
+          <loc>${baseUrl}/video/${video.id}</loc>
+          <lastmod>${new Date(lastMod).toISOString()}</lastmod>
+          <changefreq>weekly</changefreq>
+          <priority>0.7</priority>
+        </url>`;
+      });
+
+      const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${staticUrls.join('')}
+${dynamicUrls.join('')}
+</urlset>`;
+
+      res.header('Content-Type', 'application/xml');
+      res.send(sitemap);
+    } catch (err) {
+      console.error('Sitemap generation error:', err);
+      res.status(500).end();
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     app.use(vite.middlewares);
@@ -3066,3 +3375,4 @@ Generate ONLY a valid JSON object answering this shape exactly:
 }
 
 startServer();
+// Verified

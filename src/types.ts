@@ -36,7 +36,7 @@ export interface Video {
   real_life_image_url?: string;
   is_verified_real?: boolean;
   is_admin_verified_link?: boolean;
-  status?: 'active' | 'pending_review' | 'rejected';
+  status?: 'active' | 'pending_review' | 'rejected' | 'processing';
   category_id?: string;
   categories?: Category;
   metrics?: {

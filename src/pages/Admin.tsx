@@ -21,8 +21,9 @@ import AdminAnalytics from '../components/admin/AdminAnalytics';
 import AdminSettings from '../components/admin/AdminSettings';
 import AdminAuditLogs from '../components/admin/AdminAuditLogs';
 import AdminSearchInfra from '../components/admin/AdminSearchInfra';
+import AdminModeration from '../components/admin/AdminModeration';
 
-type Tab = 'dashboard' | 'videos' | 'reports' | 'creators' | 'verification' | 'links' | 'spam' | 'analytics' | 'settings' | 'categories' | 'audit_logs' | 'search_infra';
+type Tab = 'dashboard' | 'videos' | 'flagged' | 'reports' | 'creators' | 'verification' | 'links' | 'spam' | 'analytics' | 'settings' | 'categories' | 'audit_logs' | 'search_infra';
 
 interface AdminReport {
   id: string;
@@ -360,6 +361,20 @@ export default function Admin() {
     }
   };
 
+  const handleUpdateVideoStatus = async (videoId: string, status: string) => {
+    try {
+      const res = await fetchWithAdminAuth(`/api/admin/videos/${videoId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ status })
+      });
+      if (!res.ok) throw new Error('Failed to update video status');
+      fetchAllVideos();
+      fetchAuditLogs();
+    } catch (err: any) {
+      alert('Error: ' + err.message);
+    }
+  };
+
   const handleToggleUploadPrivilege = async (userId: string, canUpload: boolean) => {
     try {
       const res = await fetchWithAdminAuth(`/api/admin/creators/${userId}`, {
@@ -639,6 +654,7 @@ export default function Admin() {
   const SIDEBAR_ITEMS = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
     { id: 'videos', label: 'Videos', icon: PlaySquare },
+    { id: 'flagged', label: 'Flagged Videos', icon: ShieldAlert },
     { id: 'reports', label: 'Reports', icon: FileText },
     { id: 'creators', label: 'Creators', icon: Users },
     { id: 'verification', label: 'Verification Requests', icon: ShieldCheck },
@@ -713,6 +729,11 @@ export default function Admin() {
                   <Icon className={cn("size-5", isActive ? "text-white" : "text-zinc-500")} />
                   {item.label}
                 </div>
+                {item.id === 'flagged' && videos.filter(v => v.status === 'pending_review').length > 0 && (
+                  <span className="bg-[#EF4444] text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center justify-center animate-in zoom-in">
+                    {videos.filter(v => v.status === 'pending_review').length}
+                  </span>
+                )}
                 {item.id === 'verification' && applications.length > 0 && (
                   <span className="bg-[#EF4444] text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center justify-center animate-in zoom-in">
                     {applications.length}
@@ -768,6 +789,20 @@ export default function Admin() {
               handleDeleteVideo={handleDeleteVideo}
               handleVerifyProduct={handleVerifyProduct}
               handleUpdateVideoCategory={handleUpdateVideoCategory}
+              handleUpdateVideoStatus={handleUpdateVideoStatus}
+              handleViewVideo={handleViewVideo}
+              isRefreshing={isRefreshing}
+            />
+          )}
+
+          {activeTab === 'flagged' && (
+            <AdminModeration
+              videos={videos}
+              categories={categories}
+              handleDeleteVideo={handleDeleteVideo}
+              handleVerifyProduct={handleVerifyProduct}
+              handleUpdateVideoCategory={handleUpdateVideoCategory}
+              handleUpdateVideoStatus={handleUpdateVideoStatus}
               handleViewVideo={handleViewVideo}
               isRefreshing={isRefreshing}
             />

@@ -41,21 +41,23 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
   const resolvedVideoUrl = React.useMemo(() => {
-    if (video.video_url?.includes('.m3u8')) {
-      // Extract the 36-char GUID (e.g., 6f01c02e-f310-46f5-92bc-850d8032d3f5) or any alphanumeric/dash sequence representing videoId
-      const match = video.video_url.match(/\/([a-f0-9\-]+)\/playlist\.m3u8/i);
-      if (match && match[1]) {
-        return `/api/stream/${match[1]}/playlist.m3u8`;
-      }
+    if (!video.video_url) return '';
+    const match = video.video_url.match(/https?:\/\/[^\/]+\/([a-f0-9\-]+)\//i);
+    if (match && match[1]) {
+      // Use local stream proxy which handles Bunny CDN token auth and correct referers 
+      return `/api/stream/${match[1]}/playlist.m3u8`;
     }
-    return video.video_url?.replace('usercontent-getnayi.com', 'vz-238d4a06-b02.b-cdn.net') || '';
+    return video.video_url;
   }, [video.video_url]);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(getGlobalMuted());
   const [hasError, setHasError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const [isBuffering, setIsBuffering] = useState(true);
   
+  const [showSlowConnectionToast, setShowSlowConnectionToast] = useState(false);
+
   // Use denormalized metrics from the API payload (N+1 fixed)
   const [isLiked, setIsLiked] = useState(video.user_state?.is_liked ?? false);
   const [likesCount, setLikesCount] = useState(video.metrics?.likes ?? 0);
@@ -77,9 +79,21 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
     threshold: 0.6,
   });
 
-  const { ref: nearViewRef } = useInView({
+  const { ref: nearViewRef, inView: isNearView } = useInView({
     rootMargin: '1200px 0px', // Preload videos up to 1200px (approx 1 screen) away
   });
+
+  useEffect(() => {
+    let t: NodeJS.Timeout;
+    if (isBuffering && !hasError && isNearView) {
+      t = setTimeout(() => {
+        setShowSlowConnectionToast(true);
+      }, 3000);
+    } else {
+      setShowSlowConnectionToast(false);
+    }
+    return () => clearTimeout(t);
+  }, [isBuffering, hasError, isNearView]);
 
   const setRefs = React.useCallback(
     (node: HTMLDivElement | null) => {
@@ -91,7 +105,6 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
 
   // Calculate actual active state
   const isActive = isParentActive;
-  const isNearView = true;
 
   // Report state
   const [showReportModal, setShowReportModal] = useState(false);
@@ -228,6 +241,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
     if (!videoElement || !resolvedVideoUrl || hasError) return;
 
     let hls: Hls | null = null;
+
     if (resolvedVideoUrl.includes('.m3u8')) {
       if (Hls.isSupported()) {
         hls = new Hls({ maxBufferLength: 30 });
@@ -237,7 +251,8 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
           if (data.fatal) {
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
-                // Could be a 404 still processing. We'll mark as error so user can retry.
+                // Could be a 404 still processing from BunnyCDN. Auto-retried by another effect
+                console.warn('Network error, retrying via effect...', data);
                 hls?.destroy();
                 setHasError(true);
                 setIsBuffering(false);
@@ -272,6 +287,19 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
       }
     };
   }, [resolvedVideoUrl, hasError, isNearView]);
+
+  // Auto native retry if still processing
+  useEffect(() => {
+    let t: NodeJS.Timeout;
+    if (hasError && isNearView && retryCount < 3) {
+      t = setTimeout(() => {
+        setHasError(false);
+        setRetryCount(c => c + 1);
+        setIsBuffering(true);
+      }, 4000);
+    }
+    return () => clearTimeout(t);
+  }, [hasError, isNearView, retryCount]);
 
   // Handle Play/Pause and cleanup when unmounting
   useEffect(() => {
@@ -589,7 +617,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
   };
 
   return (
-    <div ref={setRefs} className="relative w-full h-[100dvh] snap-start snap-always bg-zinc-900 group shrink-0">
+    <div ref={setRefs} className="relative w-full h-[100dvh] snap-start snap-always bg-zinc-900 group shrink-0 overflow-hidden">
       {/* Video Element */}
       {isNearView ? (
         resolvedVideoUrl && !hasError ? (
@@ -603,7 +631,8 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
             className={cn("size-full object-cover transition-opacity duration-300", isBuffering ? "opacity-0" : "opacity-100")}
             onClick={togglePlay}
             onDoubleClick={handleDoubleClick}
-            onError={() => {
+            onError={(e) => {
+              console.warn('Native video error:', e);
               setHasError(true);
               setIsBuffering(false);
             }}
@@ -625,30 +654,79 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
           />
           {/* Skeleton Loader / Poster */}
           {isBuffering && (
-            <div className="absolute inset-0 z-0 bg-zinc-900 flex items-center justify-center">
+            <div className="absolute inset-0 z-0 bg-zinc-900 flex items-center justify-center pointer-events-auto">
               <img 
                 src={video.thumbnail_url || resolvedVideoUrl.replace('/playlist.m3u8', '/thumbnail.jpg')}
                 alt="Thumbnail"
                 className="absolute inset-0 size-full object-cover opacity-50 blur-[2px]"
               />
               <div className="absolute inset-0 bg-zinc-900/30 animate-pulse pointer-events-none" />
-              <Loader2 className="size-10 text-white/50 animate-spin relative z-10" />
+              <div className="relative z-10 flex flex-col items-center gap-6">
+                {!showSlowConnectionToast ? (
+                  <Loader2 className="size-10 text-white/50 animate-spin" />
+                ) : (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-black/80 backdrop-blur-md rounded-2xl px-5 py-4 flex flex-col items-center gap-3 border border-white/10 shadow-xl"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="size-4 text-white/50 animate-spin" />
+                      <p className="text-white/90 text-sm font-medium">Reconnecting...</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setHasError(true);
+                        setTimeout(() => {
+                           setRetryCount(0); // reset
+                           setHasError(false);
+                           setIsBuffering(true);
+                        }, 50);
+                      }}
+                      className="px-5 py-2 bg-white/20 hover:bg-white/30 text-white rounded-full text-xs font-bold transition-colors"
+                    >
+                      Retry Connection
+                    </button>
+                  </motion.div>
+                )}
+              </div>
             </div>
           )}
         </>
       ) : (
-        <div className="size-full bg-zinc-800 flex flex-col items-center justify-center text-zinc-500 gap-y-3 z-10 relative pointer-events-auto">
-          <p className="text-sm font-medium">Getting this video ready...</p>
-          <button type="button" aria-label="button"  
-            onClick={(e) => {
-              e.stopPropagation();
-              setHasError(false);
-              setIsBuffering(true);
-            }} 
-            className="px-4 py-2 bg-white/10 text-white rounded-full font-medium text-sm hover:bg-white/20 transition-colors"
-          >
-            Try reloading
-          </button>
+        <div className="absolute inset-0 z-0 bg-zinc-900 flex flex-col items-center justify-center pointer-events-auto">
+          <img 
+            src={video.thumbnail_url || resolvedVideoUrl?.replace('/playlist.m3u8', '/thumbnail.jpg') || ''}
+            alt="Thumbnail"
+            className="absolute inset-0 size-full object-cover opacity-30 blur-[4px]"
+          />
+          <div className="absolute inset-0 bg-zinc-900/40 pointer-events-none" />
+          <div className="relative z-10 flex flex-col items-center gap-y-3">
+             {retryCount >= 3 ? (
+               <>
+                 <AlertOctagon className="size-10 text-white/40 mb-2" />
+                 <p className="text-sm font-medium text-white/80 tracking-wide drop-shadow-md">Video unavailable</p>
+                 <button type="button" aria-label="button"  
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRetryCount(0);
+                      setHasError(false);
+                      setIsBuffering(true);
+                    }} 
+                    className="mt-2 px-4 py-1.5 bg-white/10 text-white rounded-full font-medium text-xs hover:bg-white/20 transition-colors border border-white/10"
+                 >
+                    Retry
+                 </button>
+               </>
+             ) : (
+               <>
+                 <Loader2 className="size-8 text-white/60 animate-spin" />
+                 <p className="text-xs font-medium text-white/80 tracking-wide drop-shadow-md">Getting video ready...</p>
+               </>
+             )}
+          </div>
         </div>
       )) : (
         <div className="absolute inset-0 z-0 bg-zinc-900">

@@ -3,7 +3,7 @@ import DOMPurify from 'dompurify';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { UploadCloud, Loader2, Link as LinkIcon, Edit3, Volume2, VolumeX, CheckCircle, RefreshCw, Trash2, ArrowLeft, Image as ImageIcon, Camera, X, BadgeCheck, FileText, Globe, ShieldCheck, AlertCircle, Search, PlusCircle, Tag, ChevronRight, User, Building } from 'lucide-react';
+import { UploadCloud, Loader2, Link as LinkIcon, Edit3, Volume2, VolumeX, CheckCircle, RefreshCw, Trash2, ArrowLeft, Image as ImageIcon, Camera, X, BadgeCheck, FileText, Globe, ShieldCheck, AlertCircle, Search, PlusCircle, Tag, ChevronRight, User, Building, Sparkles, ShoppingBag, Plus, Heart, Bookmark } from 'lucide-react';
 import { cn } from '../lib/utils';
 import * as tus from 'tus-js-client';
 import { Profile, CreatorApplication } from '../types';
@@ -21,6 +21,7 @@ export default function Upload() {
   const navigate = useNavigate();
 
   const previewVideoRef = useRef<HTMLVideoElement>(null);
+  const previewModalVideoRef = useRef<HTMLVideoElement>(null);
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [application, setApplication] = useState<CreatorApplication | null>(null);
@@ -88,13 +89,17 @@ export default function Upload() {
   
   const [isMuted, setIsMuted] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadStatusText, setUploadStatusText] = useState('Publishing...');
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [validationPopup, setValidationPopup] = useState<string[] | null>(null);
   const [showLinkWarning, setShowLinkWarning] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
   const [videoDuration, setVideoDuration] = useState(0);
+  const [trimStart, setTrimStart] = useState(0);
+  const [trimEnd, setTrimEnd] = useState(0);
   const [scrubValue, setScrubValue] = useState(0);
   const [isScrubbing, setIsScrubbing] = useState(false);
 
@@ -174,6 +179,29 @@ export default function Upload() {
           domain: data.domain
         });
 
+        setProductName(prev => (!prev.trim() && data.productName) ? data.productName : prev);
+        setProductPrice(prev => {
+           if (!prev.trim() && data.productPrice) {
+               const parsedNum = String(data.productPrice).replace(/[^0-9.]/g, '');
+               return parsedNum || prev;
+           }
+           return prev;
+        });
+        if (data.productImage && !mainProductPreview) {
+           setMainProductPreview(data.productImage);
+           try {
+             // Fetch via a backend proxy to avoid CORS
+             const imgRes = await fetch(`/api/proxy-image?url=${encodeURIComponent(data.productImage)}`);
+             if (imgRes.ok) {
+                const blob = await imgRes.blob();
+                const file = new File([blob], 'product-image.jpg', { type: blob.type });
+                setMainProductFile(file);
+             }
+           } catch(err) {
+             console.warn('Failed to fetch product image blob', err);
+           }
+        }
+
       } catch (e: any) {
         setIsUrlValid(true); // structurally valid, but couldn't verify. We'll still allow it but without rich preview.
         setUrlValidationError('Could not verify store details, but you can still upload for review.');
@@ -194,7 +222,11 @@ export default function Upload() {
         video.src = preview;
         video.muted = true;
         video.playsInline = true;
-        video.crossOrigin = 'anonymous';
+        
+        await new Promise((resolve, reject) => {
+           video.onloadeddata = resolve;
+           video.onerror = reject;
+        });
 
         const frames: string[] = [];
         const count = 7;
@@ -226,7 +258,7 @@ export default function Upload() {
           setFilmstripFrames(frames);
         }
       };
-      generateFilmstrip();
+      generateFilmstrip().catch(err => console.log('filmstrip error', err));
       return () => { isMounted = false; };
     } else {
       setFilmstripFrames([]);
@@ -370,10 +402,62 @@ export default function Upload() {
         },
         body: JSON.stringify({ product_url: productUrl, caption })
       });
-      if (!res.ok) throw new Error("Metadata generation failed.");
+      let resData;
+      try {
+        resData = await res.json();
+      } catch (e) {
+        throw new Error(`Server returned an invalid response (${res.status}). It might be offline or deploying.`);
+      }
+      if (!res.ok) {
+        throw new Error(resData.error || "Metadata generation failed.");
+      }
       
-      const resData = await res.json();
-      const generated = resData?.data;
+      let generated;
+      
+      if (resData.is_fallback) {
+         const scrapedText = resData.scrapedText || '';
+         const prompt = `Analyze this e-commerce product and generate relevant metadata.
+Product URL: "${productUrl}"
+Available Context from page: "${scrapedText}"
+User Provided Caption/Review: "${caption || ''}"
+
+Based on the URL, available context, and any general knowledge you have about this URL or brand, generate a highly optimized set of metadata to categorize this content and improve search discovery. 
+
+Even if the scraped context is limited or empty, use the URL domain, URL path, and any general knowledge to provide the best possible tags. DO NOT generate error messages or complaints in the tags (like "product information missing" or "context lacking"). If you truly have no information, provide generic e-commerce tags (e.g. "shopping", "product", "review") and a generic caption.
+
+Generate ONLY a valid JSON object answering this shape exactly:
+{
+  "hashtags": ["#tag1", "#tag2"],
+  "tags": ["keyword1", "keyword2"],
+  "categories": ["category1"],
+  "suggested_caption": "Engaging text here...",
+  "product_highlights": "• Highlight 1\\n• Highlight 2\\n• Highlight 3",
+  "honest_review_notes": "Pros:\\n...\\nCons:\\n...\\nThings to know:\\n..."
+}`;
+         // @ts-ignore
+         if (typeof window.puter === 'undefined' || !window.puter.ai) {
+             throw new Error("Puter.js is not loaded. Please wait a moment or reload the page.");
+         }
+         // @ts-ignore
+         const puterRes = await window.puter.ai.chat(prompt);
+         
+         let textContent = puterRes?.message?.content || puterRes?.text || puterRes || '';
+         if (typeof textContent !== 'string') textContent = JSON.stringify(textContent);
+         
+         let jsonStr = textContent.replace(/```json/gi, '').replace(/```/gi, '').trim();
+         const firstBrace = jsonStr.indexOf('{');
+         const lastBrace = jsonStr.lastIndexOf('}');
+         if (firstBrace !== -1 && lastBrace !== -1) {
+             jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
+         }
+         try {
+             generated = JSON.parse(jsonStr);
+         } catch (e) {
+             throw new Error("AI returned invalid JSON format.");
+         }
+      } else {
+         generated = resData.data || resData;
+      }
 
       if (generated) {
         if (generated.hashtags) {
@@ -403,7 +487,7 @@ export default function Upload() {
       }
     } catch (err: any) {
       console.error(err);
-      alert("Could not generate AI metadata. Please try again.");
+      alert(err.message || "Could not generate AI metadata. Please try again.");
     } finally {
       setIsExtractingMetadata(false);
     }
@@ -441,12 +525,16 @@ export default function Upload() {
       };
 
       videoElement.onloadedmetadata = () => {
-        URL.revokeObjectURL(tempUrl);
         if (checkAndShowErrors(videoElement.duration)) {
           setValidationPopup(null);
           setFile(selected);
-          setPreview(URL.createObjectURL(selected));
+          setPreview(tempUrl);
+          setVideoDuration(videoElement.duration);
+          setTrimStart(0);
+          setTrimEnd(videoElement.duration);
           setError(null);
+        } else {
+          URL.revokeObjectURL(tempUrl);
         }
       };
       
@@ -463,6 +551,7 @@ export default function Upload() {
   };
 
   const removeVideo = () => {
+    if (preview) URL.revokeObjectURL(preview);
     setFile(null);
     setPreview(null);
     setThumbnailFile(null);
@@ -472,6 +561,8 @@ export default function Upload() {
     setRealLifeFile(null);
     setRealLifePreview(null);
     setVideoDuration(0);
+    setTrimStart(0);
+    setTrimEnd(0);
     setScrubValue(0);
     setIsScrubbing(false);
     setError(null);
@@ -581,9 +672,9 @@ export default function Upload() {
       try {
         const parsed = new URL(cleanProductUrl);
         const host = parsed.hostname.toLowerCase();
-        const knownMarketplaces = ['amazon', 'flipkart', 'myntra', 'shopify', 'ajio', 'meesho', 'nykaa', 'tatacliq', 'snapdeal', 'ebay', 'etsy', 'aliexpress', 'zara', 'hm', 'nike', 'adidas', 'puma', 'macys', 'walmart', 'target', 'bestbuy', 'apple', 'samsung'];
+        const knownMarketplaces = ['amazon', 'amzn', 'a.co', 'flipkart', 'myntra', 'shopify', 'ajio', 'meesho', 'nykaa', 'tatacliq', 'snapdeal', 'ebay', 'etsy', 'aliexpress', 'zara', 'hm', 'nike', 'adidas', 'puma', 'macys', 'walmart', 'target', 'bestbuy', 'apple', 'samsung', 'croma', 'reliancedigital'];
         const isMarketplace = knownMarketplaces.some(mp => host.includes(mp));
-        const isProductPath = ['/p/', '/product/', '/item/', '/dp/', '/buy/'].some(p => parsed.pathname.toLowerCase().includes(p));
+        const isProductPath = ['/p/', '/product/', '/item/', '/dp/', '/buy/', '/d/'].some(p => parsed.pathname.toLowerCase().includes(p));
         if (!isMarketplace && !isProductPath) {
           setShowLinkWarning(true);
           return;
@@ -592,7 +683,8 @@ export default function Upload() {
     }
 
     setIsUploading(true);
-    setProgress(10);
+    setUploadStatusText('Initializing upload...');
+    setProgress(5);
     setError(null);
 
     let createdBunnyVideoId: string | null = null;
@@ -603,7 +695,8 @@ export default function Upload() {
       const filePath = `${user.id}/${fileName}`;
 
       // Upload to Bunny Stream via Direct TUS
-      setProgress(0);
+      setProgress(5);
+      setUploadStatusText('Uploading Video...');
       
       const sessionData = await supabase.auth.getSession();
       const token = sessionData.data.session?.access_token;
@@ -653,6 +746,7 @@ export default function Upload() {
       });
 
       setProgress(40);
+      setUploadStatusText('Upload Complete. Processing Video...');
       
       const videoUrl = `https://${deliveryHostname}/${videoId}/playlist.m3u8`;
 
@@ -701,6 +795,7 @@ export default function Upload() {
       }
 
       setProgress(60);
+      setUploadStatusText('Generating Metadata...');
 
       // Auto-prefix product URL with https:// if it lacks a protocol, upgrade http to https
       let submitProductUrl = productUrl.trim();
@@ -710,9 +805,36 @@ export default function Upload() {
         submitProductUrl = 'https://' + submitProductUrl;
       }
 
-      const parsedTags = tags.split(',').map(t => t.trim()).filter(Boolean);
-      const parsedHashtags = hashtags.split(' ').map(t => t.trim().startsWith('#') ? t.trim() : `#${t.trim()}`).filter(t => t !== '#');
-      const allTags = [...parsedTags, ...parsedHashtags];
+      // Auto-Generate Search Metadata & Discovery Signals using AI
+      let aiTags: string[] = [];
+      let aiProductUses = '';
+      let aiReviewNotes = '';
+      try {
+        const metadataRes = await fetch('/api/generate-metadata', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionData.data.session?.access_token}`
+          },
+          body: JSON.stringify({ product_url: submitProductUrl, caption })
+        });
+        if (metadataRes.ok) {
+           const resData = await metadataRes.json();
+           const generated = typeof resData.data === 'string' ? JSON.parse(resData.data) : (resData.data || resData);
+           if (generated) {
+              const fetchedHashtags = Array.isArray(generated.hashtags) ? generated.hashtags : [];
+              const fetchedTags = Array.isArray(generated.tags) ? generated.tags : [];
+              aiTags = [...fetchedHashtags, ...fetchedTags];
+              if (generated.product_highlights) aiProductUses = generated.product_highlights;
+              if (generated.honest_review_notes) aiReviewNotes = generated.honest_review_notes;
+           }
+        }
+      } catch (err) {
+        console.warn('Failed to auto-generate metadata in background:', err);
+      }
+
+      setUploadStatusText('Verifying Product Link & Running Safety Checks...');
+      setProgress(85);
 
       // Insert into DB using backend for strict URL validation
       const insertResponse = await fetch('/api/videos', {
@@ -730,38 +852,48 @@ export default function Upload() {
             captionText: DOMPurify.sanitize(caption.trim()),
             product_name: DOMPurify.sanitize(productName.trim()),
             product_price: productPrice ? parseFloat(productPrice.replace(/[^\d.]/g, '')) : null,
-            product_uses: DOMPurify.sanitize(productUses.trim()),
-            key_specifications: DOMPurify.sanitize(keySpecs.trim()),
-            benefits: DOMPurify.sanitize(benefits.trim()),
-            why_recommends: DOMPurify.sanitize(whyRecommends.trim()),
-            best_for: DOMPurify.sanitize(bestFor.trim()),
-            what_liked: DOMPurify.sanitize(whatILiked.trim()),
-            things_know: DOMPurify.sanitize(thingsToKnow.trim()),
+            product_uses: DOMPurify.sanitize(aiProductUses),
+            things_know: DOMPurify.sanitize(aiReviewNotes),
             coupon_code: DOMPurify.sanitize(couponCode.trim().toUpperCase()),
             coupon_instructions: DOMPurify.sanitize(couponInstructions.trim()),
-            coupon_terms: DOMPurify.sanitize(couponTerms.trim())
+            coupon_terms: DOMPurify.sanitize(couponTerms.trim()),
+            trim_start: trimStart,
+            trim_end: trimEnd
           }),
           product_url: DOMPurify.sanitize(submitProductUrl),
           real_life_image_url: finalRealLifeImageUrl || undefined,
           is_verified_real: finalRealLifeImageUrl ? true : false,
           force_unverified_url: forceUnverified,
           category_id: categoryId || undefined,
-          tags: allTags.length > 0 ? allTags : undefined
+          tags: aiTags.length > 0 ? aiTags : undefined
         })
       });
 
-      const insertData = await insertResponse.json();
+      let insertData;
+      try {
+        insertData = await insertResponse.json();
+      } catch (e) {
+        throw new Error(`Server connection failed (${insertResponse.status}) while saving video data.`);
+      }
       
       if (!insertResponse.ok) {
         throw new Error(insertData.error || 'Failed to publish video');
       }
 
-      setUploadedVideoStatus(insertData.status || 'active');
+      let finalStatusMsg = 'Published';
+      if (insertData.status === 'pending_review') {
+        finalStatusMsg = 'Awaiting Admin Approval (link not verified)';
+      } else if (insertData.status === 'processing') {
+        finalStatusMsg = 'Processing Video in Background... (will be Published soon)';
+      }
+
+      setUploadedVideoStatus((insertData.status || 'active'));
+      setUploadStatusText(finalStatusMsg);
       setProgress(100);
       setIsSuccess(true);
       
       // Navigate to profile to see the new video after short delay
-      setTimeout(() => navigate('/profile'), 1500);
+      setTimeout(() => navigate('/profile'), 4500); // Increased delay so user reads the message
     } catch (err: any) {
       console.error('Upload error:', err);
       setError(err.message || 'Failed to publish video');
@@ -789,6 +921,20 @@ export default function Upload() {
   if (isSuccess) {
     return <UploadSuccessState uploadedVideoStatus={uploadedVideoStatus} />;
   }
+
+  
+  useEffect(() => {
+    if (showPreviewModal && previewModalVideoRef.current) {
+       previewModalVideoRef.current.play().catch(e => console.log('modal play blocked', e));
+    }
+  }, [showPreviewModal]);
+
+  
+  useEffect(() => {
+    if (preview && previewVideoRef.current) {
+       previewVideoRef.current.play().catch(err => console.log('effect play blocked', err));
+    }
+  }, [preview]);
 
   return (
     <div className="flex-1 w-full bg-[#0c0c0e] text-white flex flex-col h-full font-sans">
@@ -825,18 +971,110 @@ export default function Upload() {
 
       <div className="flex-1 overflow-y-auto w-full px-5 pb-6">
         
-        {/* Cover Photo Area - Replacing with actual video file upload */}
+        {/* Cover Photo Area */}
         <div className="relative w-full aspect-[16/10] bg-zinc-900 rounded-2xl overflow-hidden mb-6 border border-white/5 shadow-md flex items-center justify-center">
           {preview ? (
-            <video src={preview} className="size-full object-cover" muted loop playsInline autoPlay />
+            <>
+              <video 
+                ref={previewVideoRef}
+                src={preview}
+                preload="auto" 
+                className="size-full object-cover" 
+                muted={isMuted} 
+                loop 
+                playsInline 
+                autoPlay 
+                onError={(e) => {
+                   console.error('Video Preview Error:', e.currentTarget.error);
+                }}
+                onLoadedData={(e) => {
+                   console.log('Video Preview Loaded Data');
+                   e.currentTarget.play().catch(err => console.log('play blocked main', err));
+                }} 
+                onTimeUpdate={(e) => {
+                   const v = e.currentTarget;
+                   if (trimEnd > 0 && v.currentTime >= trimEnd) {
+                      v.currentTime = trimStart;
+                   } else if (trimStart > 0 && v.currentTime < trimStart) {
+                      v.currentTime = trimStart;
+                   }
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                   setFile(null);
+                   setPreview(null);
+                   setThumbnailFile(null);
+                   setThumbnailPreview(null);
+                }}
+                className="absolute top-3 right-3 bg-black/60 p-2 rounded-full text-white/80 hover:text-white transition-colors z-10"
+              >
+                <Trash2 className="size-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                   if (previewVideoRef.current) {
+                      if (previewVideoRef.current.paused) {
+                         previewVideoRef.current.play();
+                      } else {
+                         previewVideoRef.current.pause();
+                      }
+                   }
+                }}
+                className="absolute inset-0 size-full z-0"
+                aria-label="Play/Pause"
+              />
+            </>
           ) : (
-            <div className="text-zinc-500 font-medium text-sm flex flex-col items-center">
-               <UploadCloud className="size-8 mb-2" />
-               Select a video
-            </div>
+            <>
+              <div className="text-zinc-500 font-medium text-sm flex flex-col items-center">
+                 <UploadCloud className="size-8 mb-2" />
+                 Select a video
+              </div>
+              <input type="file" accept="video/*" onChange={handleFileChange} className="absolute inset-0 size-full opacity-0 cursor-pointer z-10" />
+            </>
           )}
-          <input type="file" accept="video/*" onChange={handleFileChange} className="absolute inset-0 size-full opacity-0 cursor-pointer" />
         </div>
+
+        {/* Video Trimmer */}
+        {preview && videoDuration > 0 && (
+          <div className="flex flex-col bg-[#151518] p-4 rounded-2xl border border-white/5 shadow-sm gap-y-3 mb-6">
+            <span className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide flex justify-between items-center">
+              Trim Video
+              <span className="text-zinc-500 font-normal text-xs bg-black/20 px-2 py-1 rounded">
+                {(trimEnd - trimStart).toFixed(1)}s length
+              </span>
+            </span>
+            <div className="flex gap-4">
+              <div className="flex-1 flex flex-col gap-1">
+                 <label className="text-[11px] text-zinc-500 uppercase font-bold tracking-wider mb-1 flex justify-between">
+                   Start <span className="text-purple-400">{trimStart.toFixed(1)}s</span>
+                 </label>
+                 <input type="range" min={0} max={videoDuration} step={0.1} value={trimStart} onChange={e => {
+                    const val = Number(e.target.value);
+                    if (val < trimEnd) {
+                       setTrimStart(val);
+                       if (previewVideoRef.current) previewVideoRef.current.currentTime = val;
+                    }
+                 }} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-purple-500" />
+              </div>
+              <div className="flex-1 flex flex-col gap-1">
+                 <label className="text-[11px] text-zinc-500 uppercase font-bold tracking-wider mb-1 flex justify-between">
+                   End <span className="text-purple-400">{trimEnd.toFixed(1)}s</span>
+                 </label>
+                 <input type="range" min={0} max={videoDuration} step={0.1} value={trimEnd} onChange={e => {
+                    const val = Number(e.target.value);
+                    if (val > trimStart) {
+                       setTrimEnd(val);
+                       if (previewVideoRef.current) previewVideoRef.current.currentTime = val;
+                    }
+                 }} className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-purple-500" />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Video Cover Thumbnail Selection Section */}
         {preview && (
@@ -877,6 +1115,7 @@ export default function Upload() {
 
         {/* Inputs */}
         <div className="gap-y-6">
+          {/* 3. Product Link */}
           <div className="flex flex-col">
             <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1">Product Link (Required) *</label>
             <div className="relative">
@@ -941,22 +1180,6 @@ export default function Upload() {
             )}
           </div>
 
-          {/* Category Dropdown */}
-          <div className="flex flex-col">
-            <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1">Category *</label>
-            <select 
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full bg-[#151518] text-white/90 rounded-xl px-4 py-3.5 text-[15px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm"
-              required
-            >
-              <option value="" disabled>Select a category</option>
-              {categories.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
-              ))}
-            </select>
-          </div>
-
           <div className="flex flex-col">
             <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1">Product Name *</label>
             <input 
@@ -985,97 +1208,74 @@ export default function Upload() {
                 className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl pl-8 pr-4 py-3.5 text-[15px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm font-semibold"
               />
             </div>
-            <p className="text-[11px] text-zinc-500 mt-1 pl-1">Enter numeric price. Formatting is applied automatically (e.g. ₹1,499)</p>
           </div>
 
+          {/* 4. Tell Us Your Experience */}
           <div className="flex flex-col">
-            <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1">Why You Recommend This Product *</label>
+            <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1">Tell Us Your Experience *</label>
             <textarea 
               required
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
-              placeholder="Explain why you recommend this product, what makes it special, and who it's for..."
+              placeholder="Explain what makes this product special, who it's for..."
               className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3.5 text-[15px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm min-h-[90px]"
             />
           </div>
 
-          <UploadAccordion
-            title="Search Discovery & Tags"
-            icon={<Search className="size-5 text-purple-400" />}
-            isOpen={expandedSection === 'search'}
-            onToggle={() => setExpandedSection(expandedSection === 'search' ? null : 'search')}
-          >
-            <div className="flex items-center justify-end mb-2">
-              <button 
-                type="button" 
-                onClick={handleExtractMetadata}
-                disabled={isExtractingMetadata || !productUrl}
-                className="flex items-center gap-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 px-3 py-1.5 rounded-lg text-[12px] font-bold tracking-wide transition-colors disabled:opacity-50"
-              >
-                {isExtractingMetadata ? <Loader2 className="size-3.5 animate-spin" /> : <Tag className="size-3.5" />}
-                Autofill Metadata
-              </button>
-            </div>
-            
-            <div className="flex flex-col">
-              <label className="text-[13px] font-medium text-zinc-400 font-sans tracking-wide mb-2 pl-1">Hashtags</label>
-              <input 
-                type="text"
-                value={hashtags}
-                onChange={(e) => setHashtags(e.target.value)}
-                placeholder="e.g. #fashion #style"
-                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm"
-              />
-            </div>
+          {/* 5. Category */}
+          <div className="flex flex-col">
+            <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1">Category *</label>
+            <select 
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              className="w-full bg-[#151518] text-white/90 rounded-xl px-4 py-3.5 text-[15px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm"
+              required
+            >
+              <option value="" disabled>Select a category</option>
+              {categories.map(cat => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              ))}
+            </select>
+          </div>
 
-            <div className="flex flex-col">
-              <label className="text-[13px] font-medium text-zinc-400 font-sans tracking-wide mb-2 pl-1">Search Keywords / Tags</label>
-              <input 
-                type="text"
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-                placeholder="e.g. casual top, blue dress, pure cotton (comma separated)"
-                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm"
-              />
+          {/* 6. Product Image & Real Photo & Coupon */}
+          <div className="flex flex-col mt-2">
+            <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-3 pl-1">Product Images</label>
+            <div className="flex gap-4">
+              <div className="flex flex-col gap-2">
+                <span className="text-[12px] text-zinc-500 font-medium pl-1">Product Photo *</span>
+                {mainProductPreview ? (
+                  <div className="size-[84px] rounded-2xl overflow-hidden shrink-0 border border-white/5 shadow-sm bg-zinc-900 relative">
+                    <img src={mainProductPreview} className="size-full object-cover"  alt="" />
+                    <button type="button" aria-label="button" onClick={() => { setMainProductFile(null); setMainProductPreview(null); }} className="absolute top-1 right-1 bg-[#0c0c0e]/50 rounded-full p-1"><X className="size-4" /></button>
+                  </div>
+                ) : (
+                  <label className="size-[84px] rounded-2xl shrink-0 border border-white/10 bg-[#151518] flex items-center justify-center hover:bg-white/5 transition-colors cursor-pointer shadow-sm relative">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-500"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                    <input type="file" accept="image/*" onChange={handleMainProductChange} className="hidden" />
+                  </label>
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <span className="text-[12px] text-zinc-500 font-medium pl-1">Real Photo (Optional)</span>
+                {realLifePreview ? (
+                  <div className="size-[84px] rounded-2xl overflow-hidden shrink-0 border border-white/5 shadow-sm bg-zinc-900 relative">
+                    <img src={realLifePreview} className="size-full object-cover"  alt="" />
+                    <button type="button" aria-label="button" onClick={() => { setRealLifeFile(null); setRealLifePreview(null); }} className="absolute top-1 right-1 bg-[#0c0c0e]/50 rounded-full p-1"><X className="size-4" /></button>
+                  </div>
+                ) : (
+                  <label className="size-[84px] rounded-2xl shrink-0 border border-white/10 bg-[#151518] flex items-center justify-center hover:bg-white/5 transition-colors cursor-pointer shadow-sm relative">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-500"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                    <input type="file" accept="image/*" onChange={handleRealLifeChange} className="hidden" />
+                  </label>
+                )}
+              </div>
             </div>
-          </UploadAccordion>
+          </div>
 
-          <UploadAccordion
-            title="Structured Product Review"
-            icon={<FileText className="size-5 text-[#ef2950]" />}
-            isOpen={expandedSection === 'structured'}
-            onToggle={() => setExpandedSection(expandedSection === 'structured' ? null : 'structured')}
-          >
-            <div className="flex flex-col">
-              <label className="text-[13px] font-medium text-zinc-400 font-sans tracking-wide mb-2 pl-1">Key Highlights & Specs (Add bullet points)</label>
-              <textarea 
-                value={productUses}
-                onChange={(e) => setProductUses(e.target.value)}
-                placeholder="e.g.&#10;• Perfect for heavy coding sessions&#10;• Battery life: up to 30 hours&#10;• Extreme comfort and lightweight design"
-                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm min-h-[120px]"
-              />
-            </div>
-
-            <div className="flex flex-col">
-              <label className="text-[13px] font-medium text-zinc-400 font-sans tracking-wide mb-2 pl-1">Honest Review (Pros, Cons & Things to Know)</label>
-              <textarea 
-                value={thingsToKnow}
-                onChange={(e) => setThingsToKnow(e.target.value)}
-                placeholder="e.g. Loved the fast charging support and sound quality. Heads up: The ear tips take some time to align, requires a USB-C charger (not in box)."
-                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm min-h-[90px]"
-              />
-            </div>
-          </UploadAccordion>
-
-          <UploadAccordion
-            title="Coupon & Discounts (Optional)"
-            icon={<Tag className="size-5 text-emerald-400" />}
-            isOpen={expandedSection === 'coupon'}
-            onToggle={() => setExpandedSection(expandedSection === 'coupon' ? null : 'coupon')}
-          >
-            <div className="flex flex-col">
-              <label className="text-[13px] font-medium text-zinc-400 font-sans tracking-wide mb-2 pl-1">Promo Coupon Code</label>
-              <div className="flex gap-2">
+          <div className="flex flex-col mt-4">
+             <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1">Promo Coupon (Optional)</label>
+             <div className="flex gap-2 mb-3">
                 <input 
                   type="text"
                   value={couponCode}
@@ -1087,7 +1287,6 @@ export default function Upload() {
                   type="button"
                   onClick={(e) => {
                     e.preventDefault();
-                    // Generate a strong, random 12-char alphanumeric code
                     const array = new Uint32Array(3);
                     window.crypto.getRandomValues(array);
                     const randomCode = Array.from(array, dec => ('0' + dec.toString(36)).substr(-4)).join('').toUpperCase();
@@ -1097,63 +1296,24 @@ export default function Upload() {
                 >
                   Generate
                 </button>
-              </div>
-              <p className="text-[11px] text-zinc-500 pl-1 mt-2">Codes must be complex to prevent brute-force guessing.</p>
-            </div>
-
-            <div className="flex flex-col">
-              <label className="text-[13px] font-medium text-zinc-400 font-sans tracking-wide mb-2 pl-1">Coupon Details (Instructions & Terms)</label>
-              <textarea 
+             </div>
+             <textarea 
                 value={couponInstructions}
                 onChange={(e) => setCouponInstructions(e.target.value)}
-                placeholder="e.g. Valid on first order only, minimum purchase ₹2,000. Cannot be combined with other discounts."
+                placeholder="Coupon Details & Terms (e.g. Valid on first order only)"
                 className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm min-h-[70px]"
-              />
-            </div>
-          </UploadAccordion>
-
-          <UploadAccordion
-            title="Product Images & Verification"
-            icon={<Camera className="size-5 text-blue-400" />}
-            isOpen={expandedSection === 'images'}
-            onToggle={() => setExpandedSection(expandedSection === 'images' ? null : 'images')}
-          >
-            <div className="flex flex-col">
-              <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-3 pl-1">Product Image * (Official photo)</label>
-              <div className="flex items-center gap-x-3 overflow-x-auto pb-1 scrollbar-none snap-x">
-                {mainProductPreview && (
-                  <div className="size-[84px] rounded-2xl overflow-hidden shrink-0 snap-start border border-white/5 shadow-sm bg-zinc-900 relative">
-                    <img src={mainProductPreview} className="size-full object-cover"  alt="" />
-                    <button type="button" aria-label="button"  onClick={() => { setMainProductFile(null); setMainProductPreview(null); }} className="absolute top-1 right-1 bg-[#0c0c0e]/50 rounded-full p-1"><X className="size-4" /></button>
-                  </div>
-                )}
-                {!mainProductPreview && (
-                  <label className="size-[84px] rounded-2xl shrink-0 snap-start border border-white/10 bg-[#151518] flex items-center justify-center hover:bg-white/5 transition-colors cursor-pointer shadow-sm relative">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-500"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                    <input type="file" accept="image/*" onChange={handleMainProductChange} className="hidden" />
-                  </label>
-                )}
-              </div>
-            </div>
-            
-            <div className="flex flex-col">
-              <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-3 pl-1">Real Life Photo (Optional)</label>
-              <div className="flex items-center gap-x-3 overflow-x-auto pb-1 scrollbar-none snap-x">
-                {realLifePreview && (
-                  <div className="size-[84px] rounded-2xl overflow-hidden shrink-0 snap-start border border-white/5 shadow-sm bg-zinc-900 relative">
-                    <img src={realLifePreview} className="size-full object-cover"  alt="" />
-                    <button type="button" aria-label="button"  onClick={() => { setRealLifeFile(null); setRealLifePreview(null); }} className="absolute top-1 right-1 bg-[#0c0c0e]/50 rounded-full p-1"><X className="size-4" /></button>
-                  </div>
-                )}
-                {!realLifePreview && (
-                  <label className="size-[84px] rounded-2xl shrink-0 snap-start border border-white/10 bg-[#151518] flex items-center justify-center hover:bg-white/5 transition-colors cursor-pointer shadow-sm relative">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-500"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                    <input type="file" accept="image/*" onChange={handleRealLifeChange} className="hidden" />
-                  </label>
-                )}
-              </div>
-            </div>
-          </UploadAccordion>
+             />
+          </div>
+          
+          <div className="bg-[#101014] border border-white/5 rounded-2xl p-4 mt-2">
+            <h4 className="text-[14px] font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-400 mb-1 flex items-center gap-2">
+              <Sparkles className="size-4 text-purple-400" />
+              AI Discovery & Smart Tags
+            </h4>
+            <p className="text-[12px] text-zinc-400 leading-relaxed font-sans mt-2">
+              Based on the URL, video, and your review, our AI will automatically structure this product, generate search metadata, find optimal hashtags, and generate discovery signals behind the scenes!
+            </p>
+          </div>
         </div>
 
       </div>
@@ -1161,14 +1321,56 @@ export default function Upload() {
       {/* Footer Action */}
       <div className="px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-4 shrink-0 bg-[#0c0c0e]">
          {error && <p className="text-red-400 text-xs mb-3 text-center">{error}</p>}
-         <button type="button" aria-label="button"  
-           onClick={handleUpload}
-           disabled={!file || !isUrlValid || !mainProductFile || !productName.trim() || !productPrice.trim() || isUploading}
-           className="w-full bg-[#ef2950] hover:bg-[#ff3b61] disabled:opacity-50 active:scale-[0.98] text-white font-bold py-4 px-6 rounded-2xl transition-all flex items-center justify-center text-[16px] shadow-[0_4px_14px_rgba(239,41,80,0.5)] tracking-wide"
-         >
-           {isUploading ? <Loader2 className="size-5 animate-spin" /> : 'Publish Post'}
-         </button>
+         <div className="flex gap-3">
+           <button type="button" aria-label="Preview" 
+             onClick={() => setShowPreviewModal(true)}
+             disabled={!preview}
+             className="w-1/3 bg-[#151518] hover:bg-[#1a1a20] active:scale-[0.98] border border-white/10 disabled:opacity-50 text-white font-bold py-4 px-2 rounded-2xl transition-all text-[15px] shadow-sm flex items-center justify-center gap-2"
+           >
+             Preview
+           </button>
+           <button type="button" aria-label="button"  
+             onClick={handleUpload}
+             disabled={!file || !isUrlValid || !mainProductFile || !productName.trim() || !productPrice.trim() || isUploading}
+             className="flex-1 w-full bg-[#ef2950] hover:bg-[#ff3b61] disabled:opacity-50 active:scale-[0.98] text-white font-bold py-4 px-6 rounded-2xl transition-all flex items-center justify-center text-[16px] shadow-[0_4px_14px_rgba(239,41,80,0.5)] tracking-wide"
+           >
+             {isUploading ? <Loader2 className="size-5 animate-spin" /> : 'Publish Post'}
+           </button>
+         </div>
       </div>
+
+      {/* Full-Screen Loading Overlay */}
+      {isUploading && (
+        <div className="fixed inset-0 bg-[#0c0c0e]/90 backdrop-blur-md z-[120] flex flex-col items-center justify-center p-6 animate-fadeIn">
+          <div className="flex flex-col items-center gap-6 w-full max-w-sm">
+            <div className="relative size-20">
+              <div className="absolute inset-0 rounded-full border-4 border-white/5"></div>
+              <svg className="absolute inset-0 size-full -rotate-90 transform" viewBox="0 0 100 100">
+                <circle 
+                  cx="50" cy="50" r="46" 
+                  className="fill-none stroke-[#ef2950] transition-all duration-300 ease-out"
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  strokeDasharray={`${progress * 2.89} 289`}
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center text-white font-bold font-sans text-xl">
+                 {Math.round(progress)}%
+              </div>
+            </div>
+            
+            <div className="text-center flex flex-col items-center gap-1.5 w-full">
+              <h3 className="text-lg font-bold text-white tracking-wide flex items-center gap-2">
+                 <Loader2 className="size-5 animate-spin text-[#ef2950]" /> 
+                 {uploadStatusText}
+              </h3>
+              <p className="text-zinc-400 text-[13px] text-center max-w-[280px]">
+                 Please stay on this page while we process your content.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modern High-End Validation Alert Popup Panel overlay */}
       {validationPopup && (
@@ -1197,6 +1399,117 @@ export default function Upload() {
           </div>
         </div>
       )}
+
+      
+      {/* Feed Preview Modal */}
+      <AnimatePresence>
+        {showPreviewModal && (
+          <motion.div
+            initial={{ opacity: 0, y: "100%" }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: "100%" }}
+            className="fixed inset-0 z-[200] bg-black flex flex-col"
+          >
+            {/* Fake Feed Header */}
+            <div className="absolute top-0 left-0 w-full z-20 pt-safe flex justify-between items-center p-4 bg-gradient-to-b from-black/50 to-transparent">
+              <button title="Go Back" type="button" aria-label="Close" onClick={() => setShowPreviewModal(false)} className="text-white hover:text-white/80 p-1">
+                <ArrowLeft className="size-6 drop-shadow-md" />
+              </button>
+              <div className="flex gap-5 drop-shadow-md font-sans">
+                 <span className="text-white font-bold text-[17px] tracking-wide relative after:content-[''] after:absolute after:-bottom-1.5 after:left-1/2 after:-translate-x-1/2 after:w-5 after:h-1 after:bg-white after:rounded-full">For You</span>
+                 <span className="text-white/60 font-bold text-[17px] tracking-wide">Following</span>
+              </div>
+              <div className="w-8 flex justify-end">
+                <Search className="size-6 text-white drop-shadow-md" />
+              </div>
+            </div>
+            
+            <div className="relative flex-1 bg-black overflow-hidden h-full">
+              <video 
+                ref={previewModalVideoRef}
+                src={preview || undefined} 
+                className="w-full h-full object-cover" 
+                autoPlay 
+                loop 
+                muted={isMuted}
+                playsInline
+                preload="auto"
+                onLoadedData={(e) => {
+                   e.currentTarget.play().catch(err => console.log('play blocked', err));
+                }}
+              />
+
+              {/* Feed Text/Controls Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent pointer-events-none" />
+
+              {/* Bottom Left Info Panel */}
+              <div className="absolute bottom-[80px] left-0 right-[60px] p-4 flex flex-col justify-end z-10 pointer-events-auto pb-safe">
+                <div className="flex items-center">
+                  <span className="font-bold text-white text-[16px] tracking-wide drop-shadow-md">
+                    {user?.user_metadata?.username || 'user'}
+                  </span>
+                </div>
+                {caption && (
+                  <div className="mt-2 text-left pointer-events-auto">
+                    <p className="text-white/95 text-[14px] font-sans drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] leading-[1.3] line-clamp-2 font-normal pr-2">
+                       {caption}
+                    </p>
+                  </div>
+                )}
+                {hashtags && (
+                  <div className="mt-1.5 pointer-events-auto flex flex-wrap gap-1">
+                    {hashtags.split(',').slice(0,3).map((tag, i) => (
+                      <span key={i} className="text-[#ef2950] font-semibold text-[13px] drop-shadow-md shadow-black font-sans">{tag.trim().startsWith('#') ? tag.trim() : '#' + tag.trim()}</span>
+                    ))}
+                  </div>
+                )}
+                <div className="flex flex-col gap-2 mt-4 pointer-events-auto">
+                  <div className="group flex items-center bg-[#0c0c0e]/45 backdrop-blur-md rounded-xl p-1.5 pr-4 w-fit border border-white/10 shadow-md text-left">
+                    <div className="size-10 rounded-lg overflow-hidden shrink-0 flex items-center justify-center mr-3 border border-white/5 bg-zinc-900">
+                       {mainProductPreview ? <img src={mainProductPreview} alt="Product" className="size-full object-cover" /> : <ShoppingBag className="size-5 text-white/50" />}
+                    </div>
+                    <div className="flex flex-col items-start justify-center max-w-[170px]">
+                       <span className="text-[13px] font-sans font-semibold text-white/95 leading-tight truncate w-full">
+                         {productName || "Product Name"}
+                       </span>
+                       <span className="text-[12px] font-sans text-rose-450 font-bold mt-0.5">
+                         {productPrice ? `₹${parseFloat(productPrice).toLocaleString('en-IN')}` : "Price"}
+                       </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Side Icons */}
+              <div className="absolute bottom-[80px] right-2 w-14 flex flex-col items-center gap-y-5 z-20 pointer-events-auto pb-safe">
+                <div className="relative mb-2">
+                  <div className="size-[48px] rounded-full border-[1.5px] border-white/80 bg-zinc-800 overflow-hidden shrink-0 shadow-sm flex flex-col justify-center items-center">
+                     <span className="text-white text-xl font-bold">{user?.user_metadata?.username ? user.user_metadata.username.charAt(0).toUpperCase() : 'U'}</span>
+                  </div>
+                  <button title="Follow" className="absolute -bottom-2 left-1/2 -translate-x-1/2 size-6 rounded-full bg-[#ef2950] text-white flex items-center justify-center shadow-md border-[2px] border-black transition-transform active:scale-95 z-20">
+                     <Plus className="size-4" strokeWidth={3} />
+                  </button>
+                </div>
+                <div className="flex flex-col items-center group">
+                  <Heart className="size-9 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]" />
+                  <span className="text-white font-sans text-[13px] font-semibold drop-shadow-md">0</span>
+                </div>
+                <div className="flex flex-col items-center group mt-1">
+                  <Bookmark className="size-9 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]" />
+                  <span className="text-white font-sans text-[13px] font-semibold drop-shadow-md">0</span>
+                </div>
+                <div className="flex flex-col items-center group mt-1">
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="white" className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]">
+                     <path d="M21 12l-7-7v4C7 10 4 15 3 20c2.5-3.5 6-5.1 11-5.1V19l7-7z"/>
+                  </svg>
+                  <span className="text-white font-sans text-[13px] font-semibold drop-shadow-md">0</span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
 
       {/* Link Verification Warning Popup */}
       {showLinkWarning && (

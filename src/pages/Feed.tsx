@@ -3,11 +3,12 @@ import { supabase } from '../lib/supabase';
 import { Video } from '../types';
 import { VideoPlayer } from '../components/VideoPlayer';
 import { VideoPlayerSkeleton } from '../components/VideoPlayerSkeleton';
-import { Loader2, Play, Menu, Search } from 'lucide-react';
+import { Play, Menu, Search } from 'lucide-react';
 import { useInView } from 'react-intersection-observer';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { Link, useParams } from 'react-router-dom';
+import { SEO } from '../components/SEO';
 
 export default function Feed() {
   const { videoId } = useParams<{ videoId?: string }>();
@@ -66,11 +67,21 @@ export default function Feed() {
     }
   }, [inView, hasMore, loading, loadingMore, cursor]);
 
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const fetchVideos = async (currentCursor: string | null) => {
     if (!currentCursor) setLoading(true);
     else setLoadingMore(true);
 
     setError(null);
+    
+    // Cancel previous fetch if any
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       let fetchedVideos: Video[] = [];
       if (videoId && !currentCursor) {
@@ -87,10 +98,11 @@ export default function Feed() {
               is_brand
             )
           `)
+          .eq('status', 'active')
           .eq('id', videoId)
           .maybeSingle();
 
-        if (specVideo && !specError) {
+        if (specVideo && !specError && !controller.signal.aborted) {
           fetchedVideos.push(specVideo);
         }
       }
@@ -105,6 +117,7 @@ export default function Feed() {
       const { data: { session } } = await supabase.auth.getSession();
       
       const res = await fetch(`/api/feed?${params.toString()}`, {
+        signal: controller.signal,
         headers: session ? {
           'Authorization': `Bearer ${session.access_token}`
         } : undefined
@@ -114,10 +127,15 @@ export default function Feed() {
       }
 
       const { data, nextCursor } = await res.json();
+      if (controller.signal.aborted) return;
+      
       let combinedData = data || [];
       if (videoId && !currentCursor) {
          combinedData = combinedData.filter((v: any) => v.id !== videoId);
       }
+      
+      // Filter out any videos where status is not 'active' (published)
+      combinedData = combinedData.filter((v: any) => v.status === 'active' || v.post_status === 'published');
 
       const combined = !currentCursor ? [...fetchedVideos, ...combinedData] : combinedData;
       
@@ -134,21 +152,39 @@ export default function Feed() {
       setHasMore(!!nextCursor);
       setCursor(nextCursor);
     } catch (err: any) {
+      if (err.name === 'AbortError' || err.message.includes('Failed to fetch')) {
+        // Ignore aborts or unmount network cancellations
+        return;
+      }
       console.error('Error fetching videos:', err);
       if (!currentCursor) setError(err.message);
     } finally {
-      setLoading(false);
-      setLoadingMore(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+        setLoadingMore(false);
+      }
     }
   };
 
   if (loading && cursor === null && videos.length === 0) {
     return (
-      <div className="h-[100dvh] bg-[#0c0c0e] relative">
-        {/* Top Tabs Skeleton */}
-        <div className="absolute top-12 left-0 right-0 flex justify-center gap-x-6 z-10 px-4">
-          <div className="w-16 h-4 bg-white/10 rounded animate-pulse"></div>
-          <div className="w-20 h-4 bg-white/10 rounded animate-pulse"></div>
+      <div className="h-[100dvh] bg-[#0c0c0e] relative overflow-hidden">
+        {/* Top Header Skeleton */}
+        <div className="absolute top-0 left-0 right-0 z-20 flex flex-col pointer-events-none bg-gradient-to-b from-black/60 via-black/30 to-transparent pt-[env(safe-area-inset-top,40px)] pb-6">
+          <div className="flex justify-between items-center px-4 mt-2">
+            <div className="size-8 bg-white/10 rounded-full animate-pulse ml-1" />
+            <div className="flex items-center gap-x-5">
+              <div className="w-16 h-5 bg-white/10 rounded animate-pulse"></div>
+              <div className="w-16 h-5 bg-white/10 rounded animate-pulse"></div>
+            </div>
+            <div className="size-8 bg-white/10 rounded-full animate-pulse mr-1" />
+          </div>
+          <div className="w-full mt-5 px-4 flex items-center gap-3">
+            <div className="w-12 h-8 bg-white/10 rounded-full animate-pulse" />
+            <div className="w-20 h-8 bg-white/10 rounded-full animate-pulse" />
+            <div className="w-24 h-8 bg-white/10 rounded-full animate-pulse" />
+            <div className="w-20 h-8 bg-white/10 rounded-full animate-pulse" />
+          </div>
         </div>
         
         <VideoPlayerSkeleton className="h-full border-none" />
@@ -176,14 +212,56 @@ export default function Feed() {
         <div className="size-20 bg-white/5 rounded-full flex items-center justify-center mb-6 border border-white/5 shadow-inner">
           <Play className="size-8 text-white/30 ml-1.5" />
         </div>
-        <p className="text-white/90 font-sans font-bold text-[18px] mb-2 tracking-tight">Your feed is empty</p>
-        <p className="text-[14px] font-sans tracking-wide text-white/50 leading-relaxed max-w-[240px]">Be the first to share a video to get things started.</p>
+        <p className="text-white/90 font-sans font-bold text-[18px] mb-2 tracking-tight">No published videos found</p>
+        <p className="text-[14px] font-sans tracking-wide text-white/50 leading-relaxed max-w-[240px]">We couldn't find any active content right now. Check back later or adjust your filters.</p>
       </div>
     );
   }
 
+  const activeVideo = videos[activeIndex];
+  const activeVideoSchema = activeVideo ? {
+    '@context': 'https://schema.org',
+    '@type': 'VideoObject',
+    name: activeVideo.caption || 'Video on Aisles',
+    description: activeVideo.caption || 'Discover and shop products through immersive video experiences.',
+    thumbnailUrl: [
+      activeVideo.thumbnail_url || 'https://aisles.app/og-image.jpg'
+    ],
+    uploadDate: activeVideo.created_at || new Date().toISOString(),
+    contentUrl: activeVideo.video_url,
+    duration: 'PT30S', // Default representation for short-form video
+    creator: activeVideo.profiles?.username ? {
+      '@type': 'Person',
+      name: activeVideo.profiles.username,
+      url: `https://aisles.app/creator/${activeVideo.profiles.username}`
+    } : undefined,
+    publisher: {
+      '@type': 'Organization',
+      name: 'Aisles',
+      logo: {
+        '@type': 'ImageObject',
+        url: 'https://aisles.app/logo.png'
+      }
+    }
+  } : undefined;
+
   return (
     <div className="relative w-full h-[100dvh] bg-[#0c0c0e] pb-0">
+      {activeVideo && (
+        <SEO 
+          title={`${activeVideo.caption ? activeVideo.caption.substring(0, 50) + '...' : 'Aisles Video'} | Aisles`}
+          description={activeVideo.caption || 'Watch this video on Aisles, the premier video commerce platform.'}
+          image={activeVideo.thumbnail_url}
+          type="video.other"
+          url={`https://aisles.app/video/${activeVideo.id}`}
+          structuredData={activeVideoSchema}
+          breadcrumbs={[
+             { name: 'Home', item: 'https://aisles.app' },
+             { name: 'Explore', item: 'https://aisles.app/explore' },
+             { name: 'Video', item: `https://aisles.app/video/${activeVideo.id}` }
+          ]}
+        />
+      )}
       
       {/* Top Header Overlay */}
       <div className="absolute top-0 left-0 right-0 z-20 flex flex-col pointer-events-none bg-gradient-to-b from-black/60 via-black/30 to-transparent pt-[env(safe-area-inset-top,40px)] pb-6">
@@ -267,14 +345,10 @@ export default function Feed() {
       <div 
         ref={feedRef}
         onScroll={handleScroll}
-        className="size-full overflow-y-scroll snap-y snap-mandatory no-scrollbar overscroll-y-none" 
+        className="absolute inset-0 overflow-y-auto snap-y snap-mandatory no-scrollbar touch-pan-y" 
         dir="ltr"
       >
         {videos.map((video, index) => {
-          const isNearActive = Math.abs(index - activeIndex) <= 1;
-          if (!isNearActive) {
-            return <div key={video.id} className="w-full h-[100dvh] snap-start bg-[#0c0c0e] shrink-0" />;
-          }
           return <VideoPlayer key={video.id} video={video} isActive={index === activeIndex} />;
         })}
         {hasMore && (

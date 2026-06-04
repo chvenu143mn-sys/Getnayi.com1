@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { BottomNav } from './components/BottomNav';
+import { SEO } from './components/SEO';
 import AuthPage from './pages/Auth';
 import Feed from './pages/Feed';
 import Upload from './pages/Upload';
@@ -120,9 +121,11 @@ function AppContent() {
   }
 
   return (
-    <Routes>
-      <Route path="/auth" element={!user ? <MainLayout><AuthPage /></MainLayout> : <Navigate to="/" replace />} />
-      <Route path="/update-password" element={<UpdatePasswordPage />} />
+    <>
+      <SEO />
+      <Routes>
+        <Route path="/auth" element={!user ? <MainLayout><AuthPage /></MainLayout> : <Navigate to="/" replace />} />
+        <Route path="/update-password" element={<UpdatePasswordPage />} />
       <Route path="/interests" element={<ProtectedRoute><MainLayout><Interests /></MainLayout></ProtectedRoute>} />
       <Route path="/" element={<FeedLayout><Feed /></FeedLayout>} />
       <Route path="/video/:videoId" element={<FeedLayout><Feed /></FeedLayout>} />
@@ -164,6 +167,7 @@ function AppContent() {
         </MainLayout>
       } />
     </Routes>
+    </>
   );
 }
 

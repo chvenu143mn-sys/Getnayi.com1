@@ -61,13 +61,14 @@ CREATE TABLE IF NOT EXISTS public.videos (
   real_life_image_url text,
   is_verified_real boolean default false,
   views integer default 0,
-  status text default 'active' check (status in ('active', 'pending_review', 'rejected', 'processing')),
+  status text default 'active',
+  post_status text default 'processing' check (post_status in ('processing', 'pending_review', 'published', 'rejected')),
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- Ensure views and status columns exist if the table was created previously without them
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS views integer default 0;
-ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS status text default 'active' check (status in ('active', 'pending_review', 'rejected', 'processing'));
+ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS post_status text default 'processing' check (post_status in ('processing', 'pending_review', 'published', 'rejected'));
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS tags text[] default '{}';
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS search_aliases text;
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS product_url text;

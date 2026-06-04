@@ -23,6 +23,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { Video, Profile } from '../types';
+import CreatorAnalytics from '../components/CreatorAnalytics';
 
 import {
   AreaChart,
@@ -703,6 +704,8 @@ export default function CreatorDashboard() {
                 </div>
               )}
             </div>
+
+          <CreatorAnalytics videos={videos} engagementDetails={engagementDetails} />
 
             {/* Growth Analytics & Smart Insights */}
             <div className="bg-gradient-to-br from-[#101013] to-[#141417] border border-indigo-500/10 p-5 rounded-[26px] shadow-sm flex items-start">

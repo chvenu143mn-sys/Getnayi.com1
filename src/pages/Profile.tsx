@@ -5,11 +5,12 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Profile, Video } from '../types';
 import { parseVideoProduct } from '../utils/videoUtils';
-import { Loader2, Settings, Play, Edit3, X, ImagePlus, Instagram, Link2, Trash2, Moon, SunMoon, Lock, Bell, Shield, Palette, HelpCircle, ChevronRight, Bookmark, TrendingUp } from 'lucide-react';
+import { Loader2, Settings, Play, Edit3, X, ImagePlus, Instagram, Link2, Trash2, Moon, SunMoon, Lock, Bell, Shield, Palette, HelpCircle, ChevronRight, Bookmark, TrendingUp, MoreVertical } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { GuestGate } from '../components/GuestGate';
 import { ProfileImageCropper } from '../components/ProfileImageCropper';
+import { SEO } from '../components/SEO';
 
 export default function ProfilePage() {
   const { user, signOut } = useAuth();
@@ -40,6 +41,12 @@ export default function ProfilePage() {
   // Follow Counts
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
+
+  useEffect(() => {
+      const handleGlobalClick = () => setActiveMenuId(null);
+      window.addEventListener('click', handleGlobalClick);
+      return () => window.removeEventListener('click', handleGlobalClick);
+    }, []);
 
   useEffect(() => {
     if (user) {
@@ -214,7 +221,82 @@ export default function ProfilePage() {
     }
   };
 
+  // Edit Video State
+  const [videoToEdit, setVideoToEdit] = useState<any>(null);
+  const [editVideoCaptionText, setEditVideoCaptionText] = useState('');
+  const [editVideoTags, setEditVideoTags] = useState('');
+  const [editVideoProductName, setEditVideoProductName] = useState('');
+  const [editVideoProductPrice, setEditVideoProductPrice] = useState('');
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [isEditingVideo, setIsEditingVideo] = useState(false);
+  const [editVideoError, setEditVideoError] = useState<string | null>(null);
+
+  const handleEditVideoClick = (e: React.MouseEvent, video: any) => {
+    e.stopPropagation();
+    setVideoToEdit(video);
+    setEditVideoError(null);
+    let parsedCaption: any = {};
+    try {
+      if (video.caption) {
+        parsedCaption = typeof video.caption === 'string' ? JSON.parse(video.caption) : video.caption;
+      }
+    } catch(e) {}
+    setEditVideoCaptionText(parsedCaption.captionText || '');
+    setEditVideoTags(Array.isArray(video.tags) ? video.tags.join(', ') : '');
+    setEditVideoProductName(parsedCaption.product_name || '');
+    setEditVideoProductPrice(parsedCaption.product_price ? parsedCaption.product_price.toString() : '');
+    setActiveMenuId(null);
+  };
+
+  const handleSaveVideoEdit = async () => {
+    if (!videoToEdit) return;
+    setIsEditingVideo(true);
+    setEditVideoError(null);
+    try {
+      const sessionData = await supabase.auth.getSession();
+      const token = sessionData.data.session?.access_token;
+      
+      let newCaptionObj: any = {};
+      try {
+        if (videoToEdit.caption) {
+          newCaptionObj = typeof videoToEdit.caption === 'string' ? JSON.parse(videoToEdit.caption) : videoToEdit.caption;
+        }
+      } catch(e) {}
+      newCaptionObj.captionText = editVideoCaptionText.trim();
+      if (editVideoProductName.trim()) newCaptionObj.product_name = editVideoProductName.trim();
+      if (editVideoProductPrice.trim() && !isNaN(Number(editVideoProductPrice))) newCaptionObj.product_price = Number(editVideoProductPrice);
+      
+      const newTagsArray = editVideoTags.split(',').map(t => t.trim()).filter(Boolean);
+
+      const res = await fetch(`/api/videos/${videoToEdit.id}`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          caption: JSON.stringify(newCaptionObj),
+          tags: newTagsArray
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to update video');
+      }
+
+      const { data } = await res.json();
+      setVideos(prev => prev.map(v => v.id === videoToEdit.id ? { ...v, caption: data.caption, tags: data.tags } : v));
+      setVideoToEdit(null);
+    } catch(err: any) {
+      setEditVideoError(err.message);
+    } finally {
+      setIsEditingVideo(false);
+    }
+  };
+
   const handleDeleteVideoClick = (e: React.MouseEvent, videoId: string) => {
+    setActiveMenuId(null);
     e.stopPropagation();
     setVideoToDelete(videoId);
   };
@@ -292,8 +374,32 @@ export default function ProfilePage() {
     return <GuestGate type="profile" />;
   }
 
+  const profileSchema = profile ? {
+    '@context': 'https://schema.org',
+    '@type': 'Person',
+    name: profile.username || 'Aisles Creator',
+    description: profile.bio || 'Check out my profile on Aisles.',
+    image: profile.avatar_url || 'https://aisles.app/og-image.jpg',
+    url: `https://aisles.app/creator/${profile.username || profile.id}`,
+    sameAs: [
+      profile.instagram ? `https://instagram.com/${profile.instagram}` : null,
+      profile.tiktok ? `https://tiktok.com/@${profile.tiktok}` : null
+    ].filter(Boolean)
+  } : undefined;
+
   return (
     <div className="flex-1 w-full bg-[#0c0c0e] text-white font-sans selection:bg-white/20 h-full flex flex-col">
+      {profile && (
+        <SEO 
+          title={`${profile.username || 'Creator'} | Aisles Profile`}
+          description={profile.bio || `Watch amazing videos from ${profile.username || 'this creator'} on Aisles.`}
+          image={profile.avatar_url}
+          type="profile"
+          url={`https://aisles.app/creator/${profile.username || profile.id}`}
+          structuredData={profileSchema}
+        />
+      )}
+      
       {/* Header */}
       <header className="sticky top-0 z-20 flex items-center justify-between px-6 py-4 pt-6 bg-[#0c0c0e]">
         <button type="button" aria-label="button"  onClick={() => navigate(-1)} className="p-2 text-white/90 hover:text-white transition-colors -ml-3">
@@ -497,9 +603,24 @@ export default function ProfilePage() {
                    )}
                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80 pointer-events-none" />
                    
-                   {parsedProduct.productPrice && (
+                   {parsedProduct.productPrice && video.status === 'active' && (
                      <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-[#0c0c0e]/60 backdrop-blur-sm text-[10.5px] font-bold text-white rounded shadow-sm border border-white/5">
                        ₹{parsedProduct.productPrice.toLocaleString('en-IN')}
+                     </div>
+                   )}
+                   
+                   {video.status && video.status !== 'active' && (
+                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center p-4">
+                        <div className="text-center">
+                           <Shield className="size-6 text-white/50 mx-auto mb-2" />
+                           <span className="text-[11px] font-bold text-white/90 uppercase tracking-widest text-center">
+                             {video.status === 'processing' 
+                               ? 'Processing...' 
+                               : video.status === 'pending_review' 
+                                 ? 'Pending Review' 
+                                 : 'Restricted'}
+                           </span>
+                        </div>
                      </div>
                    )}
 
@@ -514,12 +635,36 @@ export default function ProfilePage() {
                        </span>
                      )}
                    </div>
-                 <button type="button" aria-label="button"  
-                   onClick={(e) => handleDeleteVideoClick(e, video.id)} 
-                   className="absolute top-2 right-2 p-1.5 bg-[#0c0c0e]/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[#0c0c0e]/80"
-                 >
-                   <Trash2 className="size-3.5" />
-                 </button>
+                                   <div className="absolute top-2 right-2 flex gap-1 opacity-100 transition-opacity">
+                    <div className="relative">
+                      <button type="button" aria-label="More options"
+                        onClick={(e) => {
+                           e.stopPropagation();
+                           setActiveMenuId(activeMenuId === video.id ? null : video.id);
+                        }}
+                        className="p-1.5 bg-[#0c0c0e]/60 text-white rounded-full hover:bg-[#0c0c0e]/90 backdrop-blur-sm"
+                      >
+                        <MoreVertical className="size-4" />
+                      </button>
+                      
+                      {activeMenuId === video.id && (
+                         <div className="absolute top-full right-0 mt-1 w-32 bg-zinc-900 border border-white/10 rounded-xl shadow-xl overflow-hidden z-10 flex flex-col">
+                           <button type="button" 
+                             onClick={(e) => handleEditVideoClick(e, video)}
+                             className="text-left px-3 py-2 text-sm text-white hover:bg-white/5 flex items-center"
+                           >
+                             <Edit3 className="size-3.5 mr-2" /> Edit
+                           </button>
+                           <button type="button" 
+                             onClick={(e) => handleDeleteVideoClick(e, video.id)}
+                             className="text-left px-3 py-2 text-sm font-medium text-red-500 hover:bg-red-500/10 flex items-center"
+                           >
+                             <Trash2 className="size-3.5 mr-2" /> Delete
+                           </button>
+                         </div>
+                      )}
+                    </div>
+                  </div>
                  {video.status === 'pending_review' && (
                     <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-yellow-500/80 text-white text-[10px] font-bold rounded">
                        Review
@@ -825,6 +970,96 @@ export default function ProfilePage() {
                   {isDeleting ? <Loader2 className="size-5 animate-spin" /> : 'Delete'}
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Video Modal */}
+      <AnimatePresence>
+        {videoToEdit && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#0c0c0e]/80 backdrop-blur-md"
+            onClick={() => !isEditingVideo && setVideoToEdit(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-zinc-950 border border-white/10 p-6 rounded-3xl w-full max-w-[400px] shadow-2xl relative"
+            >
+              <button type="button" aria-label="Close"  
+                onClick={() => setVideoToEdit(null)}
+                className="absolute top-5 right-5 text-zinc-500 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-full p-1.5"
+                disabled={isEditingVideo}
+              >
+                <X className="size-4" />
+              </button>
+              
+              <h2 className="text-xl font-display font-semibold text-white mb-6">Edit Video</h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 mb-2 uppercase tracking-wider">Caption/Text</label>
+                  <textarea 
+                    value={editVideoCaptionText}
+                    onChange={(e) => setEditVideoCaptionText(e.target.value)}
+                    placeholder="Enter new caption..."
+                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 transition-colors h-24 resize-none"
+                  />
+                  <div className="text-right text-xs text-zinc-500 mt-1">
+                    {editVideoCaptionText.length} characters
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 mb-2 uppercase tracking-wider">Product Name</label>
+                  <input 
+                    type="text"
+                    value={editVideoProductName}
+                    onChange={(e) => setEditVideoProductName(e.target.value)}
+                    placeholder="Enter product name..."
+                     className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 mb-2 uppercase tracking-wider">Product Price</label>
+                  <input 
+                    type="number"
+                    value={editVideoProductPrice}
+                    onChange={(e) => setEditVideoProductPrice(e.target.value)}
+                    placeholder="Enter product price..."
+                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 mb-2 uppercase tracking-wider">Hashtags / Tags (comma separated)</label>
+                  <textarea 
+                    value={editVideoTags}
+                    onChange={(e) => setEditVideoTags(e.target.value)}
+                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 transition-colors h-20 resize-none font-mono text-sm leading-relaxed"
+                  />
+                </div>
+                
+                {editVideoError && (
+                   <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+                      <p className="text-xs text-red-500 text-center font-medium">{editVideoError}</p>
+                   </div>
+                )}
+              </div>
+              
+              <button type="button" aria-label="button" 
+                onClick={handleSaveVideoEdit}
+                disabled={isEditingVideo}
+                className="w-full mt-8 py-3.5 bg-white hover:bg-zinc-200 text-black font-semibold font-sans text-sm rounded-xl transition-all flex items-center justify-center disabled:opacity-50 active:scale-[0.98] shadow-lg shadow-white/5"
+              >
+                {isEditingVideo ? <Loader2 className="size-5 animate-spin" /> : 'Save Changes'}
+              </button>
             </motion.div>
           </motion.div>
         )}

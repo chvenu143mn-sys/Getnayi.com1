@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { PlaySquare, Search, Filter, Trash2, Eye, ShieldCheck, CheckCircle, XCircle, Tag, ExternalLink, Sparkles, Loader2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { puter } from '@heyputer/puter.js';
+import { supabase } from '../../lib/supabase';
 
 interface AdminVideosProps {
   videos: any[];
@@ -9,6 +9,7 @@ interface AdminVideosProps {
   handleDeleteVideo: (id: string) => Promise<void>;
   handleVerifyProduct: (id: string, isVerified: boolean) => Promise<void>;
   handleUpdateVideoCategory: (id: string, catId: string) => Promise<void>;
+  handleUpdateVideoStatus?: (id: string, status: string) => Promise<void>;
   handleViewVideo: (video: any) => void;
   isRefreshing: boolean;
 }
@@ -19,11 +20,12 @@ export default function AdminVideos({
   handleDeleteVideo,
   handleVerifyProduct,
   handleUpdateVideoCategory,
+  handleUpdateVideoStatus,
   handleViewVideo,
   isRefreshing,
 }: AdminVideosProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'pending_review' | 'rejected'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'pending_review' | 'rejected' | 'processing'>('all');
   const [isRetagging, setIsRetagging] = useState(false);
   const [retagProgress, setRetagProgress] = useState(0);
   const [retaggingTargetId, setRetaggingTargetId] = useState<string | null>(null);
@@ -43,8 +45,36 @@ URL: ${video.product_url || 'None'}
 Please choose the BEST single category from the list above for this video. If none fit well, output "Unassigned".
 Respond ONLY with the exact category name as a plain string, nothing else.`;
 
-      const aiResponse = await puter.ai.chat(prompt, { model: 'deepseek/deepseek-v4-flash' });
-      let catName = aiResponse?.message?.content as string;
+      const sessionData = await supabase.auth.getSession();
+      const token = sessionData.data.session?.access_token;
+      
+      const res = await fetch('/api/admin-auto-tag', {
+        method: 'POST',
+        headers: {
+           'Content-Type': 'application/json',
+           'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ prompt })
+      });
+      let data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        throw new Error('Invalid server response');
+      }
+      if (!res.ok) throw new Error(data?.error || 'Server error');
+      
+      let catName: any = '';
+      if (data.is_fallback) {
+         // @ts-ignore
+         const aiResponse = await window.puter.ai.chat(prompt);
+         catName = aiResponse?.message?.content || aiResponse?.text || aiResponse || '';
+         if (typeof catName !== 'string') {
+            catName = typeof catName.toString === 'function' ? catName.toString() : JSON.stringify(catName);
+         }
+      } else {
+         catName = data.text;
+      }
       
       if (typeof catName === 'string') {
          catName = catName.trim().replace(/["']/g, ''); // cleanup
@@ -125,6 +155,7 @@ Respond ONLY with the exact category name as a plain string, nothing else.`;
             <option value="all">All Content States</option>
             <option value="active">Approved / Active Only</option>
             <option value="pending_review">Pending Review</option>
+            <option value="processing">Processing Encoding</option>
             <option value="rejected">Rejected / Restricted</option>
           </select>
         </div>
@@ -239,16 +270,38 @@ Respond ONLY with the exact category name as a plain string, nothing else.`;
                     )}
                   </td>
                   <td className="py-4 px-5">
-                    <span className={cn(
+                      <span className={cn(
                       "px-2.5 py-1 rounded-full text-[10px] font-bold border font-mono",
                       v.status === 'active' ? "bg-green-500/10 border-green-500/20 text-green-500" :
                       v.status === 'pending_review' ? "bg-yellow-500/10 border-yellow-500/20 text-yellow-500" :
+                      v.status === 'processing' ? "bg-blue-500/10 border-blue-500/20 text-blue-500" :
                       "bg-red-500/10 border-red-500/20 text-red-500"
                     )}>
-                      {v.status === 'active' ? 'Approved' : v.status === 'pending_review' ? 'Pending' : 'Rejected'}
+                      {v.status === 'active' ? 'Approved' : 
+                       v.status === 'pending_review' ? 'Pending Rev' : 
+                       v.status === 'processing' ? 'Encoding' : 
+                       'Rejected'}
                     </span>
                   </td>
-                  <td className="py-4 px-5 text-right font-mono flex justify-end gap-1 px-5 mt-4">
+                  <td className="py-4 px-5 text-right font-mono flex items-center justify-end gap-1 px-5 mt-4">
+                    {handleUpdateVideoStatus && v.status === 'pending_review' && (
+                      <>
+                        <button type="button" aria-label="button" 
+                          onClick={() => handleUpdateVideoStatus(v.id, 'active')}
+                          className="p-1.5 bg-[#0c0c0e]/45 border border-white/5 rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition"
+                          title="Approve to Feed"
+                        >
+                          <CheckCircle className="size-3.5" />
+                        </button>
+                        <button type="button" aria-label="button" 
+                          onClick={() => handleUpdateVideoStatus(v.id, 'rejected')}
+                          className="p-1.5 bg-[#0c0c0e]/45 border border-white/5 rounded-lg text-rose-400 hover:bg-rose-500/10 transition"
+                          title="Reject Video"
+                        >
+                          <XCircle className="size-3.5" />
+                        </button>
+                      </>
+                    )}
                     <button type="button" aria-label="button" 
                       onClick={() => handleViewVideo(v)}
                       className="p-1.5 bg-[#0c0c0e]/45 border border-white/5 rounded-lg text-zinc-400 hover:text-white transition"
