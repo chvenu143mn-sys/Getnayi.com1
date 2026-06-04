@@ -21,10 +21,10 @@ export function useDynamicMeta({ title, description, url, image, type }: Omit<SE
   // This hook dynamically generates Open Graph and Twitter card metadata
   // based on the current page context, such as video title and creator profile image.
   return useMemo(() => {
-    const defaultTitle = 'Aisles - The Future of Video Commerce';
+    const defaultTitle = 'Getnayi - Discover products through authentic creator reviews';
     const defaultDescription = 'Discover and shop products through immersive video experiences. Connect with creators and brands in real-time.';
-    const defaultImage = 'https://aisles.app/og-image.jpg';
-    const defaultUrl = 'https://aisles.app';
+    const defaultImage = '/icon-512.png';
+    const defaultUrl = window.location.origin;
     const defaultType = 'website';
 
     let finalUrl = url || defaultUrl;
@@ -61,25 +61,25 @@ export function useDynamicMeta({ title, description, url, image, type }: Omit<SE
 }
 
 export function SEO({
-  title = 'Aisles - The Future of Video Commerce',
+  title = 'Getnayi - Discover products through authentic creator reviews',
   description = 'Discover and shop products through immersive video experiences. Connect with creators and brands in real-time.',
-  url = 'https://aisles.app',
-  image = 'https://aisles.app/og-image.jpg',
+  url = typeof window !== 'undefined' ? window.location.origin : 'https://getnayi.app',
+  image = '/icon-512.png',
   type = 'website',
   structuredData,
   breadcrumbs,
-  keywords = ['video commerce', 'social shopping', 'creator economy', 'short form video'],
+  keywords = ['video commerce', 'social shopping', 'creator economy', 'short form video', 'organic reviews', 'Getnayi'],
 }: SEOProps) {
   // Enhanced schema for GEO and AEO
   const defaultSchema = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: 'Aisles',
-    url: 'https://aisles.app/',
+    name: 'Getnayi',
+    url: 'https://getnayi.app/',
     description: 'The premier video commerce platform connecting creators, brands, and shoppers.',
     potentialAction: {
       '@type': 'SearchAction',
-      target: 'https://aisles.app/search?q={search_term_string}',
+      target: 'https://getnayi.app/explore?q={search_term_string}',
       'query-input': 'required name=search_term_string',
     },
   };
@@ -135,8 +135,27 @@ export function SEO({
       ))}
 
       {/* Additional Tags for Generative/Answer Engines (GEO/AEO) */}
-      <meta name="author" content="Aisles Platform" />
+      <meta name="author" content="Getnayi Platform" />
       <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+
+      {/* PWA Manifest Link */}
+      <link rel="manifest" href="/manifest.json" />
+
+      {/* PWA UI and Mobile Theme Config */}
+      <meta name="theme-color" content="#0c0c0e" />
+      
+      {/* iOS Standalone App Features */}
+      <meta name="apple-mobile-web-app-capable" content="yes" />
+      <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+      <meta name="apple-mobile-web-app-title" content="Getnayi" />
+      <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+      {/* Android Mobile Capability */}
+      <meta name="mobile-web-app-capable" content="yes" />
+
+      {/* Clean PNG Favicon sizing structure */}
+      <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+      <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
 
       {/* JSON-LD Schema integration for semantic understanding by AI and Answer Engines */}
       <script type="application/ld+json">

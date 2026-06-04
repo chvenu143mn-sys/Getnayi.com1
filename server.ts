@@ -1360,6 +1360,75 @@ async function startServer() {
   const searchCache = new Map<string, { data: any, timestamp: number }>();
   const SEARCH_CACHE_TTL_MS = 1000 * 60 * 5; // 5 minutes cache
 
+  app.get('/api/trending', rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }), async (req, res) => {
+    try {
+      if (!supabaseAdmin) throw new Error('Database Admin client not configured');
+      
+      const { data: videos, error } = await supabaseAdmin
+        .from('videos')
+        .select(`
+          tags,
+          created_at,
+          views,
+          categories (
+            name
+          )
+        `)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(200);
+
+      if (error) {
+        console.error('Trending tags fetch error:', error);
+        return res.json({ trendingTags: ["Skincare", "Fashion", "Tech"] });
+      }
+
+      const tagScores: Record<string, number> = {};
+      const now = Date.now();
+
+      (videos || []).forEach((v: any) => {
+        const ageHours = (now - new Date(v.created_at).getTime()) / (1000 * 60 * 60);
+        // Recency decay: max weight 10, linearly decaying to 1 over 72 hours
+        const recencyMultiplier = Math.max(1, 10 - (ageHours * (9 / 72)));
+        
+        const views = v.views || 0;
+        const score = (views + 1) * recencyMultiplier;
+
+        if (v.tags && Array.isArray(v.tags)) {
+          v.tags.forEach((tag: string) => {
+            const cleanTag = tag.trim();
+            if (!cleanTag) return;
+            if (!tagScores[cleanTag]) tagScores[cleanTag] = 0;
+            tagScores[cleanTag] += score;
+          });
+        }
+
+        if (v.categories && v.categories.name) {
+          const catName = v.categories.name.trim();
+          if (catName) {
+            if (!tagScores[catName]) tagScores[catName] = 0;
+            tagScores[catName] += score;
+          }
+        }
+      });
+
+      let sortedTags = Object.entries(tagScores)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(entry => entry[0]);
+        
+      if (sortedTags.length === 0) {
+        sortedTags = ["Skincare", "Fashion", "Tech", "Beauty", "Home", "Fitness"];
+      }
+
+      return res.json({ trendingTags: sortedTags });
+    } catch(err: any) {
+      console.error('/api/trending Error:', err);
+      // Fallback tags if database is unready
+      return res.json({ trendingTags: ["Skincare", "Fashion", "Tech", "Beauty", "Home", "Fitness"] });
+    }
+  });
+
   app.get('/api/search', rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }), async (req, res) => {
     try {
       if (!supabaseAdmin) throw new Error('Database Admin client not configured');

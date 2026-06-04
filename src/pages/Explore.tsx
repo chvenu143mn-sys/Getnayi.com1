@@ -15,6 +15,9 @@ export default function Explore() {
   
   const [categories, setCategories] = useState<{id: string, name: string}[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [trendingTags, setTrendingTags] = useState<string[]>([
+    "Skincare", "Fashion", "Tech", "Beauty", "Home", "Fitness"
+  ]);
 
   const handleSearchClick = (query: string) => {
     setSearchQuery(query);
@@ -22,11 +25,27 @@ export default function Explore() {
   };
 
   useEffect(() => {
-    const fetchCategories = async () => {
-      const { data } = await supabase.from('categories').select('id, name').order('name');
-      if (data) setCategories(data);
+    const fetchCategoriesAndTags = async () => {
+      try {
+        const { data } = await supabase.from('categories').select('id, name').order('name');
+        if (data) setCategories(data);
+      } catch (e) {
+        console.error('Categories fetch error:', e);
+      }
+
+      try {
+        const res = await fetch('/api/trending');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.trendingTags && data.trendingTags.length > 0) {
+            setTrendingTags(data.trendingTags);
+          }
+        }
+      } catch (e) {
+        console.error('Trending fetch error:', e);
+      }
     }
-    fetchCategories();
+    fetchCategoriesAndTags();
   }, []);
 
   useEffect(() => {
@@ -187,13 +206,7 @@ export default function Explore() {
             <section>
               <h3 className="text-[15px] font-semibold text-white tracking-wide mb-3">Trending Searches</h3>
               <div className="flex flex-col gap-y-0 relative -mx-2">
-                {[
-                  "Vitamin C Serum",
-                  "Korean Skincare",
-                  "Hair Growth Oil",
-                  "Makeup Tools",
-                  "Wireless Earbuds"
-                ].map((query, i) => (
+                {trendingTags.map((query, i) => (
                   <button type="button" aria-label="button"  key={i} onClick={() => handleSearchClick(query)} className="w-full flex items-center justify-between py-3.5 px-2 hover:bg-white/[0.02] rounded-xl transition-colors cursor-pointer group text-left">
                     <div className="flex items-center gap-x-3">
                       <div className="size-[18px] flex items-center justify-center shrink-0">
