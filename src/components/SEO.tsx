@@ -139,7 +139,7 @@ export function SEO({
       <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
 
       {/* PWA Manifest Link */}
-      <link rel="manifest" href="/manifest.webmanifest" />
+      {/* <link rel="manifest" href="/manifest.webmanifest" /> */}
 
       {/* PWA UI and Mobile Theme Config */}
       <meta name="theme-color" content="#0c0c0e" />
