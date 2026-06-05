@@ -3502,6 +3502,11 @@ ${dynamicUrls.join('')}
     res.sendFile(getAssetPath('favicon-16x16.png'));
   });
 
+  app.get('/favicon.ico', (req, res) => {
+    res.setHeader('Content-Type', 'image/x-icon');
+    res.sendFile(getAssetPath('favicon.ico'));
+  });
+
   app.get('/apple-touch-icon.png', (req, res) => {
     res.setHeader('Content-Type', 'image/png');
     res.sendFile(getAssetPath('apple-touch-icon.png'));
