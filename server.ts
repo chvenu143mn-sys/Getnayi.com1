@@ -3482,6 +3482,11 @@ ${dynamicUrls.join('')}
     res.sendFile(getAssetPath('sw.js'));
   });
 
+  app.get('/progressier.js', (req, res) => {
+    res.setHeader('Content-Type', 'text/javascript; charset=utf-8');
+    res.sendFile(getAssetPath('progressier.js'));
+  });
+
   app.get('/icon-192.png', (req, res) => {
     res.setHeader('Content-Type', 'image/png');
     res.sendFile(getAssetPath('icon-192.png'));
