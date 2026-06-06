@@ -486,7 +486,7 @@ function setupCronJobs() {
           try {
             const subscription = await stripe.subscriptions.retrieve(user.stripe_subscription_id as string);
             // If subscription is naturally canceled, unpaid, or past_due to the point of cancellation
-            if (['canceled', 'unpaid', 'past_due'].includes(subscription.status)) {
+            if (new Set(['canceled', 'unpaid', 'past_due']).has(subscription.status)) {
                // Update local DB to revoke premium
                await supabaseAdmin
                  .from('profiles')
@@ -1466,117 +1466,111 @@ async function startServer() {
       const { q, category_id } = req.query;
       
       const qStr = (typeof q === 'string') ? q.trim() : '';
+      const selectedCategory = (typeof category_id === 'string' && category_id) ? category_id : null;
 
-      if (qStr === '' && !category_id) {
+      if (qStr === '' && !selectedCategory) {
         return res.json({ videos: [] });
       }
 
-      let queryBuilder = supabaseAdmin
-        .from('videos')
-        .select(`
-          *,
-          categories (id, name),
-          profiles!inner (id, username, avatar_url, is_brand, trust_score),
-          likes(count),
-          comments(count),
-          saved_videos(count)
-        `)
-        .eq('status', 'active');
+      let deduplicatedMap = new Map();
 
-      if (category_id) {
-         queryBuilder = queryBuilder.eq('category_id', category_id);
-      }
-
-      const orConditions: string[] = [];
-      let queryTerm = '';
+      // If user provided a search query, use our advanced native PostgreSQL pg_trgm fuzzy search RPC
       if (qStr !== '') {
-        queryTerm = qStr;
-        const terms = queryTerm.split(/\s+/).filter(w => w.length > 2);
-        orConditions.push(`caption.ilike.%${queryTerm}%,search_aliases.ilike.%${queryTerm}%,tags.cs.{${queryTerm}}`);
-        for (const t of terms) {
-           orConditions.push(`caption.ilike.%${t}%`);
+        // Run optimized trigram similarity search directly in DB
+        const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('search_videos_v2', {
+          search_term: qStr,
+          p_category_id: selectedCategory
+        });
+
+        if (rpcError) {
+          console.warn("RPC search_videos_v2 failed (might not be executed in DB yet). Falling back to basic search...", rpcError);
         }
-        queryBuilder = queryBuilder.or(orConditions.join(','));
+
+        if (rpcData && rpcData.length > 0) {
+           const videoIds = rpcData.map((v: any) => v.id);
+           
+           // Fetch full relational data for matched videos
+           const { data: matchedRecords, error: matchError } = await supabaseAdmin
+            .from('videos')
+            .select(`
+              *,
+              categories (id, name),
+              profiles!inner (id, username, avatar_url, is_brand, trust_score),
+              likes(count),
+              comments(count),
+              saved_videos(count)
+            `)
+            .in('id', videoIds);
+            
+           if (!matchError && matchedRecords) {
+              // Maintain ordering according to similarity_score
+              const orderMap = new Map(videoIds.map((id: any, index: number) => [id, index]));
+              matchedRecords.sort((a, b) => (orderMap.get(a.id) || 0) - (orderMap.get(b.id) || 0));
+              
+              for (const video of matchedRecords) {
+                deduplicatedMap.set(video.id, video);
+              }
+           }
+        }
       }
 
-      let { data: captionData, error } = await queryBuilder.limit(30);
-
-      if (error && (error.message.includes('search_aliases') || error.message.includes('tags') || error.message.includes('trust_score'))) {
-         console.warn("Missing database columns for search, falling back to basic search...");
-         
-         let retryBuilder = supabaseAdmin
+      // If no search term provided, or fallback needed
+      if (deduplicatedMap.size === 0) {
+        let queryBuilder = supabaseAdmin
           .from('videos')
           .select(`
             *,
             categories (id, name),
-            profiles!inner (id, username, avatar_url, is_brand),
+            profiles!inner (id, username, avatar_url, is_brand, trust_score),
             likes(count),
             comments(count),
             saved_videos(count)
           `)
           .eq('status', 'active');
-          
-         if (category_id) {
-            retryBuilder = retryBuilder.eq('category_id', category_id);
-         }
-         
-         if (qStr !== '') {
-            const basicOrConditions = [`caption.ilike.%${queryTerm}%`];
-            const terms = queryTerm.split(/\s+/).filter(w => w.length > 2);
-            for (const t of terms) {
-               basicOrConditions.push(`caption.ilike.%${t}%`);
-            }
-            retryBuilder = retryBuilder.or(basicOrConditions.join(','));
-         }
 
-          const retry = await retryBuilder.limit(30);
-          captionData = retry.data;
-          error = retry.error;
-      }
+        if (selectedCategory) {
+           queryBuilder = queryBuilder.eq('category_id', selectedCategory);
+        }
 
-      if (error) {
-        console.error('Search query error:', error);
-        return res.status(500).json({ error: error.message });
-      }
-      
-      let usernameData: any[] = [];
-      if (qStr !== '') {
-        let usernameBuilder = supabaseAdmin
-          .from('videos')
-          .select(`
-            *,
-            categories (id, name),
-            profiles!inner (id, username, avatar_url, is_brand),
-            likes(count),
-            comments(count),
-            saved_videos(count)
-          `)
-          .eq('status', 'active')
-          .ilike('profiles.username', `%${queryTerm}%`);
-          
-        if (category_id) {
-          usernameBuilder = usernameBuilder.eq('category_id', category_id);
+        if (qStr !== '') {
+          const terms = qStr.split(/\s+/).filter(w => w.length > 2);
+          const orConditions = [`caption.ilike.%${qStr}%`];
+          for (const t of terms) {
+             orConditions.push(`caption.ilike.%${t}%`);
+          }
+          queryBuilder = queryBuilder.or(orConditions.join(','));
+        }
+
+        const { data: fallbackData } = await queryBuilder.limit(30);
+        
+        if (fallbackData) {
+          for (const video of fallbackData) {
+            deduplicatedMap.set(video.id, video);
+          }
         }
         
-        const usernameRes = await usernameBuilder.limit(30);
-        usernameData = usernameRes.data || [];
-        
-        // Ensure username filter applied using JS due to postgraphql limitations on inner join
-        usernameData = usernameData.filter((v: any) => v.profiles && v.profiles.username.toLowerCase().includes(queryTerm.toLowerCase()));
-      }
-
-      // Merge and deduplicate results
-      const allResults = [...(captionData || []), ...usernameData];
-      const deduplicatedMap = new Map();
-      for (const video of allResults) {
-        if (!deduplicatedMap.has(video.id)) {
-          deduplicatedMap.set(video.id, video);
+        // Also perform username search natively in JS as a fallback safeguard
+        if (qStr !== '') {
+           let userQuery = supabaseAdmin
+             .from('videos')
+             .select(`*, categories (id, name), profiles!inner (id, username, avatar_url, is_brand, trust_score), likes(count), comments(count), saved_videos(count)`)
+             .eq('status', 'active')
+             .ilike('profiles.username', `%${qStr}%`);
+           if (selectedCategory) userQuery = userQuery.eq('category_id', selectedCategory);
+           
+           const { data: usernameData } = await userQuery.limit(30);
+           if (usernameData) {
+             const JSFiltered = usernameData.filter((v: any) => v.profiles && v.profiles.username.toLowerCase().includes(qStr.toLowerCase()));
+             for (const video of JSFiltered) {
+               deduplicatedMap.set(video.id, video);
+             }
+           }
         }
       }
-      
+
       let data = Array.from(deduplicatedMap.values());
       
-      // Additional price filter (JS side since JSON string parse via SQL might be overly complex right now)
+      // Additional price filter (JS side)
       if (qStr !== '') {
           const underMatch = queryTerm.toLowerCase().match(/(?:under|below|less than)\s*(?:rs\.?|inr|₹)?\s*(\d+)/);
           if (underMatch) {
@@ -1985,11 +1979,11 @@ async function startServer() {
       }
       
       // Explicitly whitelist allowed update fields
-      const allowedFields = ['bio', 'instagram', 'tiktok', 'avatar_url'];
+      const allowedFields = new Set(['bio', 'instagram', 'tiktok', 'avatar_url']);
       const sanitizedUpdates: Record<string, any> = {};
       
       for (const key of Object.keys(updates)) {
-         if (allowedFields.includes(key)) {
+         if (allowedFields.has(key)) {
             sanitizedUpdates[key] = updates[key];
          }
       }
@@ -2864,7 +2858,7 @@ Example: {"productName": "Awesome Shirt", "productPrice": "1499"}`;
     try {
       if (!supabaseAdmin) throw new Error('Supabase admin not configured');
       const adminId = (req as any).adminUser.id;
-      const { status, trust_score, is_verified_real, category_id, caption, product_url } = req.body;
+      const { status, trust_score, is_verified_real, category_id, caption, product_url, reason } = req.body;
       const patch: any = {};
       
       if (status !== undefined) patch.status = status;
@@ -2874,6 +2868,13 @@ Example: {"productName": "Awesome Shirt", "productPrice": "1499"}`;
       if (caption !== undefined) patch.caption = caption;
       if (product_url !== undefined) patch.product_url = product_url || null;
 
+      if (status === 'rejected') {
+        if (!reason || !reason.trim()) {
+          return res.status(400).json({ error: 'Rejection reason is required.' });
+        }
+        patch.rejection_reason = reason.trim();
+      }
+
       const { data, error } = await supabaseAdmin
         .from('videos')
         .update(patch)
@@ -2881,7 +2882,72 @@ Example: {"productName": "Awesome Shirt", "productPrice": "1499"}`;
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        if (error.message && error.message.includes('column "rejection_reason" of relation "videos" does not exist')) {
+          const fallbackPatch = { ...patch };
+          delete fallbackPatch.rejection_reason;
+          
+          const { data: fallbackData, error: fallbackError } = await supabaseAdmin
+            .from('videos')
+            .update(fallbackPatch)
+            .eq('id', req.params.id)
+            .select()
+            .single();
+
+          if (fallbackError) throw fallbackError;
+
+          if (status === 'rejected' && fallbackData) {
+            const notifPayload: any = {
+              user_id: fallbackData.user_id,
+              actor_id: adminId,
+              video_id: fallbackData.id,
+              type: 'admin',
+              rejection_reason: reason.trim(),
+              is_read: false
+            };
+            const { error: notifErr } = await supabaseAdmin
+              .from('notifications')
+              .insert(notifPayload);
+            if (notifErr && notifErr.message && notifErr.message.includes('rejection_reason')) {
+              delete notifPayload.rejection_reason;
+              await supabaseAdmin.from('notifications').insert(notifPayload);
+            }
+          }
+
+          await logAdminAction(adminId, 'edit_video_moderation', req.params.id, 'video', fallbackPatch);
+          return res.json({ success: true, data: fallbackData });
+        }
+        throw error;
+      }
+
+      if (status === 'rejected' && data) {
+        // Safe check: did the DB trigger already run and insert the notification?
+        const { data: triggerNotif } = await supabaseAdmin
+          .from('notifications')
+          .select('id')
+          .eq('video_id', data.id)
+          .eq('type', 'admin')
+          .limit(1);
+
+        if (!triggerNotif || triggerNotif.length === 0) {
+          const notifPayload: any = {
+            user_id: data.user_id,
+            actor_id: adminId,
+            video_id: data.id,
+            type: 'admin',
+            rejection_reason: reason.trim(),
+            is_read: false
+          };
+          const { error: notifErr } = await supabaseAdmin
+            .from('notifications')
+            .insert(notifPayload);
+          if (notifErr && notifErr.message && notifErr.message.includes('rejection_reason')) {
+            delete notifPayload.rejection_reason;
+            await supabaseAdmin.from('notifications').insert(notifPayload);
+          }
+        }
+      }
+
       await logAdminAction(adminId, 'edit_video_moderation', req.params.id, 'video', patch);
       return res.json({ success: true, data });
     } catch (err: any) {
@@ -3480,11 +3546,6 @@ ${dynamicUrls.join('')}
   app.get('/sw.js', (req, res) => {
     res.setHeader('Content-Type', 'text/javascript; charset=utf-8');
     res.sendFile(getAssetPath('sw.js'));
-  });
-
-  app.get('/progressier.js', (req, res) => {
-    res.setHeader('Content-Type', 'text/javascript; charset=utf-8');
-    res.sendFile(getAssetPath('progressier.js'));
   });
 
   app.get('/icon-192.png', (req, res) => {

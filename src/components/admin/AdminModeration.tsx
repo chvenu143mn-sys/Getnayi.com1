@@ -7,7 +7,7 @@ interface AdminModerationProps {
   handleDeleteVideo: (id: string) => Promise<void>;
   handleVerifyProduct: (id: string, isVerified: boolean) => Promise<void>;
   handleUpdateVideoCategory: (id: string, catId: string) => Promise<void>;
-  handleUpdateVideoStatus: (id: string, status: string) => Promise<void>;
+  handleUpdateVideoStatus: (id: string, status: string, reason?: string) => Promise<void>;
   handleViewVideo: (video: any) => void;
   isRefreshing: boolean;
 }

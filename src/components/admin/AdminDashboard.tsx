@@ -3,6 +3,9 @@ import { Home, Users, PlaySquare, FileText, TrendingUp, RefreshCw, Eye, CheckCir
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, BarChart, Bar, CartesianGrid } from 'recharts';
 import { cn } from '../../lib/utils';
 
+const COLORS = ['#F97316', '#3B82F6', '#10B981', '#EF4444', '#8B5CF6'];
+
+
 interface AdminDashboardProps {
   stats: {
     totalUsers: number;
@@ -32,7 +35,7 @@ export default function AdminDashboard({
   handleViewVideo,
 }: AdminDashboardProps) {
 
-  const COLORS = ['#F97316', '#3B82F6', '#10B981', '#EF4444', '#8B5CF6'];
+
 
   const userGrowthData = [
     { name: 'May 1', users: 1200 },
@@ -226,7 +229,7 @@ export default function AdminDashboard({
         <div className="h-[250px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
-              data={[...categories].sort((a, b) => (b.videoCount || 0) - (a.videoCount || 0)).slice(0, 5).map(c => ({ name: c.name, count: c.videoCount || 0 }))}
+              data={categories.toSorted((a, b) => (b.videoCount || 0) - (a.videoCount || 0)).slice(0, 5).map(c => ({ name: c.name, count: c.videoCount || 0 }))}
               margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />

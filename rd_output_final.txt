@@ -1,0 +1,68 @@
+React Doctor v0.4.0
+
+  
+
+  ⚠ Performance: Full Framer Motion import ×17
+    Learn more: https://react.doctor/docs/rules/react-doctor/use-lazy-motion
+    → Use `import { LazyMotion, m } from "framer-motion"` with
+    `domAnimation` features. Saves about 30kb.
+
+    src/pages/Auth.tsx:4
+
+    src/pages/Collection.tsx:5
+
+    src/pages/CreatorDashboard.tsx:2
+
+    src/pages/Explore.tsx:3
+
+    src/pages/Feed.tsx:8
+
+    src/pages/Interests.tsx:2
+
+    src/pages/Notifications.tsx:2
+
+    src/pages/Profile.tsx:9
+
+    src/pages/Saved.tsx:2
+
+    src/pages/UpdatePassword.tsx:4
+
+    src/pages/Upload.tsx:12
+
+    src/components/BottomNav.tsx:5
+
+    src/components/GuestGate.tsx:3
+
+    src/components/PWAInstallPrompt.tsx:3
+
+    src/components/ProfileImageCropper.tsx:3
+
+    src/components/VideoPlayer.tsx:7
+
+    src/components/upload/UploadAccordion.tsx:3
+
+
+  ────────────────────────────────────────────────────────────
+
+  All 17 issues
+
+  Performance › 17 warnings
+
+  ┌─────┐  96 / 100 Great
+  │ ◠ ◠ │  ████████████████████████████████████████████████░░
+  │  ▽  │  React Doctor (https://react.doctor)
+  └─────┘
+
+  Full diagnostics written to /tmp/react-doctor-8247fd1d-8f3f-4e32-8aaf-efee2542fe70
+
+  ────────────────────────────────────────────────────────────
+
+  Share: https://react.doctor/share?p=react-example&s=96&w=17&f=17
+  Tell others how you did on socials
+
+  Docs: https://react.doctor/docs
+  Learn more about fixing issues, setting up CI/CD, and configuring rules with a config file
+
+  GitHub: https://github.com/millionco/react-doctor
+  Report issues and star the repository!
+

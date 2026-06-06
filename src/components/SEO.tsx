@@ -1,6 +1,20 @@
 import React, { useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 
+const defaultSchema = {
+'@context': 'https://schema.org',
+'@type': 'WebSite',
+name: 'Getnayi',
+url: 'https://getnayi.app/',
+description: 'The premier video commerce platform connecting creators, brands, and shoppers.',
+potentialAction: {
+'@type': 'SearchAction',
+target: 'https://getnayi.app/explore?q={search_term_string}',
+'query-input': 'required name=search_term_string',
+},
+};
+
+
 export interface Breadcrumb {
   name: string;
   item: string;
@@ -17,7 +31,7 @@ export interface SEOProps {
   keywords?: string[];
 }
 
-export function useDynamicMeta({ title, description, url, image, type }: Omit<SEOProps, 'structuredData' | 'breadcrumbs'>) {
+function useDynamicMeta({ title, description, url, image, type }: Omit<SEOProps, 'structuredData' | 'breadcrumbs'>) {
   // This hook dynamically generates Open Graph and Twitter card metadata
   // based on the current page context, such as video title and creator profile image.
   return useMemo(() => {
@@ -71,18 +85,6 @@ export function SEO({
   keywords = ['video commerce', 'social shopping', 'creator economy', 'short form video', 'organic reviews', 'Getnayi'],
 }: SEOProps) {
   // Enhanced schema for GEO and AEO
-  const defaultSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'WebSite',
-    name: 'Getnayi',
-    url: 'https://getnayi.app/',
-    description: 'The premier video commerce platform connecting creators, brands, and shoppers.',
-    potentialAction: {
-      '@type': 'SearchAction',
-      target: 'https://getnayi.app/explore?q={search_term_string}',
-      'query-input': 'required name=search_term_string',
-    },
-  };
 
   const schemas: any[] = [defaultSchema];
   if (structuredData) {
@@ -139,7 +141,7 @@ export function SEO({
       <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
 
       {/* PWA Manifest Link */}
-      {/* <link rel="manifest" href="/manifest.webmanifest" /> */}
+      <link rel="manifest" href="/manifest.webmanifest" />
 
       {/* PWA UI and Mobile Theme Config */}
       <meta name="theme-color" content="#0c0c0e" />

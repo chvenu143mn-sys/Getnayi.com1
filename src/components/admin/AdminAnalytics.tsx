@@ -2,6 +2,9 @@ import React from 'react';
 import { Home, Users, PlaySquare, FileText, BarChart2, TrendingUp, HelpCircle } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, PieChart, Pie } from 'recharts';
 
+const COLORS = ['#F97316', '#3B82F6', '#10B981', '#EF4444', '#8B5CF6'];
+
+
 interface AdminAnalyticsProps {
   stats: {
     totalUsers: number;
@@ -19,7 +22,7 @@ export default function AdminAnalytics({
   creators,
 }: AdminAnalyticsProps) {
 
-  const COLORS = ['#F97316', '#3B82F6', '#10B981', '#EF4444', '#8B5CF6'];
+
 
   const dynamicGrowthData = [
     { name: 'Week 1', creators: 5, uploads: 10, reports: 1 },

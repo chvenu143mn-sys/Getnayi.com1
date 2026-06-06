@@ -7,12 +7,14 @@ import { useAuth } from '../context/AuthContext';
 import { Video, Profile } from '../types';
 import { parseVideoProduct } from '../utils/videoUtils';
 
+const tabs = ['Products', 'Videos', 'Creators', 'Collections'];
+
 export default function Saved() {
   const [activeTab, setActiveTab] = useState('Products');
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const tabs = ['Products', 'Videos', 'Creators', 'Collections'];
+  
 
   const [savedVideos, setSavedVideos] = useState<any[]>([]);
   const [followedCreators, setFollowedCreators] = useState<Profile[]>([]);

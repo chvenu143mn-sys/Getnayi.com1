@@ -1,10 +1,48 @@
+import { useState, useEffect } from 'react';
 import { Home, Plus, User, Search, MessageSquare } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '../lib/utils';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
+import { supabase } from '../lib/supabase';
 
 export function BottomNav() {
   const location = useLocation();
+  const [hasUnread, setHasUnread] = useState(false);
+  const shouldReduceMotion = useReducedMotion();
+
+  useEffect(() => {
+    async function checkUnread() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        let hasUnreadResult = false;
+        let isDbCallFailed = false;
+
+        if (session?.user) {
+          const { count, error } = await supabase
+            .from('notifications')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', session.user.id)
+            .eq('is_read', false);
+
+          if (error) {
+            console.warn('Error checking notifications count:', error.message);
+          } else if (count !== null) {
+            hasUnreadResult = count > 0;
+          }
+        }
+
+        setHasUnread(hasUnreadResult);
+      } catch (e) {
+        console.error('Error in checkUnread:', e);
+      }
+    }
+
+    checkUnread();
+    const interval = setInterval(checkUnread, 10000); // Check every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [location]);
 
   return (
     <div className="fixed bottom-0 w-full z-40 bg-[#0c0c0e] pb-[env(safe-area-inset-bottom)] border-t border-white/[0.08]">
@@ -57,8 +95,8 @@ export function BottomNav() {
         >
           <div className="relative">
             <MessageSquare className="size-[22px] mb-0.5" strokeWidth={location.pathname === '/notifications' ? 2.5 : 2} />
-            {location.pathname !== '/notifications' && (
-               <div className="absolute top-0 right-0 size-2 bg-[#ef2950] rounded-full border border-black transform translate-x-1/3 -translate-y-1/4"></div>
+            {hasUnread && (
+               <div className="absolute top-0 right-0 size-2 bg-[#ef2950] rounded-full border border-black transform translate-x-1/3 -translate-y-1/4 animate-pulse"></div>
             )}
           </div>
           <span className="text-[10px] font-sans font-medium">Inbox</span>

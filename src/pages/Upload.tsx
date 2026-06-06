@@ -910,6 +910,18 @@ Generate ONLY a valid JSON object answering this shape exactly:
     }
   };
 
+  useEffect(() => {
+    if (showPreviewModal && previewModalVideoRef.current) {
+       previewModalVideoRef.current.play().catch(e => console.log('modal play blocked', e));
+    }
+  }, [showPreviewModal]);
+
+  useEffect(() => {
+    if (preview && previewVideoRef.current) {
+       previewVideoRef.current.play().catch(err => console.log('effect play blocked', err));
+    }
+  }, [preview]);
+
   if (!user) {
     return <GuestGate type="upload" />;
   }
@@ -921,20 +933,6 @@ Generate ONLY a valid JSON object answering this shape exactly:
   if (isSuccess) {
     return <UploadSuccessState uploadedVideoStatus={uploadedVideoStatus} />;
   }
-
-  
-  useEffect(() => {
-    if (showPreviewModal && previewModalVideoRef.current) {
-       previewModalVideoRef.current.play().catch(e => console.log('modal play blocked', e));
-    }
-  }, [showPreviewModal]);
-
-  
-  useEffect(() => {
-    if (preview && previewVideoRef.current) {
-       previewVideoRef.current.play().catch(err => console.log('effect play blocked', err));
-    }
-  }, [preview]);
 
   return (
     <div className="flex-1 w-full bg-[#0c0c0e] text-white flex flex-col h-full font-sans">
@@ -1098,7 +1096,7 @@ Generate ONLY a valid JSON object answering this shape exactly:
                 </label>
                 {thumbnailFile && (
                   <button aria-label="button" 
-                    type="button"
+                type="button"
                     onClick={() => {
                       setThumbnailFile(null);
                       captureFrame();
@@ -1412,7 +1410,7 @@ Generate ONLY a valid JSON object answering this shape exactly:
           >
             {/* Fake Feed Header */}
             <div className="absolute top-0 left-0 w-full z-20 pt-safe flex justify-between items-center p-4 bg-gradient-to-b from-black/50 to-transparent">
-              <button title="Go Back" type="button" aria-label="Close" onClick={() => setShowPreviewModal(false)} className="text-white hover:text-white/80 p-1">
+              <button type="button" title="Go Back" aria-label="Close" onClick={() => setShowPreviewModal(false)} className="text-white hover:text-white/80 p-1">
                 <ArrowLeft className="size-6 drop-shadow-md" />
               </button>
               <div className="flex gap-5 drop-shadow-md font-sans">
@@ -1486,7 +1484,7 @@ Generate ONLY a valid JSON object answering this shape exactly:
                   <div className="size-[48px] rounded-full border-[1.5px] border-white/80 bg-zinc-800 overflow-hidden shrink-0 shadow-sm flex flex-col justify-center items-center">
                      <span className="text-white text-xl font-bold">{user?.user_metadata?.username ? user.user_metadata.username.charAt(0).toUpperCase() : 'U'}</span>
                   </div>
-                  <button title="Follow" className="absolute -bottom-2 left-1/2 -translate-x-1/2 size-6 rounded-full bg-[#ef2950] text-white flex items-center justify-center shadow-md border-[2px] border-black transition-transform active:scale-95 z-20">
+                  <button type="button" title="Follow" className="absolute -bottom-2 left-1/2 -translate-x-1/2 size-6 rounded-full bg-[#ef2950] text-white flex items-center justify-center shadow-md border-[2px] border-black transition-transform active:scale-95 z-20">
                      <Plus className="size-4" strokeWidth={3} />
                   </button>
                 </div>

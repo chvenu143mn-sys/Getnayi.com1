@@ -77,6 +77,7 @@ ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS main_product_image_url text;
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS real_life_image_url text;
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS is_verified_real boolean default false;
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS is_admin_verified_link boolean default false;
+ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS rejection_reason text;
 
 -- 3. Set up Row Level Security (RLS)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -518,7 +519,45 @@ ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can view own notifications" ON public.notifications;
 CREATE POLICY "Users can view own notifications" ON public.notifications FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own notifications" ON public.notifications;
+CREATE POLICY "Users can update own notifications" ON public.notifications FOR UPDATE USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own notifications" ON public.notifications;
+CREATE POLICY "Users can delete own notifications" ON public.notifications FOR DELETE USING (auth.uid() = user_id);
+
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id_read ON public.notifications(user_id, is_read, created_at DESC);
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS rejection_reason text;
+
+-- Video Rejection Notification Trigger
+CREATE OR REPLACE FUNCTION public.handle_video_rejection_notification()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.status = 'rejected' AND (OLD.status IS DISTINCT FROM 'rejected') THEN
+    INSERT INTO public.notifications (
+      user_id,
+      actor_id,
+      video_id,
+      type,
+      rejection_reason,
+      is_read
+    ) VALUES (
+      NEW.user_id,
+      COALESCE(auth.uid(), NEW.user_id),
+      NEW.id,
+      'admin',
+      COALESCE(NEW.rejection_reason, 'No reason specified'),
+      false
+    );
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS tr_video_rejection_notification ON public.videos;
+CREATE TRIGGER tr_video_rejection_notification
+  AFTER UPDATE OF status ON public.videos
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_video_rejection_notification();
 
 -- 15. Creator Dashboard Performance View (Phase 1)
 -- Collapses hundreds of thousands of engagement metric records into a single row count per video
@@ -600,6 +639,67 @@ CREATE INDEX IF NOT EXISTS idx_profiles_username_trgm ON public.profiles USING g
 -- Avoid file-sorting operations by indexing category feeds pre-sorted
 CREATE INDEX IF NOT EXISTS idx_videos_category_status_created ON public.videos (category_id, status, created_at DESC);
 
+-- Native PostgreSQL Trigram Fuzzy Search RPC 
+-- Blazing fast similarity matching algorithm directly inside the DB, outperforming Fuse.js
+CREATE OR REPLACE FUNCTION search_videos_v2(search_term text, p_category_id uuid DEFAULT NULL)
+RETURNS TABLE (
+  id uuid,
+  user_id uuid,
+  video_url text,
+  caption text,
+  thumbnail_url text,
+  status text,
+  created_at timestamp with time zone,
+  views integer,
+  username text,
+  avatar_url text,
+  is_brand boolean,
+  trust_score numeric,
+  similarity_score real
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    v.id,
+    v.user_id,
+    v.video_url,
+    v.caption,
+    v.thumbnail_url,
+    v.status,
+    v.created_at,
+    v.views,
+    p.username,
+    p.avatar_url,
+    p.is_brand,
+    p.trust_score,
+    (
+      -- Giving more weight (1.5x) to exact/fuzzy username matches
+      similarity(COALESCE(p.username, ''), search_term) * 1.5 + 
+      -- Standard weight for caption similarity match
+      similarity(COALESCE(v.caption, ''), search_term) +
+      -- Extra edge for matching search aliases
+      similarity(COALESCE(v.search_aliases, ''), search_term) * 1.2
+    )::real AS similarity_score
+  FROM public.videos v
+  JOIN public.profiles p ON v.user_id = p.id
+  WHERE v.status = 'active'
+    AND (p_category_id IS NULL OR v.category_id = p_category_id)
+    AND (
+      -- Only match rows that have a trgm similarity threshold match
+      p.username % search_term OR 
+      v.caption % search_term OR 
+      v.search_aliases % search_term OR
+      -- Or exact tag match
+      v.tags @> ARRAY[search_term] OR
+      -- Fallback to standard substring like just in case
+      v.caption ILIKE '%' || search_term || '%' OR
+      p.username ILIKE '%' || search_term || '%'
+    )
+  ORDER BY similarity_score DESC
+  LIMIT 50;
+END;
+$$ LANGUAGE plpgsql STABLE;
+
 -- Fast tracking of admin actions audit trail
 CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_created_at_desc ON public.admin_audit_logs (created_at DESC);
 
@@ -627,7 +727,44 @@ CREATE POLICY "Users can update their own interests" ON public.user_interests FO
 -- Create index for faster feed sorting
 CREATE INDEX IF NOT EXISTS idx_user_interests_user_score ON public.user_interests(user_id, score DESC);
 
--- 21. Interest System RPC Functions
+-- 22. Trending Metrics Table
+CREATE TABLE IF NOT EXISTS public.trending_metrics (
+  tag text primary key,
+  mentions integer default 0,
+  views numeric default 0,
+  score numeric default 0,
+  last_calculated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+ALTER TABLE public.trending_metrics ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Trending metrics viewable by everyone" ON public.trending_metrics;
+CREATE POLICY "Trending metrics viewable by everyone" ON public.trending_metrics FOR SELECT USING (true);
+
+-- Function to recalculate trends based on recent videos
+CREATE OR REPLACE FUNCTION public.calculate_trending_tags()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  -- Clear old metrics
+  DELETE FROM public.trending_metrics;
+
+  -- Re-calculate metrics from all tags found in video captions
+  INSERT INTO public.trending_metrics (tag, mentions, views, score)
+  SELECT 
+    lower(tag_match[1]) as tag,
+    count(DISTINCT v.id) as mentions,
+    sum(COALESCE(v.views, 0)) as views,
+    (sum(COALESCE(v.views, 0)) + (count(DISTINCT v.id) * 50)) as score
+  FROM public.videos v,
+  regexp_matches(v.caption, '#([a-zA-Z0-9_]+)', 'g') as tag_match
+  WHERE v.created_at >= NOW() - INTERVAL '7 days' AND v.status = 'active'
+  GROUP BY lower(tag_match[1])
+  ON CONFLICT (tag) DO NOTHING;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION public.increment_interest_score(p_user_id uuid, p_category_id uuid, p_increment numeric)
 RETURNS void
 LANGUAGE plpgsql
@@ -656,4 +793,13 @@ END;
 $$;
 
 
+-- 23. Database Migrations History Table
+CREATE TABLE IF NOT EXISTS public.database_migrations (
+  id serial primary key,
+  migration_name text not null unique,
+  applied_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
 
+ALTER TABLE public.database_migrations ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable read access for all" ON public.database_migrations;
+CREATE POLICY "Enable read access for all" ON public.database_migrations FOR SELECT USING (true);

@@ -105,7 +105,7 @@ export default function AuthPage() {
       </div>
 
       {/* Back button */}
-      <button
+      <button type="button"
         onClick={() => navigate(-1)}
         className="absolute top-4 left-4 z-20 size-10 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-md flex items-center justify-center border border-white/10 text-white active:scale-95 transition-all"
         aria-label="Go back"
@@ -241,7 +241,7 @@ export default function AuthPage() {
 
               <div className="pt-2 flex flex-col gap-y-3">
                 <button aria-label="button" 
-                  type="submit"
+                type="submit"
                   disabled={isLoading}
                   className="w-full py-3.5 px-4 flex justify-center items-center bg-white text-black font-semibold font-sans rounded-full hover:bg-zinc-200 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed text-[15px]"
                 >
@@ -249,7 +249,7 @@ export default function AuthPage() {
                 </button>
                 {isLogin && !showForgotPassword && (
                   <button aria-label="button" 
-                    type="button"
+                type="button"
                     onClick={() => setShowForgotPassword(true)}
                     className="text-white/70 text-[13px] font-medium hover:text-white mt-1"
                   >
@@ -258,7 +258,7 @@ export default function AuthPage() {
                 )}
                 {showForgotPassword && (
                   <button aria-label="button" 
-                    type="button"
+                type="button"
                     onClick={() => setShowForgotPassword(false)}
                     className="text-white/70 text-[13px] font-medium hover:text-white mt-1"
                   >
@@ -267,7 +267,7 @@ export default function AuthPage() {
                 )}
                 {!showForgotPassword && (
                   <button aria-label="button" 
-                    type="button"
+                type="button"
                     onClick={() => setShowEmailForm(false)}
                     className="text-white/70 text-[13px] font-medium hover:text-white"
                   >

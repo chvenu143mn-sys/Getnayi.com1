@@ -9,7 +9,7 @@ interface AdminVideosProps {
   handleDeleteVideo: (id: string) => Promise<void>;
   handleVerifyProduct: (id: string, isVerified: boolean) => Promise<void>;
   handleUpdateVideoCategory: (id: string, catId: string) => Promise<void>;
-  handleUpdateVideoStatus?: (id: string, status: string) => Promise<void>;
+  handleUpdateVideoStatus?: (id: string, status: string, reason?: string) => Promise<void>;
   handleViewVideo: (video: any) => void;
   isRefreshing: boolean;
 }
@@ -164,7 +164,7 @@ Respond ONLY with the exact category name as a plain string, nothing else.`;
           <span className="text-zinc-500 text-xs font-mono">
             {filtered.length} of {videos.length} indices loaded
           </span>
-          <button
+          <button type="button"
             onClick={handleBulkRetag}
             disabled={isRetagging}
             className="flex items-center gap-2 px-3 py-1.5 bg-[#4F46E5]/10 text-[#4F46E5] hover:bg-[#4F46E5]/20 border border-[#4F46E5]/20 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all disabled:opacity-50"
@@ -232,7 +232,7 @@ Respond ONLY with the exact category name as a plain string, nothing else.`;
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                       </select>
-                      <button
+                      <button type="button"
                         onClick={() => handleAutoTag(v)}
                         disabled={retaggingTargetId === v.id}
                         className="p-1.5 bg-[#4F46E5]/10 text-[#4F46E5] hover:bg-[#4F46E5]/20 text-xs rounded-lg transition-all"
@@ -294,7 +294,16 @@ Respond ONLY with the exact category name as a plain string, nothing else.`;
                           <CheckCircle className="size-3.5" />
                         </button>
                         <button type="button" aria-label="button" 
-                          onClick={() => handleUpdateVideoStatus(v.id, 'rejected')}
+                          onClick={() => {
+                            const reason = window.prompt("Enter reason for rejection:");
+                            if (reason !== null) {
+                              if (!reason.trim()) {
+                                alert("Rejection reason is required.");
+                                return;
+                              }
+                              handleUpdateVideoStatus(v.id, 'rejected', reason.trim());
+                            }
+                          }}
                           className="p-1.5 bg-[#0c0c0e]/45 border border-white/5 rounded-lg text-rose-400 hover:bg-rose-500/10 transition"
                           title="Reject Video"
                         >

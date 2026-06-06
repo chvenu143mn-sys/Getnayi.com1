@@ -17,21 +17,22 @@ export const ProfileImageCropper: React.FC<ProfileImageCropperProps> = ({
 }) => {
   const [zoom, setZoom] = useState<number>(1);
   const [offset, setOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const prevImageSrc = useRef<string>(imageSrc);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [naturalSize, setNaturalSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   
+  if (imageSrc !== prevImageSrc.current) {
+    prevImageSrc.current = imageSrc;
+    setZoom(1);
+    setOffset({ x: 0, y: 0 });
+  }
+
   const viewportSize = 280; // Size of the crop window in the UI
   const targetSize = 320; // Instagram standard circular size (320x320)
   
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
-
-  // Reset parameters when image source changes
-  useEffect(() => {
-    setZoom(1);
-    setOffset({ x: 0, y: 0 });
-  }, [imageSrc]);
 
   const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;

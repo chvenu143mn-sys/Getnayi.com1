@@ -31,15 +31,16 @@ interface VideoPlayerProps {
   isActive: boolean;
 }
 
+const formatTime = (timeInSeconds: number) => {
+  if (isNaN(timeInSeconds) || !isFinite(timeInSeconds)) return "0:00";
+  const mins = Math.floor(timeInSeconds / 60);
+  const secs = Math.floor(timeInSeconds % 60);
+  return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+};
+
 export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: isParentActive }: VideoPlayerProps) {
   const parsedProduct = parseVideoProduct(video.caption);
 
-  const formatTime = (timeInSeconds: number) => {
-    if (isNaN(timeInSeconds) || !isFinite(timeInSeconds)) return "0:00";
-    const mins = Math.floor(timeInSeconds / 60);
-    const secs = Math.floor(timeInSeconds % 60);
-    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-  };
   const resolvedVideoUrl = React.useMemo(() => {
     if (!video.video_url) return '';
     const match = video.video_url.match(/https?:\/\/[^\/]+\/([a-f0-9\-]+)\//i);
@@ -132,6 +133,79 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
   const [duration, setDuration] = useState<number>(0);
   const [isScrubbing, setIsScrubbing] = useState<boolean>(false);
   const [showMetadata, setShowMetadata] = useState<boolean>(false);
+
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const wasPlayingBeforeScrub = useRef<boolean>(false);
+  const scrubThrottleRef = useRef<any>(null);
+  if (!scrubThrottleRef.current) {
+    scrubThrottleRef.current = throttle((time: number) => {
+      if (videoRef.current) {
+        videoRef.current.currentTime = time;
+      }
+    }, 100);
+  }
+  const scrubThrottle = scrubThrottleRef.current;
+
+  // Cleanup throttle on unmount
+  useEffect(() => {
+    return () => {
+      scrubThrottle.cancel();
+    }
+  }, [scrubThrottle]);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    if (!timelineRef.current || !duration) return;
+    
+    setIsScrubbing(true);
+    wasPlayingBeforeScrub.current = !videoRef.current?.paused;
+    if (videoRef.current && !videoRef.current.paused) {
+      videoRef.current.pause();
+    }
+
+    const updateTimeFromEvent = (clientX: number) => {
+      if (!timelineRef.current || !duration) return;
+      const rect = timelineRef.current.getBoundingClientRect();
+      const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+      const percentage = x / rect.width;
+      const newTime = percentage * duration;
+      setCurrentTime(newTime);
+      scrubThrottle(newTime);
+    };
+
+    updateTimeFromEvent(e.clientX);
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      moveEvent.preventDefault();
+      updateTimeFromEvent(moveEvent.clientX);
+    };
+
+    const handlePointerUp = (upEvent: PointerEvent) => {
+      document.removeEventListener('pointermove', handlePointerMove);
+      document.removeEventListener('pointerup', handlePointerUp);
+      document.removeEventListener('pointercancel', handlePointerUp);
+      
+      setIsScrubbing(false);
+      scrubThrottle.cancel();
+      
+      if (!timelineRef.current || !duration) return;
+      const rect = timelineRef.current.getBoundingClientRect();
+      const x = Math.max(0, Math.min(upEvent.clientX - rect.left, rect.width));
+      const newTime = (x / rect.width) * duration;
+      
+      setCurrentTime(newTime);
+      if (videoRef.current) {
+        videoRef.current.currentTime = newTime;
+        if (wasPlayingBeforeScrub.current) {
+          videoRef.current.play().catch(() => {});
+        }
+      }
+    };
+
+    document.addEventListener('pointermove', handlePointerMove, { passive: false });
+    document.addEventListener('pointerup', handlePointerUp);
+    document.addEventListener('pointercancel', handlePointerUp);
+  };
 
   const triggerAuthGate = (actionReason: string) => {
     setAuthModalReason(actionReason);
@@ -830,7 +904,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
           {/* Search Metadata & Tags Expandable Section */}
           {(video.tags && video.tags.length > 0) && (
             <div className="mt-2.5 pointer-events-auto">
-              <button 
+              <button type="button" 
                 onClick={(e) => { e.stopPropagation(); setShowMetadata(!showMetadata); }}
                 className="flex items-center gap-1.5 text-white/70 hover:text-white transition-colors py-1 text-[12px] font-semibold tracking-wide drop-shadow-sm"
               >
@@ -1576,7 +1650,8 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                 src={fullscreenImageUrl}
                 alt="Product visual full screen"
                 className="max-w-[95vw] max-h-[80vh] w-auto h-auto object-contain aspect-auto rounded-2xl border border-white/10 shadow-[0_12px_40px_rgba(0,0,0,0.9)] pointer-events-auto select-none"
-                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+                role="presentation"
               />
             </motion.div>
 
@@ -1597,12 +1672,16 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
           onClick={(e) => e.stopPropagation()}
         >
           {/* Progress track container */}
-          <div className="relative w-full flex items-center group/timeline h-4 cursor-pointer">
+          <div 
+            ref={timelineRef}
+            onPointerDown={handlePointerDown}
+            className="relative w-full flex items-center group/timeline h-6 cursor-pointer touch-none"
+          >
             {/* Custom styled progress rail with smooth radial glow */}
-            <div className={`relative w-full overflow-hidden transition-all duration-300 ease-out ${isScrubbing ? 'h-1.5 ring-2 ring-[#ef2950]/45 shadow-[0_0_15px_rgba(239,41,80,0.7)] bg-white/30' : 'h-1 bg-white/20 group-hover/timeline:h-1.5 shadow-[0_0_0px_rgba(239,41,80,0)]'}`}>
+            <div className={`relative w-full overflow-hidden transition-all duration-300 ease-out pointer-events-none ${isScrubbing ? 'h-1.5 ring-2 ring-[#ef2950]/45 shadow-[0_0_15px_rgba(239,41,80,0.7)] bg-white/30' : 'h-1 bg-white/20 group-hover/timeline:h-1.5 shadow-[0_0_0px_rgba(239,41,80,0)]'}`}>
               {/* Highlight active progress */}
               <div 
-                className="absolute left-0 top-0 bottom-0 bg-[#ef2950]"
+                className="absolute left-0 top-0 bottom-0 bg-[#ef2950] pointer-events-none"
                 style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
               />
             </div>
@@ -1611,27 +1690,6 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
             <div 
               className={`absolute size-3 bg-white rounded-full border border-[#ef2950] origin-center transition-all duration-100 pointer-events-none -translate-x-1/2 ${isScrubbing ? 'scale-125 ring-2 ring-white/50 shadow-[0_0_12px_rgba(239,41,80,0.8)]' : 'scale-0 group-hover/timeline:scale-100 shadow-md'}`}
               style={{ left: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
-            />
-
-            {/* Range input layer to capture interaction beautifully */}
-            <input
-              type="range"
-              min={0}
-              max={duration || 1}
-              step={0.05}
-              value={currentTime}
-              onMouseDown={() => setIsScrubbing(true)}
-              onMouseUp={() => setIsScrubbing(false)}
-              onTouchStart={() => setIsScrubbing(true)}
-              onTouchEnd={() => setIsScrubbing(false)}
-              onChange={(e) => {
-                const newTime = parseFloat(e.target.value);
-                if (videoRef.current) {
-                  videoRef.current.currentTime = newTime;
-                  setCurrentTime(newTime);
-                }
-              }}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer accent-[#ef2950]"
             />
           </div>
         </div>

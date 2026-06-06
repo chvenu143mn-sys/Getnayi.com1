@@ -141,7 +141,7 @@ export default function Interests() {
         </div>
 
         <div className="mt-auto pb-4">
-          <button
+          <button type="button"
             onClick={handleSave}
             disabled={saving || (selected.size === 0 && categories.length > 0)}
             className="w-full py-4 px-6 bg-white text-black font-bold rounded-2xl hover:bg-zinc-200 transition-all disabled:opacity-50 flex items-center justify-center gap-2 font-sans"

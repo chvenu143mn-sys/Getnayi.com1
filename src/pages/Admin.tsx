@@ -23,6 +23,44 @@ import AdminAuditLogs from '../components/admin/AdminAuditLogs';
 import AdminSearchInfra from '../components/admin/AdminSearchInfra';
 import AdminModeration from '../components/admin/AdminModeration';
 
+const handleViewVideo = (video: any) => {
+    if (!video) return;
+    if (video.video_url) {
+      window.open(video.video_url, '_blank');
+  } else {
+      alert(`Viewing video context: "${video.caption || 'No caption'}" (ID: ${video.id})`);
+  }
+};
+
+
+const COLORS = ['#F97316', '#3B82F6', '#10B981', '#EF4444', '#8B5CF6'];
+
+const SIDEBAR_ITEMS = [
+    { id: 'dashboard', label: 'Dashboard', icon: Home },
+    { id: 'videos', label: 'Videos', icon: PlaySquare },
+    { id: 'flagged', label: 'Flagged Videos', icon: ShieldAlert },
+    { id: 'reports', label: 'Reports', icon: FileText },
+    { id: 'creators', label: 'Creators', icon: Users },
+    { id: 'verification', label: 'Verification Requests', icon: ShieldCheck },
+    { id: 'links', label: 'Product Links', icon: Link2 },
+    { id: 'spam', label: 'Spam Detection', icon: AlertTriangle },
+    { id: 'analytics', label: 'Analytics', icon: BarChart2 },
+    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'categories', label: 'Categories', icon: Layers },
+    { id: 'audit_logs', label: 'Audit Trail Logs', icon: FileText },
+    { id: 'search_infra', label: 'Search Optimization', icon: Search },
+  ];
+
+async function fetchWithAdminAuth(url: string, options: RequestInit = {}) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const headers = {
+    'Authorization': `Bearer ${session?.access_token}`,
+    'Content-Type': 'application/json',
+    ...options.headers
+  };
+  return fetch(url, { credentials: 'include', ...options, headers });
+}
+
 type Tab = 'dashboard' | 'videos' | 'flagged' | 'reports' | 'creators' | 'verification' | 'links' | 'spam' | 'analytics' | 'settings' | 'categories' | 'audit_logs' | 'search_infra';
 
 interface AdminReport {
@@ -82,15 +120,6 @@ export default function Admin() {
   });
 
   // Authenticated server actions wrapper
-  async function fetchWithAdminAuth(url: string, options: RequestInit = {}) {
-    const { data: { session } } = await supabase.auth.getSession();
-    const headers = {
-      'Authorization': `Bearer ${session?.access_token}`,
-      'Content-Type': 'application/json',
-      ...options.headers
-    };
-    return fetch(url, { credentials: 'include', ...options, headers });
-  }
 
   useEffect(() => {
     if (!user) return;
@@ -361,11 +390,11 @@ export default function Admin() {
     }
   };
 
-  const handleUpdateVideoStatus = async (videoId: string, status: string) => {
+  const handleUpdateVideoStatus = async (videoId: string, status: string, reason?: string) => {
     try {
       const res = await fetchWithAdminAuth(`/api/admin/videos/${videoId}`, {
         method: 'PUT',
-        body: JSON.stringify({ status })
+        body: JSON.stringify({ status, reason })
       });
       if (!res.ok) throw new Error('Failed to update video status');
       fetchAllVideos();
@@ -473,14 +502,6 @@ export default function Admin() {
     }
   };
 
-  const handleViewVideo = (video: any) => {
-    if (!video) return;
-    if (video.video_url) {
-      window.open(video.video_url, '_blank');
-    } else {
-      alert(`Viewing video context: "${video.caption || 'No caption'}" (ID: ${video.id})`);
-    }
-  };
 
   const handleCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -651,23 +672,7 @@ export default function Admin() {
     );
   }
 
-  const SIDEBAR_ITEMS = [
-    { id: 'dashboard', label: 'Dashboard', icon: Home },
-    { id: 'videos', label: 'Videos', icon: PlaySquare },
-    { id: 'flagged', label: 'Flagged Videos', icon: ShieldAlert },
-    { id: 'reports', label: 'Reports', icon: FileText },
-    { id: 'creators', label: 'Creators', icon: Users },
-    { id: 'verification', label: 'Verification Requests', icon: ShieldCheck },
-    { id: 'links', label: 'Product Links', icon: Link2 },
-    { id: 'spam', label: 'Spam Detection', icon: AlertTriangle },
-    { id: 'analytics', label: 'Analytics', icon: BarChart2 },
-    { id: 'settings', label: 'Settings', icon: Settings },
-    { id: 'categories', label: 'Categories', icon: Layers },
-    { id: 'audit_logs', label: 'Audit Trail Logs', icon: FileText },
-    { id: 'search_infra', label: 'Search Optimization', icon: Search },
-  ];
 
-  const COLORS = ['#F97316', '#3B82F6', '#10B981', '#EF4444', '#8B5CF6'];
   const userGrowthData = [
     { name: 'May 1', users: 100000 },
     { name: 'May 8', users: 150000 },

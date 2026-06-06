@@ -42,11 +42,7 @@ export default function ProfilePage() {
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
 
-  useEffect(() => {
-      const handleGlobalClick = () => setActiveMenuId(null);
-      window.addEventListener('click', handleGlobalClick);
-      return () => window.removeEventListener('click', handleGlobalClick);
-    }, []);
+  // Removed global event listener effect for activeMenuId
 
   useEffect(() => {
     if (user) {
@@ -266,7 +262,7 @@ export default function ProfilePage() {
       if (editVideoProductName.trim()) newCaptionObj.product_name = editVideoProductName.trim();
       if (editVideoProductPrice.trim() && !isNaN(Number(editVideoProductPrice))) newCaptionObj.product_price = Number(editVideoProductPrice);
       
-      const newTagsArray = editVideoTags.split(',').map(t => t.trim()).filter(Boolean);
+      const newTagsArray = editVideoTags.split(',').flatMap(t => { const trimmed = t.trim(); return trimmed ? [trimmed] : []; });
 
       const res = await fetch(`/api/videos/${videoToEdit.id}`, {
         method: 'PUT',
@@ -543,45 +539,6 @@ export default function ProfilePage() {
             </button>
           )}
         </div>
-
-        {/* Circular Highlights (Mock) */}
-        <div className="flex overflow-x-auto w-[100vw] no-scrollbar gap-x-5 items-start justify-start select-none -mx-5 px-5 pb-2">
-           <div className="flex flex-col items-center gap-y-2 shrink-0 cursor-pointer">
-             <div className="size-[68px] rounded-full border-[1.5px] border-white/50 p-1 bg-gradient-to-tr from-amber-200 to-amber-700">
-               <div className="size-full rounded-full bg-[#1c1c1e] overflow-hidden">
-                 <img src="https://images.unsplash.com/photo-1556228578-0d85b1a4d571?q=80&w=200&auto=format&fit=crop" className="size-full object-cover opacity-80"  alt="" />
-               </div>
-             </div>
-             <span className="text-[13px] font-medium text-white/90 font-sans tracking-wide">Skincare</span>
-           </div>
-           
-           <div className="flex flex-col items-center gap-y-2 shrink-0 cursor-pointer">
-             <div className="size-[68px] rounded-full border-[1.5px] border-white/50 p-1 bg-gradient-to-tr from-purple-400 to-fuchsia-700">
-               <div className="size-full rounded-full bg-[#1c1c1e] overflow-hidden">
-                 <img src="https://images.unsplash.com/photo-1620916566398-39f1143ab7be?q=80&w=200&auto=format&fit=crop" className="size-full object-cover opacity-80"  alt="" />
-               </div>
-             </div>
-             <span className="text-[13px] font-medium text-white/90 font-sans tracking-wide">Favorites</span>
-           </div>
-
-           <div className="flex flex-col items-center gap-y-2 shrink-0 cursor-pointer">
-             <div className="size-[68px] rounded-full border-[1.5px] border-white/50 p-1 bg-gradient-to-tr from-red-400 to-pink-700">
-               <div className="size-full rounded-full bg-[#1c1c1e] overflow-hidden">
-                 <img src="https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?q=80&w=200&auto=format&fit=crop" className="size-full object-cover opacity-80"  alt="" />
-               </div>
-             </div>
-             <span className="text-[13px] font-medium text-white/90 font-sans tracking-wide">Haircare</span>
-           </div>
-
-           <div className="flex flex-col items-center gap-y-2 shrink-0 cursor-pointer">
-             <div className="size-[68px] rounded-full border-[1.5px] border-white/50 p-1 bg-gradient-to-tr from-amber-200 to-yellow-600">
-               <div className="size-full rounded-full bg-[#1c1c1e] overflow-hidden">
-                 <img src="https://images.unsplash.com/photo-1512413914594-82ee17e4f3a5?q=80&w=200&auto=format&fit=crop" className="size-full object-cover opacity-80"  alt="" />
-               </div>
-             </div>
-             <span className="text-[13px] font-medium text-white/90 font-sans tracking-wide">Q&A</span>
-           </div>
-        </div>
       </div>
 
       {/* Video Grid */}
@@ -648,9 +605,11 @@ export default function ProfilePage() {
                       </button>
                       
                       {activeMenuId === video.id && (
-                         <div className="absolute top-full right-0 mt-1 w-32 bg-zinc-900 border border-white/10 rounded-xl shadow-xl overflow-hidden z-10 flex flex-col">
-                           <button type="button" 
-                             onClick={(e) => handleEditVideoClick(e, video)}
+                         <>
+                           <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setActiveMenuId(null); }} />
+                           <div className="absolute top-full right-0 mt-1 w-32 bg-zinc-900 border border-white/10 rounded-xl shadow-xl overflow-hidden z-20 flex flex-col">
+                             <button type="button" 
+                               onClick={(e) => handleEditVideoClick(e, video)}
                              className="text-left px-3 py-2 text-sm text-white hover:bg-white/5 flex items-center"
                            >
                              <Edit3 className="size-3.5 mr-2" /> Edit
@@ -662,6 +621,7 @@ export default function ProfilePage() {
                              <Trash2 className="size-3.5 mr-2" /> Delete
                            </button>
                          </div>
+                         </>
                       )}
                     </div>
                   </div>

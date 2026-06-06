@@ -23,6 +23,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { Video, Profile } from '../types';
+import { parseVideoProduct } from '../utils/videoUtils';
 import CreatorAnalytics from '../components/CreatorAnalytics';
 
 import {
@@ -144,15 +145,33 @@ export default function CreatorDashboard() {
   });
   
   const [loading, setLoading] = useState(true);
-  const [isDemoMode, setIsDemoMode] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [trendingTags, setTrendingTags] = useState<string[]>(["#skincare", "#fashion", "#tech", "GRWM"]);
   const [activeChartTab, setActiveChartTab] = useState<'trends' | 'comparison' | 'distribution'>('trends');
+  const [mainTab, setMainTab] = useState<'overview' | 'performance' | 'insights'>('overview');
 
   useEffect(() => {
     if (user) {
       fetchCreatorData();
+      fetchTrendingTags();
     }
   }, [user]);
+
+  const fetchTrendingTags = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('trending_metrics')
+        .select('tag')
+        .order('score', { ascending: false })
+        .limit(6);
+        
+      if (data && data.length > 0) {
+        setTrendingTags(data.map(d => d.tag));
+      }
+    } catch (err) {
+      console.error('Error fetching trending tags', err);
+    }
+  };
 
   const fetchCreatorData = async () => {
     setLoading(true);
@@ -248,68 +267,31 @@ export default function CreatorDashboard() {
     }
   };
 
-  // Demo / Mock Data for rich visualization
-  const demoStats = {
-    totalViews: 142500,
-    totalLikes: 12400,
-    totalSaves: 1210,
-    totalComments: 342,
-    engagementRate: 9.7, // %
-  };
-
-  const demoTrendData = [
-    { name: 'Mon', Views: 12000, Likes: 1100, Saves: 120 },
-    { name: 'Tue', Views: 15000, Likes: 1400, Saves: 150 },
-    { name: 'Wed', Views: 18000, Likes: 1600, Saves: 180 },
-    { name: 'Thu', Views: 16000, Likes: 1300, Saves: 140 },
-    { name: 'Fri', Views: 22000, Likes: 1900, Saves: 210 },
-    { name: 'Sat', Views: 31000, Likes: 2700, Saves: 250 },
-    { name: 'Sun', Views: 28500, Likes: 2400, Saves: 160 },
-  ];
-
-  const demoVideosComparison = [
-    { name: 'Glow Dew Review', Views: 42000, Likes: 3600 },
-    { name: 'Skincare routine', Views: 31000, Likes: 2900 },
-    { name: 'Morning Glow up', Views: 28000, Likes: 2100 },
-    { name: 'Affordable Serums', Views: 22000, Likes: 1800 },
-    { name: 'Glass Skin Secret', Views: 19500, Likes: 2000 },
-  ];
-
-  const demoDistribution = [
-    { name: 'Likes', value: 12400, color: '#ef2950' },
-    { name: 'Saved', value: 1210, color: '#facc15' },
-    { name: 'Comments', value: 342, color: '#3897f0' },
-  ];
-
-  const demoVideosList = [
-    { id: '1', caption: 'My Glowing Skin Hydration Routine with Dew Serum ✨🌿 #skincare', views: 42000, likes: 3600, comments: 120, saves: 480, status: 'active', created_at: '2026-05-18T10:00:00Z', thumbnail_url: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=150&q=80' },
-    { id: '2', caption: 'The ultimate glass skin routine on a budget! 😍 Full tutorial inside', views: 31050, likes: 2980, comments: 92, saves: 310, status: 'active', created_at: '2026-05-20T14:30:00Z', thumbnail_url: 'https://images.unsplash.com/photo-1596462502278-27bf85033e5a?auto=format&fit=crop&w=150&q=80' },
-    { id: '3', caption: 'Testing affordable vitamin C serums for 30 days... here are the results', views: 22400, likes: 1850, comments: 65, saves: 220, status: 'active', created_at: '2026-05-22T08:15:00Z', thumbnail_url: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=150&q=80' },
-    { id: '4', caption: 'NEW Brightening Booster review - does it actually work? Honest opinion! 🧪', views: 19500, likes: 2020, comments: 45, saves: 110, status: 'pending_review', created_at: '2026-05-25T11:00:00Z', thumbnail_url: 'https://images.unsplash.com/photo-1556228578-8d89f2142d76?auto=format&fit=crop&w=150&q=80' }
-  ];
-
   // Active / Live Calculations
   const liveTotalViews = videos.reduce((sum, v) => sum + (v.views || 0), 0);
   const liveTotalLikes = Object.values(engagementDetails.likesByVideo).reduce((sum, val) => sum + val, 0);
   const liveTotalSaves = Object.values(engagementDetails.savesByVideo).reduce((sum, val) => sum + val, 0);
   const liveTotalComments = Object.values(engagementDetails.commentsByVideo).reduce((sum, val) => sum + val, 0);
+  const liveTotalEngagements = liveTotalLikes + liveTotalSaves + liveTotalComments;
   const liveEngagementRate = liveTotalViews > 0 
-    ? parseFloat((((liveTotalLikes + liveTotalSaves + liveTotalComments) / liveTotalViews) * 100).toFixed(1)) 
+    ? parseFloat(((liveTotalEngagements / liveTotalViews) * 100).toFixed(1)) 
     : 0;
+  const avgViewsPerVideo = videos.length > 0 ? Math.round(liveTotalViews / videos.length) : 0;
 
-  // Render variables based on Mode toggle
-  const totalViews = isDemoMode ? demoStats.totalViews : liveTotalViews;
-  const totalLikes = isDemoMode ? demoStats.totalLikes : liveTotalLikes;
-  const totalSaves = isDemoMode ? demoStats.totalSaves : liveTotalSaves;
-  const totalComments = isDemoMode ? demoStats.totalComments : liveTotalComments;
-  const engagementRate = isDemoMode ? demoStats.engagementRate : liveEngagementRate;
+  // Render variables
+  const totalViews = liveTotalViews;
+  const totalLikes = liveTotalLikes;
+  const totalSaves = liveTotalSaves;
+  const totalComments = liveTotalComments;
+  const totalEngagements = liveTotalEngagements;
+  const engagementRate = liveEngagementRate;
 
   // Render list of videos
-  const displayVideos = isDemoMode 
-    ? demoVideosList.filter(v => v.caption.toLowerCase().includes(searchTerm.toLowerCase()))
-    : videos.map(v => ({
+  const displayVideos = videos.map(v => {
+    const parsedCaption = parseVideoProduct(v.caption);
+    return {
         id: v.id,
-        caption: v.caption || 'No description provided',
+        caption: parsedCaption.captionText || 'No description provided',
         views: v.views || 0,
         likes: engagementDetails.likesByVideo[v.id] || 0,
         comments: engagementDetails.commentsByVideo[v.id] || 0,
@@ -317,10 +299,14 @@ export default function CreatorDashboard() {
         status: v.status || 'active',
         created_at: v.created_at,
         thumbnail_url: v.thumbnail_url || v.main_product_image_url
-      })).filter(v => v.caption.toLowerCase().includes(searchTerm.toLowerCase()));
+    };
+  }).filter(v => v.caption.toLowerCase().includes(searchTerm.toLowerCase()));
+
+  const topVideoByViews = displayVideos.length > 0 ? displayVideos.toSorted((a,b) => b.views - a.views)[0] : null;
+  const topVideoByEngagement = displayVideos.length > 0 ? displayVideos.toSorted((a,b) => (b.likes+b.saves+b.comments) - (a.likes+a.saves+a.comments))[0] : null;
 
   // Active charts datasets based on mode
-  const trendData = isDemoMode ? demoTrendData : [
+  const trendData = [
     ...displayVideos.slice(0, 7).reverse().map((v, i) => ({
       name: `V${i+1}`,
       Views: v.views,
@@ -334,7 +320,7 @@ export default function CreatorDashboard() {
     { name: 'No Videos', Views: 0, Likes: 0, Saves: 0 }
   ];
 
-  const videosComparison = isDemoMode ? demoVideosComparison : displayVideos.slice(0, 5).map(v => ({
+  const videosComparison = displayVideos.slice(0, 5).map(v => ({
     name: v.caption.substring(0, 15) + '...',
     Views: v.views,
     Likes: v.likes
@@ -344,19 +330,19 @@ export default function CreatorDashboard() {
     { name: 'Empty', Views: 0, Likes: 0 }
   ];
 
-  const distributionData = isDemoMode ? demoDistribution : [
+  const distributionData = [
     { name: 'Likes', value: totalLikes, color: '#ef2950' },
     { name: 'Saved', value: totalSaves, color: '#facc15' },
     { name: 'Comments', value: totalComments, color: '#3897f0' },
   ];
 
-  const hasStats = isDemoMode || displayVideos.length > 0;
+  const hasStats = displayVideos.length > 0;
 
   return (
     <div className="flex-1 w-full bg-[#0c0c0e] text-white font-sans flex flex-col h-full bg-[#0c0c0e]">
       {/* Header BAR */}
-      <div className="sticky top-0 z-20 bg-[#0c0c0e]/95 backdrop-blur-md pt-5 pb-3 px-4 border-b border-white/5">
-        <div className="flex items-center justify-between">
+      <div className="sticky top-0 z-20 bg-[#0c0c0e]/95 backdrop-blur-md pt-5 pb-0 px-0 border-b border-white/5">
+        <div className="flex items-center justify-between px-4 pb-3">
           <div className="flex items-center gap-x-2">
             <button type="button" aria-label="button"  
               onClick={() => navigate('/profile')} 
@@ -369,27 +355,33 @@ export default function CreatorDashboard() {
               <Award className="size-4 text-amber-400" />
             </h1>
           </div>
-
-          {/* Clean toggle switch */}
-          <div className="flex items-center gap-x-2">
-            <span className="text-[11px] font-medium text-zinc-500 tracking-wide uppercase">Demo Data</span>
-            <button type="button" aria-label="button"  
-              onClick={() => setIsDemoMode(!isDemoMode)}
-              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                isDemoMode ? 'bg-[#ef2950]' : 'bg-zinc-800'
-              }`}
-            >
-              <span
-                className={`pointer-events-none inline-block size-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                  isDemoMode ? 'translate-x-4' : 'translate-x-0'
-                }`}
-              />
-            </button>
-          </div>
         </div>
+
+        {/* Main Tabs */}
+        {!loading && profile && (profile.can_upload || profile.is_admin) && (
+          <div className="flex px-4 gap-x-6 shrink-0 overflow-x-auto no-scrollbar">
+            {[
+              { id: 'overview', label: 'Overview' },
+              { id: 'performance', label: 'Content Performance' },
+              { id: 'insights', label: 'Audience Insights' }
+            ].map(tab => (
+              <button type="button"
+                key={tab.id}
+                onClick={() => setMainTab(tab.id as any)}
+                className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors ${
+                  mainTab === tab.id 
+                    ? 'border-[#ef2950] text-white' 
+                    : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="flex-1 overflow-y-auto no-scrollbar pt-5 px-4">
+      <div className="flex-1 overflow-y-auto no-scrollbar pt-5 px-4 pb-10">
         {loading ? (
           <div className="gap-y-6 animate-pulse">
             {/* Creator Mini Card Skeleton */}
@@ -489,9 +481,11 @@ export default function CreatorDashboard() {
             </button>
           </div>
         ) : (
-          <div className="gap-y-6">
-            {/* Creator Mini Card */}
-            <div className="p-4 bg-gradient-to-r from-[#17171e] to-[#151518] border border-white/5 rounded-[22px] flex items-center shadow-lg">
+          <div className="gap-y-6 flex flex-col pb-10">
+            {mainTab === 'overview' && (
+              <>
+                {/* Creator Mini Card */}
+                <div className="p-4 bg-gradient-to-r from-[#17171e] to-[#151518] border border-white/5 rounded-[22px] flex items-center shadow-lg">
               <div className="size-[46px] rounded-full overflow-hidden bg-zinc-850 shrink-0 mr-3.5 border border-white/10 ring-2 ring-white/5 shadow-inner">
                 {profile?.avatar_url ? (
                   <img src={profile.avatar_url} alt={profile.username} className="size-full object-cover" />
@@ -503,10 +497,10 @@ export default function CreatorDashboard() {
               </div>
               <div className="flex-1 min-w-0 pr-2">
                 <span className="text-[14px] font-semibold text-white tracking-wide block truncate">
-                  {profile?.username || 'Glow With Sia'}
+                  {profile?.username || 'Creator'}
                 </span>
                 <span className="text-[11.5px] font-medium text-zinc-500 tracking-wide lowercase block leading-tight">
-                  @{profile?.username?.toLowerCase() || 'creator'} • 142 Posts
+                  @{profile?.username?.toLowerCase() || 'creator'} • {videos.length} Posts
                 </span>
               </div>
               
@@ -516,13 +510,40 @@ export default function CreatorDashboard() {
               </div>
             </div>
 
+            {/* Trending Topics & Hashtags */}
+            <div className="flex flex-col gap-y-3 mb-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-[15.5px] font-bold text-white tracking-wide flex items-center gap-2">
+                  <TrendingUp className="size-[18px] text-[#ef2950]" />
+                  Trending on Platform
+                </h3>
+                <button type="button" 
+                  onClick={() => navigate('/trending')}
+                  className="text-[12px] font-medium text-zinc-400 hover:text-white flex items-center transition-colors"
+                >
+                  View full list <ChevronRight className="size-3.5 ml-0.5" />
+                </button>
+              </div>
+              <div className="flex gap-x-2.5 overflow-x-auto no-scrollbar pb-1">
+                {trendingTags.map((tag, i) => (
+                   <button type="button" 
+                     key={i}
+                     onClick={() => navigate(`/trending?tag=${encodeURIComponent(tag)}`)}
+                     className="px-3.5 py-1.5 bg-[#131316] border border-white/5 rounded-full text-[12px] font-semibold text-white/90 whitespace-nowrap hover:bg-[#ef2950]/10 hover:text-[#ef2950] transition-colors border-white/10"
+                   >
+                     {tag.startsWith('#') ? tag : `#${tag.replace(/\s+/g, '')}`}
+                   </button>
+                ))}
+              </div>
+            </div>
+
             {/* Performance Ledger / Bento Grid */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
               {/* Views */}
               <div className="p-4 bg-[#131316] border border-white/5 rounded-2xl shadow-sm flex flex-col justify-between">
                 <div className="flex items-center justify-between">
-                  <span className="text-[12.5px] font-semibold text-zinc-500 tracking-wide uppercase">Total Views</span>
-                  <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/10">
+                  <span className="text-[12.5px] font-semibold text-zinc-500 tracking-wide uppercase whitespace-nowrap">Total Views</span>
+                  <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/10 shrink-0 ml-1">
                     <Eye className="size-4" />
                   </div>
                 </div>
@@ -530,53 +551,19 @@ export default function CreatorDashboard() {
                   <span className="text-[22px] font-bold font-sans text-white tracking-tight">
                     {totalViews >= 1000000 ? (totalViews / 1000000).toFixed(1) + 'M' : totalViews >= 1000 ? (totalViews / 1000).toFixed(1) + 'K' : totalViews}
                   </span>
-                  <span className="text-[10.5px] font-medium text-emerald-400 mt-1 flex items-center gap-0.5">
-                    <TrendingUp className="size-3" /> +12.4% vs last week
-                  </span>
-                </div>
-              </div>
-
-              {/* Likes */}
-              <div className="p-4 bg-[#131316] border border-white/5 rounded-2xl shadow-sm flex flex-col justify-between">
-                <div className="flex items-center justify-between">
-                  <span className="text-[12.5px] font-semibold text-zinc-500 tracking-wide uppercase">Total Likes</span>
-                  <div className="p-1.5 rounded-lg bg-[#ef2950]/10 text-[#ef2950] border border-[#ef2950]/10">
-                    <Heart className="size-4 fill-[#ef2950]/10" />
-                  </div>
-                </div>
-                <div className="mt-4 flex flex-col">
-                  <span className="text-[22px] font-bold font-sans text-white tracking-tight">
-                    {totalLikes >= 1000000 ? (totalLikes / 1000000).toFixed(1) + 'M' : totalLikes >= 1000 ? (totalLikes / 1000).toFixed(1) + 'K' : totalLikes}
-                  </span>
-                  <span className="text-[10.5px] font-medium text-[#ef2950] mt-1 flex items-center gap-0.5">
-                    <TrendingUp className="size-3" /> +8.1% vs last week
-                  </span>
-                </div>
-              </div>
-
-              {/* Saves */}
-              <div className="p-4 bg-[#131316] border border-white/5 rounded-2xl shadow-sm flex flex-col justify-between">
-                <div className="flex items-center justify-between">
-                  <span className="text-[12.5px] font-semibold text-zinc-500 tracking-wide uppercase">Saves (Saves)</span>
-                  <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/10">
-                    <Bookmark className="size-4 fill-amber-500/10" />
-                  </div>
-                </div>
-                <div className="mt-4 flex flex-col">
-                  <span className="text-[22px] font-bold font-sans text-white tracking-tight">
-                    {totalSaves >= 1000000 ? (totalSaves / 1000000).toFixed(1) + 'M' : totalSaves >= 1000 ? (totalSaves / 1000).toFixed(1) + 'K' : totalSaves}
-                  </span>
-                  <span className="text-[10.5px] font-medium text-amber-401 text-zinc-500 mt-1 flex items-center gap-0.5">
-                    Total organic bookmarks
-                  </span>
+                  {totalViews > 0 && (
+                    <span className="text-[10.5px] font-medium text-emerald-400 mt-1 flex items-center gap-0.5 whitespace-nowrap">
+                      <TrendingUp className="size-3" /> Growing audience
+                    </span>
+                  )}
                 </div>
               </div>
 
               {/* Engagement Rate */}
               <div className="p-4 bg-[#131316] border border-white/5 rounded-2xl shadow-sm flex flex-col justify-between">
                 <div className="flex items-center justify-between">
-                  <span className="text-[12.5px] font-semibold text-zinc-500 tracking-wide uppercase">Engagement Rate</span>
-                  <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-400/10">
+                  <span className="text-[12.5px] font-semibold text-zinc-500 tracking-wide uppercase whitespace-nowrap">Engagement Rate</span>
+                  <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-400/10 shrink-0 ml-1">
                     <TrendingUp className="size-4" />
                   </div>
                 </div>
@@ -584,13 +571,93 @@ export default function CreatorDashboard() {
                   <span className="text-[22px] font-bold font-sans text-white tracking-tight">
                     {engagementRate}%
                   </span>
-                  <span className="text-[10.5px] font-medium text-[#ef2950]/90 mt-1 flex items-center gap-0.5">
+                  <span className="text-[10.5px] font-medium text-zinc-500 mt-1 flex items-center gap-0.5 whitespace-nowrap">
                     ✨ Industry benchmark is 3.5%
+                  </span>
+                </div>
+              </div>
+
+              {/* Avg Views Per Video */}
+              <div className="p-4 bg-[#131316] border border-white/5 rounded-2xl shadow-sm flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12.5px] font-semibold text-zinc-500 tracking-wide uppercase whitespace-nowrap">Avg Views/Video</span>
+                  <div className="p-1.5 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/10 shrink-0 ml-1">
+                    <Play className="size-4" />
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-col">
+                  <span className="text-[22px] font-bold font-sans text-white tracking-tight">
+                    {avgViewsPerVideo >= 1000000 ? (avgViewsPerVideo / 1000000).toFixed(1) + 'M' : avgViewsPerVideo >= 1000 ? (avgViewsPerVideo / 1000).toFixed(1) + 'K' : avgViewsPerVideo}
+                  </span>
+                  <span className="text-[10.5px] font-medium text-zinc-500 mt-1 flex items-center gap-0.5 whitespace-nowrap">
+                    Average retention metric
+                  </span>
+                </div>
+              </div>
+
+              {/* Likes */}
+              <div className="p-4 bg-[#131316] border border-white/5 rounded-2xl shadow-sm flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12.5px] font-semibold text-zinc-500 tracking-wide uppercase whitespace-nowrap">Total Likes</span>
+                  <div className="p-1.5 rounded-lg bg-[#ef2950]/10 text-[#ef2950] border border-[#ef2950]/10 shrink-0 ml-1">
+                    <Heart className="size-4 fill-[#ef2950]/10" />
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-col">
+                  <span className="text-[22px] font-bold font-sans text-white tracking-tight">
+                    {totalLikes >= 1000000 ? (totalLikes / 1000000).toFixed(1) + 'M' : totalLikes >= 1000 ? (totalLikes / 1000).toFixed(1) + 'K' : totalLikes}
+                  </span>
+                  {totalLikes > 0 && (
+                    <span className="text-[10.5px] font-medium text-[#ef2950] mt-1 flex items-center gap-0.5 whitespace-nowrap">
+                      <TrendingUp className="size-3" /> Higher engagement
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Saves */}
+              <div className="p-4 bg-[#131316] border border-white/5 rounded-2xl shadow-sm flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12.5px] font-semibold text-zinc-500 tracking-wide uppercase whitespace-nowrap">Saved Videos</span>
+                  <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-500 border border-amber-500/10 shrink-0 ml-1">
+                    <Bookmark className="size-4 fill-amber-500/10" />
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-col">
+                  <span className="text-[22px] font-bold font-sans text-white tracking-tight">
+                    {totalSaves >= 1000000 ? (totalSaves / 1000000).toFixed(1) + 'M' : totalSaves >= 1000 ? (totalSaves / 1000).toFixed(1) + 'K' : totalSaves}
+                  </span>
+                  <span className="text-[10.5px] font-medium text-zinc-500 mt-1 flex items-center gap-0.5 whitespace-nowrap">
+                    Organic bookmarks
+                  </span>
+                </div>
+              </div>
+
+              {/* Comments */}
+              <div className="p-4 bg-[#131316] border border-white/5 rounded-2xl shadow-sm flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12.5px] font-semibold text-zinc-500 tracking-wide uppercase whitespace-nowrap">Total Comments</span>
+                  <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/10 shrink-0 ml-1">
+                    <MessageSquare className="size-4" />
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-col">
+                  <span className="text-[22px] font-bold font-sans text-white tracking-tight">
+                    {totalComments >= 1000000 ? (totalComments / 1000000).toFixed(1) + 'M' : totalComments >= 1000 ? (totalComments / 1000).toFixed(1) + 'K' : totalComments}
+                  </span>
+                  <span className="text-[10.5px] font-medium text-zinc-500 mt-1 flex items-center gap-0.5 whitespace-nowrap">
+                    Community responses
                   </span>
                 </div>
               </div>
             </div>
 
+            <CreatorAnalytics videos={videos} engagementDetails={engagementDetails} />
+            </>
+          )}
+
+          {mainTab === 'insights' && (
+            <>
             {/* Recharts Graphical Visualizers */}
             <div className="p-4 bg-[#131316] border border-white/5 rounded-3xl shadow-lg flex flex-col">
               <div className="flex flex-col mb-4">
@@ -705,21 +772,77 @@ export default function CreatorDashboard() {
               )}
             </div>
 
-          <CreatorAnalytics videos={videos} engagementDetails={engagementDetails} />
+            {/* Smart Real-time Insights generated from actual performance data */}
+            {hasStats && topVideoByViews && topVideoByEngagement && (
+              <div className="flex flex-col gap-y-3 mb-6">
+                <h3 className="text-[15.5px] font-bold text-white tracking-wide mb-1.5">Top Video Analytics</h3>
+                
+                {/* Most Viewed */}
+                <div 
+                  className="bg-gradient-to-br from-[#101013] to-[#141417] border border-emerald-500/10 p-4 rounded-3xl shadow-sm flex items-start cursor-pointer transition-all active:scale-[0.99] hover:bg-white/[0.02]"
+                  onClick={() => navigate(`/video/${topVideoByViews.id}`)}
+                >
+                  <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl mr-3.5 shrink-0 shadow-sm">
+                    <Eye className="size-[18px]" strokeWidth={2.5} />
+                  </div>
+                  <div className="flex-1 min-w-0 pr-2 pt-0.5">
+                    <h4 className="text-[12px] font-bold text-emerald-400 tracking-wide uppercase mb-0.5">Most Viewed Upload</h4>
+                    <p className="text-[14px] text-white font-semibold truncate mb-1">
+                      {topVideoByViews.caption}
+                    </p>
+                    <p className="text-[11.5px] text-zinc-400 leading-relaxed font-normal">
+                      Generated <span className="font-bold text-white">{topVideoByViews.views >= 1000 ? (topVideoByViews.views/1000).toFixed(1)+`K` : topVideoByViews.views} plays</span>. 
+                      Replicating this visual style or audio trend could yield similar reach.
+                    </p>
+                  </div>
+                  <div className="w-[42px] h-[54px] rounded-lg overflow-hidden bg-zinc-900 border border-white/5 shrink-0 opacity-80 mt-0.5">
+                    {topVideoByViews.thumbnail_url ? (
+                      <img src={topVideoByViews.thumbnail_url} className="size-full object-cover" alt="Best Video" />
+                    ) : (
+                      <div className="size-full flex items-center justify-center bg-zinc-800">
+                        <Play className="size-3 text-zinc-600" />
+                      </div>
+                    )}
+                  </div>
+                </div>
 
-            {/* Growth Analytics & Smart Insights */}
-            <div className="bg-gradient-to-br from-[#101013] to-[#141417] border border-indigo-500/10 p-5 rounded-[26px] shadow-sm flex items-start">
-               <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-2xl mr-4 shrink-0 shadow-[0_4px_12px_rgba(99,102,241,0.15)]">
-                 <Sparkles className="size-[18px]" />
-               </div>
-               <div className="flex-1">
-                 <h4 className="text-[13.5px] font-bold text-white tracking-wide">AI Recommendation for @{profile?.username || 'Glow'}</h4>
-                 <p className="text-[12.5px] text-zinc-400 leading-relaxed mt-1.5 tracking-wide font-normal">
-                   Videos using <span className="font-semibold text-white">#skincare</span> with verified authentic Amazon links are experiencing a <span className="font-semibold text-emerald-400">+38% boost</span> in saved counts. Try adding a serum link in your next upload process to grow faster.
-                 </p>
-               </div>
-            </div>
+                {/* Most Engaged */}
+                {topVideoByEngagement.id !== topVideoByViews.id && (
+                  <div 
+                    className="bg-gradient-to-br from-[#101013] to-[#141417] border border-[#ef2950]/10 p-4 rounded-3xl shadow-sm flex items-start cursor-pointer transition-all active:scale-[0.99] hover:bg-white/[0.02]"
+                    onClick={() => navigate(`/video/${topVideoByEngagement.id}`)}
+                  >
+                    <div className="p-2.5 bg-[#ef2950]/10 border border-[#ef2950]/20 text-[#ef2950] rounded-xl mr-3.5 shrink-0 shadow-sm">
+                      <Heart className="size-[18px] fill-[#ef2950]/20" strokeWidth={2.5} />
+                    </div>
+                    <div className="flex-1 min-w-0 pr-2 pt-0.5">
+                      <h4 className="text-[12px] font-bold text-[#ef2950] tracking-wide uppercase mb-0.5">Highest Engagement</h4>
+                      <p className="text-[14px] text-white font-semibold truncate mb-1">
+                        {topVideoByEngagement.caption}
+                      </p>
+                      <p className="text-[11.5px] text-zinc-400 leading-relaxed font-normal">
+                        Driven by <span className="font-bold text-white">{topVideoByEngagement.likes} likes</span> and <span className="font-bold text-white">{topVideoByEngagement.saves} saves</span>. 
+                        This audience actively connects with this formatted content.
+                      </p>
+                    </div>
+                    <div className="w-[42px] h-[54px] rounded-lg overflow-hidden bg-zinc-900 border border-white/5 shrink-0 opacity-80 mt-0.5">
+                      {topVideoByEngagement.thumbnail_url ? (
+                        <img src={topVideoByEngagement.thumbnail_url} className="size-full object-cover" alt="Most Engaged" />
+                      ) : (
+                        <div className="size-full flex items-center justify-center bg-zinc-800">
+                          <Play className="size-3 text-zinc-600" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            </>
+          )}
 
+          {mainTab === 'performance' && (
+            <>
             {/* Video List of uploads / performance list */}
             <div className="flex flex-col mb-6">
               <div className="flex items-center justify-between mb-4.5">
@@ -740,20 +863,20 @@ export default function CreatorDashboard() {
               </div>
 
               {displayVideos.length === 0 ? (
-                 <div className="py-12 text-center text-zinc-650 flex flex-col items-center justify-center bg-[#131316] border border-dashed border-white/5 rounded-3xl text-zinc-500/80">
-                   <VideoIcon className="size-10 text-zinc-700 mb-2.5" strokeWidth={1.5} />
-                   <p className="text-sm font-semibold text-white/90">No ledger entries match search</p>
-                   <p className="text-xs text-zinc-500 mt-1">Try searching another tag, word, or keyword.</p>
+                 <div className="py-16 text-center flex flex-col items-center justify-center bg-transparent mt-4">
+                   <div className="w-16 h-16 rounded-full bg-zinc-900 border border-white/5 flex items-center justify-center mb-4">
+                     <VideoIcon className="size-7 text-zinc-500" strokeWidth={1.5} />
+                   </div>
+                   <h3 className="text-[17px] font-bold text-white tracking-tight mb-1">No data available</h3>
+                   <p className="text-[13px] text-zinc-500 max-w-[200px] mx-auto leading-relaxed">Upload content to see your performance metrics and insights.</p>
                  </div>
               ) : (
                  <div className="flex flex-col gap-y-3">
                    {displayVideos.map((video, index) => (
                      <div 
                        key={video.id || index}
-                       onClick={() => !isDemoMode && navigate(`/video/${video.id}`)}
-                       className={`p-3.5 bg-[#131316] border border-white/5 rounded-2xl flex items-center shadow-md transition-all ${
-                         isDemoMode ? 'cursor-default' : 'hover:bg-white/5 cursor-pointer active:scale-[0.99]'
-                       }`}
+                       onClick={() => navigate(`/video/${video.id}`)}
+                       className={`p-3.5 bg-[#131316] border border-white/5 rounded-2xl flex items-center shadow-md transition-all hover:bg-white/5 cursor-pointer active:scale-[0.99]`}
                      >
                         {/* Thumbnail */}
                         <div className="w-[50px] h-[64px] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 shrink-0 mr-4 relative">
@@ -812,6 +935,8 @@ export default function CreatorDashboard() {
                  </div>
               )}
             </div>
+            </>
+          )}
           </div>
         )}
       </div>

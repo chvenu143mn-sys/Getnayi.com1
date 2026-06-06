@@ -6,6 +6,10 @@ import {defineConfig} from 'vite';
 export default defineConfig(() => {
   return {
     plugins: [react(), tailwindcss()],
+    build: {
+      sourcemap: false, // Explicitly disable sourcemaps to prevent exposing code to clients
+      minify: 'esbuild', // Ensure minification is active (it is by default in Vite)
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

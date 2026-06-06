@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Video } from '../types';
+import { parseVideoProduct } from '../utils/videoUtils';
 import {
   AreaChart,
   Area,
@@ -15,6 +16,8 @@ import {
   ResponsiveContainer,
   Legend
 } from 'recharts';
+
+const fallbackData = [{ name: 'No Data', shortName: 'N/A', Views: 0, Likes: 0, Saves: 0 }];
 
 interface CreatorAnalyticsProps {
   videos: Video[];
@@ -82,12 +85,12 @@ const CustomTooltip = ({ active, payload, label }: any) => {
                       </span>
                     </div>
                   )}
-                  {data.Shares !== undefined && (
+                  {data.Saves !== undefined && (
                     <div className="flex items-center gap-x-2 text-[12.5px]">
-                      <span className="size-2 rounded-full bg-emerald-500 shrink-0" />
-                      <span className="text-zinc-400 font-medium">Shares:</span>
+                      <span className="size-2 rounded-full bg-amber-500 shrink-0" />
+                      <span className="text-zinc-400 font-medium">Saves:</span>
                       <span className="text-white font-mono font-bold">
-                        {data.Shares >= 1000 ? (data.Shares / 1000).toFixed(1) + 'K' : data.Shares}
+                        {data.Saves >= 1000 ? (data.Saves / 1000).toFixed(1) + 'K' : data.Saves}
                       </span>
                     </div>
                   )}
@@ -123,15 +126,14 @@ export default function CreatorAnalytics({ videos, engagementDetails }: CreatorA
 
   const displayVideos = useMemo(() => {
     return publishedVideos.map(v => {
-      // Mock shares as a percentage of views for demonstration since we don't have a shares table
-      const mockShares = Math.floor((v.views || 0) * 0.08);
+      const parsedCaption = parseVideoProduct(v.caption);
 
       return {
         id: v.id,
-        caption: v.caption || 'No description',
+        caption: parsedCaption.captionText || 'No description',
         views: v.views || 0,
         likes: engagementDetails.likesByVideo[v.id] || 0,
-        shares: mockShares,
+        saves: engagementDetails.savesByVideo[v.id] || 0,
         created_at: v.created_at,
       };
     }).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
@@ -143,11 +145,10 @@ export default function CreatorAnalytics({ videos, engagementDetails }: CreatorA
       shortName: `V${i + 1}`,
       Views: v.views,
       Likes: v.likes,
-      Shares: v.shares
+      Saves: v.saves
     }));
   }, [displayVideos]);
 
-  const fallbackData = [{ name: 'No Data', shortName: 'N/A', Views: 0, Likes: 0, Shares: 0 }];
   const finalChartData = chartData.length > 0 ? chartData : fallbackData;
 
   return (
@@ -166,7 +167,7 @@ export default function CreatorAnalytics({ videos, engagementDetails }: CreatorA
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }} />
             <Bar dataKey="Views" fill="#3897f0" radius={[4, 4, 0, 0]} />
             <Bar dataKey="Likes" fill="#ef2950" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="Shares" fill="#10b981" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="Saves" fill="#facc15" radius={[4, 4, 0, 0]} />
             <Legend wrapperStyle={{ fontSize: '10px', marginTop: '10px' }} />
           </BarChart>
         </ResponsiveContainer>

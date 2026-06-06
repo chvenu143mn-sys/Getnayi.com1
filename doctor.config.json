@@ -41,6 +41,7 @@
     "react-doctor/anchor-ambiguous-text": "off",
     "react-doctor/design-no-redundant-padding-axes": "off",
     "react-doctor/design-no-em-dash-in-jsx-text": "off",
-    "deslop/unused-dev-dependency": "off"
+    "deslop/unused-dev-dependency": "off",
+    "react-doctor/use-lazy-motion": "off"
   }
 }

@@ -126,8 +126,8 @@ export default function Feed() {
         throw new Error(`Failed to fetch feed: ${await res.text()}`);
       }
 
-      const { data, nextCursor } = await res.json();
       if (controller.signal.aborted) return;
+      const { data, nextCursor } = await res.json();
       
       let combinedData = data || [];
       if (videoId && !currentCursor) {

@@ -1,15 +1,18 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import './App.css';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { BottomNav } from './components/BottomNav';
 import { SEO } from './components/SEO';
+import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import AuthPage from './pages/Auth';
 import Feed from './pages/Feed';
 import Upload from './pages/Upload';
 import ProfilePage from './pages/Profile';
 import Admin from './pages/Admin';
 import Explore from './pages/Explore';
+import Trending from './pages/Trending';
 import Notifications from './pages/Notifications';
 import Saved from './pages/Saved';
 import Collection from './pages/Collection';
@@ -123,6 +126,7 @@ function AppContent() {
   return (
     <>
       <SEO />
+      <PWAInstallPrompt />
       <Routes>
         <Route path="/auth" element={!user ? <MainLayout><AuthPage /></MainLayout> : <Navigate to="/" replace />} />
         <Route path="/update-password" element={<UpdatePasswordPage />} />
@@ -130,6 +134,7 @@ function AppContent() {
       <Route path="/" element={<FeedLayout><Feed /></FeedLayout>} />
       <Route path="/video/:videoId" element={<FeedLayout><Feed /></FeedLayout>} />
       <Route path="/explore" element={<MainLayout><Explore /></MainLayout>} />
+      <Route path="/trending" element={<MainLayout><Trending /></MainLayout>} />
       <Route path="/saved" element={<ProtectedRoute><MainLayout><Saved /></MainLayout></ProtectedRoute>} />
       <Route path="/collection/:id" element={<ProtectedRoute><MainLayout><Collection /></MainLayout></ProtectedRoute>} />
       <Route path="/shared-collection" element={<MainLayout><SharedCollection /></MainLayout>} />
