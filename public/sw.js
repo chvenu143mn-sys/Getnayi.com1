@@ -49,19 +49,22 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Navigation requests (HTML page loads) -> Network first, fallback to cached App Shell (/)
+  // Navigation requests (HTML page loads) -> Cache first for app shell
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
-        .catch(() => {
-          console.log('[Service Worker] Offline, serving cached shell');
-          return caches.match('/');
-        })
+      caches.match('/').then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        return fetch(request).catch(() => {
+          console.log('[Service Worker] Offline, no cached shell');
+        });
+      })
     );
     return;
   }
 
-  // Static Assets (CSS, JS, Fonts, Icons) -> Network first, fallback to Cache, cache on success
+  // Static Assets (CSS, JS, Fonts, Icons) -> Cache first, fallback to Network
   const isStaticAsset = 
     url.pathname.endsWith('.js') || 
     url.pathname.endsWith('.css') || 
@@ -74,20 +77,25 @@ self.addEventListener('fetch', (event) => {
 
   if (isStaticAsset) {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // If valid, clone and put in cache
-          if (response && response.status === 200 && response.type === 'basic') {
-            const responseToCache = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseToCache);
-            });
-          }
-          return response;
-        })
-        .catch(() => {
-          return caches.match(request);
-        })
+      caches.match(request).then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        return fetch(request)
+          .then((response) => {
+            // If valid, clone and put in cache
+            if (response && response.status === 200 && (response.type === 'basic' || response.type === 'cors')) {
+              const responseToCache = response.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(request, responseToCache);
+              });
+            }
+            return response;
+          })
+          .catch((err) => {
+            console.error('[Service Worker] Fetch failed hook', err);
+          });
+      })
     );
     return;
   }

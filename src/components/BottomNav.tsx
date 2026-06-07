@@ -45,7 +45,7 @@ export function BottomNav() {
   }, [location]);
 
   return (
-    <div className="fixed bottom-0 w-full z-40 bg-[#0c0c0e] pb-[env(safe-area-inset-bottom)] border-t border-white/[0.08]">
+    <div className="md:hidden fixed bottom-0 w-full z-40 bg-[#0c0c0e] pb-[env(safe-area-inset-bottom)] border-t border-white/[0.08]">
       <div className="flex items-center justify-between h-[60px] px-2 sm:max-w-md sm:mx-auto">
         <Link
           to="/"

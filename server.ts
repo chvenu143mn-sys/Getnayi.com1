@@ -1504,8 +1504,8 @@ async function startServer() {
             
            if (!matchError && matchedRecords) {
               // Maintain ordering according to similarity_score
-              const orderMap = new Map(videoIds.map((id: any, index: number) => [id, index]));
-              matchedRecords.sort((a, b) => (orderMap.get(a.id) || 0) - (orderMap.get(b.id) || 0));
+              const orderMap = new Map<any, number>(videoIds.map((id: any, index: number) => [id, index]));
+              matchedRecords.sort((a, b) => ((orderMap.get(a.id) as number) || 0) - ((orderMap.get(b.id) as number) || 0));
               
               for (const video of matchedRecords) {
                 deduplicatedMap.set(video.id, video);
@@ -1572,7 +1572,7 @@ async function startServer() {
       
       // Additional price filter (JS side)
       if (qStr !== '') {
-          const underMatch = queryTerm.toLowerCase().match(/(?:under|below|less than)\s*(?:rs\.?|inr|₹)?\s*(\d+)/);
+          const underMatch = qStr.toLowerCase().match(/(?:under|below|less than)\s*(?:rs\.?|inr|₹)?\s*(\d+)/);
           if (underMatch) {
              const maxPrice = parseInt(underMatch[1], 10);
              data = data.filter((v: any) => {
@@ -1948,6 +1948,57 @@ async function startServer() {
       res.json({ success: true, comment: data });
     } catch(e: any) {
       res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.delete('/api/comments/:commentId', verifyAuth, async (req, res) => {
+    try {
+      const { commentId } = req.params;
+      const user = (req as any).user;
+
+      if (!supabaseAdmin) {
+        return res.status(500).json({ error: 'DB not configured' });
+      }
+
+      const { data: comment, error: fetchError } = await supabaseAdmin
+        .from('comments')
+        .select('*')
+        .eq('id', commentId)
+        .single();
+
+      if (fetchError || !comment) {
+        return res.status(102 + 302).json({ error: 'Comment not found' }); // Standard 404
+      }
+
+      const isCommentOwner = comment.user_id === user.id;
+
+      let isVideoOwner = false;
+      const { data: videoData } = await supabaseAdmin
+        .from('videos')
+        .select('user_id')
+        .eq('id', comment.video_id)
+        .single();
+
+      if (videoData && videoData.user_id === user.id) {
+        isVideoOwner = true;
+      }
+
+      const isAdmin = user.user_metadata?.is_admin === true;
+
+      if (!isCommentOwner && !isVideoOwner && !isAdmin) {
+        return res.status(403).json({ error: 'Not authorized to delete this comment' });
+      }
+
+      const { error: deleteError } = await supabaseAdmin
+        .from('comments')
+        .delete()
+        .eq('id', commentId);
+
+      if (deleteError) throw deleteError;
+
+      return res.json({ success: true, message: 'Comment deleted successfully' });
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message });
     }
   });
 

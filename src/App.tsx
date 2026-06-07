@@ -4,6 +4,7 @@ import './App.css';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { BottomNav } from './components/BottomNav';
+import { Sidebar } from './components/Sidebar';
 import { SEO } from './components/SEO';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import AuthPage from './pages/Auth';
@@ -30,7 +31,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   
   if (loading) {
     return (
-      <div className="h-[100dvh] bg-[#0c0c0e] text-white relative flex flex-col font-sans">
+      <div className="h-full bg-[#0c0c0e] text-white relative flex flex-col font-sans">
         <div className="flex-1 flex flex-col items-center justify-center p-8 gap-y-6">
            <div className="size-12 bg-zinc-800 rounded-2xl animate-pulse"></div>
            <div className="w-32 h-4 bg-zinc-800 rounded-md animate-pulse"></div>
@@ -45,9 +46,14 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function MainLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="max-w-md mx-auto relative h-[100dvh] bg-[#0c0c0e] shadow-2xl flex flex-col overflow-hidden">
-      <div className="flex-1 overflow-y-auto w-full relative no-scrollbar pb-[calc(60px+env(safe-area-inset-bottom))]">
-        {children}
+    <div className="flex h-full w-full bg-[#0c0c0e] overflow-hidden">
+      <Sidebar />
+      <div className="flex-1 relative w-full h-full flex flex-col justify-center">
+        <div className="w-full h-full xl:max-w-[1024px] lg:max-w-[800px] md:max-w-[600px] mx-auto relative flex flex-col md:border-x md:border-white/10 bg-[#0c0c0e] shadow-2xl">
+          <div className="flex-1 overflow-y-auto w-full relative no-scrollbar pb-[calc(60px+env(safe-area-inset-bottom))] md:pb-0">
+            {children}
+          </div>
+        </div>
       </div>
       <BottomNav />
     </div>
@@ -56,9 +62,14 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 
 function FeedLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="max-w-md mx-auto relative h-[100dvh] bg-[#0c0c0e] shadow-2xl overflow-hidden">
-      <div className="size-full">
-        {children}
+    <div className="flex h-full w-full bg-[#0c0c0e] overflow-hidden">
+      <Sidebar />
+      <div className="flex-1 relative w-full h-full overflow-hidden flex justify-center bg-black">
+        <div className="w-full md:max-w-[414px] lg:max-w-[480px] h-full relative bg-[#0c0c0e] shadow-2xl">
+          <div className="size-full">
+            {children}
+          </div>
+        </div>
       </div>
       <BottomNav />
     </div>
@@ -67,7 +78,7 @@ function FeedLayout({ children }: { children: React.ReactNode }) {
 
 function SetupScreen() {
   return (
-    <div className="min-h-[100dvh] bg-[#0c0c0e] text-white flex flex-col items-center justify-center p-6 text-center">
+    <div className="min-h-full bg-[#0c0c0e] text-white flex flex-col items-center justify-center p-6 text-center">
       <div className="size-16 bg-blue-500/20 text-blue-500 rounded-2xl flex items-center justify-center mb-6">
         <Database className="size-8" />
       </div>
@@ -104,7 +115,7 @@ function AppContent() {
 
   if (loading) {
     return (
-      <div className="h-[100dvh] bg-[#0c0c0e] text-white relative flex flex-col font-sans">
+      <div className="h-full bg-[#0c0c0e] text-white relative flex flex-col font-sans">
         <div className="flex-1 flex flex-col items-center justify-center p-8 gap-y-6">
            <div className="size-12 bg-zinc-800 rounded-2xl animate-pulse"></div>
            <div className="w-32 h-4 bg-zinc-800 rounded-md animate-pulse"></div>

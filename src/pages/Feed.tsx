@@ -28,6 +28,12 @@ export default function Feed() {
   const [activeIndex, setActiveIndex] = useState(0);
   const PAGE_SIZE = 10;
 
+  // Pull-to-refresh states and refs
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const touchStartY = useRef<number | null>(null);
+  const isPulling = useRef(false);
+
   const { ref, inView } = useInView({
     threshold: 0.1,
   });
@@ -43,6 +49,62 @@ export default function Feed() {
     
     if (currentIndex !== activeIndex) {
       setActiveIndex(currentIndex);
+    }
+  };
+
+  // Touch event handlers for pull-to-refresh gesture
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (isRefreshing) return;
+    const container = feedRef.current;
+    if (container && container.scrollTop === 0) {
+      touchStartY.current = e.touches[0].clientY;
+      isPulling.current = true;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isPulling.current || touchStartY.current === null || isRefreshing) return;
+    
+    const container = feedRef.current;
+    if (!container || container.scrollTop > 0) {
+      isPulling.current = false;
+      touchStartY.current = null;
+      setPullDistance(0);
+      return;
+    }
+
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - touchStartY.current;
+
+    if (diff > 0) {
+      // Resistance factor to make pull feel physical/natural
+      const distance = Math.min(diff * 0.4, 120);
+      setPullDistance(distance);
+    } else {
+      setPullDistance(0);
+    }
+  };
+
+  const handleTouchEnd = async () => {
+    if (!isPulling.current || isRefreshing) return;
+    
+    isPulling.current = false;
+    touchStartY.current = null;
+
+    if (pullDistance >= 70) {
+      setIsRefreshing(true);
+      setPullDistance(50); // Keep indicator slightly visible while loading
+      
+      try {
+        await fetchVideos(null, true);
+      } catch (err) {
+        console.error('Pull-to-refresh failed:', err);
+      } finally {
+        setIsRefreshing(false);
+        setPullDistance(0);
+      }
+    } else {
+      setPullDistance(0);
     }
   };
 
@@ -69,9 +131,9 @@ export default function Feed() {
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const fetchVideos = async (currentCursor: string | null) => {
-    if (!currentCursor) setLoading(true);
-    else setLoadingMore(true);
+  const fetchVideos = async (currentCursor: string | null, isSwipeRefresh = false) => {
+    if (!currentCursor && !isSwipeRefresh) setLoading(true);
+    else if (currentCursor) setLoadingMore(true);
 
     setError(null);
     
@@ -168,22 +230,16 @@ export default function Feed() {
 
   if (loading && cursor === null && videos.length === 0) {
     return (
-      <div className="h-[100dvh] bg-[#0c0c0e] relative overflow-hidden">
+      <div className="h-full bg-[#0c0c0e] relative overflow-hidden">
         {/* Top Header Skeleton */}
         <div className="absolute top-0 left-0 right-0 z-20 flex flex-col pointer-events-none bg-gradient-to-b from-black/60 via-black/30 to-transparent pt-[env(safe-area-inset-top,40px)] pb-6">
           <div className="flex justify-between items-center px-4 mt-2">
-            <div className="size-8 bg-white/10 rounded-full animate-pulse ml-1" />
+            <div className="w-8 shrink-0 ml-1" />
             <div className="flex items-center gap-x-5">
               <div className="w-16 h-5 bg-white/10 rounded animate-pulse"></div>
               <div className="w-16 h-5 bg-white/10 rounded animate-pulse"></div>
             </div>
             <div className="size-8 bg-white/10 rounded-full animate-pulse mr-1" />
-          </div>
-          <div className="w-full mt-5 px-4 flex items-center gap-3">
-            <div className="w-12 h-8 bg-white/10 rounded-full animate-pulse" />
-            <div className="w-20 h-8 bg-white/10 rounded-full animate-pulse" />
-            <div className="w-24 h-8 bg-white/10 rounded-full animate-pulse" />
-            <div className="w-20 h-8 bg-white/10 rounded-full animate-pulse" />
           </div>
         </div>
         
@@ -194,7 +250,7 @@ export default function Feed() {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-[100dvh] bg-[#0c0c0e] px-4 text-center gap-y-6 font-sans">
+      <div className="flex flex-col items-center justify-center h-full bg-[#0c0c0e] px-4 text-center gap-y-6 font-sans">
         <p className="text-zinc-500 font-medium tracking-wide">Couldn't load feed</p>
         <button type="button" aria-label="button"  
           onClick={() => fetchVideos(null)}
@@ -208,7 +264,7 @@ export default function Feed() {
 
   if (videos.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-[100dvh] bg-[#0c0c0e] px-6 text-center">
+      <div className="flex flex-col items-center justify-center h-full bg-[#0c0c0e] px-6 text-center">
         <div className="size-20 bg-white/5 rounded-full flex items-center justify-center mb-6 border border-white/5 shadow-inner">
           <Play className="size-8 text-white/30 ml-1.5" />
         </div>
@@ -246,7 +302,7 @@ export default function Feed() {
   } : undefined;
 
   return (
-    <div className="relative w-full h-[100dvh] bg-[#0c0c0e] pb-0">
+    <div className="relative w-full h-full bg-[#0c0c0e] pb-0">
       {activeVideo && (
         <SEO 
           title={`${activeVideo.caption ? activeVideo.caption.substring(0, 50) + '...' : 'Aisles Video'} | Aisles`}
@@ -263,19 +319,37 @@ export default function Feed() {
         />
       )}
       
+      {/* Pull-To-Refresh Indicator */}
+      <div 
+        className="absolute top-[calc(env(safe-area-inset-top,40px)+60px)] left-0 right-0 z-30 flex justify-center pointer-events-none transition-all duration-150 ease-out"
+        style={{ 
+          transform: `translateY(${pullDistance}px)`,
+          opacity: pullDistance > 0 ? Math.min(pullDistance / 50, 1) : 0
+        }}
+      >
+        <div className="bg-zinc-950/90 border border-white/10 text-white rounded-full p-2.5 shadow-xl backdrop-blur-md flex items-center justify-center size-10">
+          <svg 
+            className={cn(
+              "size-5 text-white transition-transform duration-75",
+              isRefreshing ? "animate-spin" : ""
+            )}
+            style={{
+              transform: isRefreshing ? undefined : `rotate(${pullDistance * 4}deg)`
+            }}
+            fill="none" 
+            viewBox="0 0 24 24" 
+            stroke="currentColor" 
+            strokeWidth={3}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+          </svg>
+        </div>
+      </div>
+      
       {/* Top Header Overlay */}
       <div className="absolute top-0 left-0 right-0 z-20 flex flex-col pointer-events-none bg-gradient-to-b from-black/60 via-black/30 to-transparent pt-[env(safe-area-inset-top,40px)] pb-6">
         <div className="flex justify-between items-center px-4 pointer-events-auto mt-2">
-          <button type="button" aria-label="button"  onClick={() => alert("Menu options coming soon")} className="p-2 text-white transition-colors active:scale-95 -ml-2">
-            {/* Custom menu icon matching image */}
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-               <line x1="12" y1="6" x2="21" y2="6"></line>
-               <line x1="8" y1="12" x2="21" y2="12"></line>
-               <line x1="12" y1="18" x2="21" y2="18"></line>
-               <circle cx="5" cy="6" r="1.5" fill="currentColor" stroke="none"></circle>
-               <circle cx="5" cy="18" r="1.5" fill="currentColor" stroke="none"></circle>
-            </svg>
-          </button>
+          <div className="w-8 shrink-0" />
           
           <div className="flex items-center gap-x-5">
             <button type="button" aria-label="button" 
@@ -309,42 +383,14 @@ export default function Feed() {
             <Search className="size-[24px]" strokeWidth={2.5} />
           </Link>
         </div>
-
-        {/* Categories Filter */}
-        {categories.length > 0 && (
-          <div className="w-full overflow-x-auto no-scrollbar mt-4 px-4 flex items-center gap-2 pointer-events-auto">
-            <button type="button" aria-label="button"  
-              onClick={() => setSelectedCategory(null)}
-              className={cn(
-                "whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium transition-all backdrop-blur-md border",
-                selectedCategory === null 
-                  ? "bg-white text-black border-white" 
-                  : "bg-[#0c0c0e]/40 text-white/80 border-white/10 hover:bg-[#0c0c0e]/60 hover:text-white"
-              )}
-            >
-              All
-            </button>
-            {categories.map(cat => (
-              <button type="button" aria-label="button"  
-                key={cat.id}
-                onClick={() => setSelectedCategory(cat.id)}
-                className={cn(
-                  "whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium transition-all backdrop-blur-md border",
-                  selectedCategory === cat.id 
-                    ? "bg-white text-black border-white" 
-                    : "bg-[#0c0c0e]/40 text-white/80 border-white/10 hover:bg-[#0c0c0e]/60 hover:text-white"
-                )}
-              >
-                {cat.name}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       <div 
         ref={feedRef}
         onScroll={handleScroll}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         className="absolute inset-0 overflow-y-auto snap-y snap-mandatory no-scrollbar touch-pan-y" 
         dir="ltr"
       >

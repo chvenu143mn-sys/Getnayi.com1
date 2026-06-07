@@ -40,7 +40,12 @@ const groupNotifications = (notifs: UINotification[]) => {
         olderList.push(notif);
     }
   });
-  return { todayList, thisWeekList, olderList };
+  
+  const groups: { key: string; title: string; data: UINotification[] }[] = [];
+  if (todayList.length > 0) groups.push({ key: 'today', title: 'Today', data: todayList });
+  if (thisWeekList.length > 0) groups.push({ key: 'week', title: 'This Week', data: thisWeekList });
+  if (olderList.length > 0) groups.push({ key: 'older', title: 'Older', data: olderList });
+  return groups;
 };
 
 const tabs = ['All', 'Likes', 'Comments', 'Follows', 'System'];

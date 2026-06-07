@@ -13,6 +13,8 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { parseVideoProduct, formatINR, extractStoreName } from '../utils/videoUtils';
+import { CommentDrawer } from './CommentDrawer';
+import { ShareDrawer } from './ShareDrawer';
 
 import { setGlobalMuted, getGlobalMuted, MUTE_STATE_EVENT } from '../lib/muteState';
 
@@ -64,6 +66,10 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
   const [likesCount, setLikesCount] = useState(video.metrics?.likes ?? 0);
   const [isSaved, setIsSaved] = useState(video.user_state?.is_saved ?? false);
   const [savesCount, setSavesCount] = useState(video.metrics?.saves ?? 0);
+  const [commentsCount, setCommentsCount] = useState(video.metrics?.comments ?? 0);
+  const [showCommentDrawer, setShowCommentDrawer] = useState(false);
+  const [showShareDrawer, setShowShareDrawer] = useState(false);
+  const [shareUrl, setShareUrl] = useState('');
   // Reconcile possible views variations depending on backend cache vs direct db hit
   const [viewsCount, setViewsCount] = useState(video.metrics?.views ?? video.views ?? 0);
   // Reusable follower state
@@ -136,6 +142,18 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
 
   const timelineRef = useRef<HTMLDivElement>(null);
   const wasPlayingBeforeScrub = useRef<boolean>(false);
+  const lastTapRef = useRef<number>(0);
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup click timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const scrubThrottleRef = useRef<any>(null);
   if (!scrubThrottleRef.current) {
     scrubThrottleRef.current = throttle((time: number) => {
@@ -303,6 +321,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
     setIsLiked(video.user_state?.is_liked ?? false);
     setSavesCount(video.metrics?.saves ?? 0);
     setIsSaved(video.user_state?.is_saved ?? false);
+    setCommentsCount(video.metrics?.comments ?? 0);
     setIsFollowing(video.user_state?.is_followed ?? false);
     // don't overwrite viewscount if it was buffered locally to be higher
     setViewsCount(prev => Math.max(prev, video.metrics?.views ?? video.views ?? 0));
@@ -425,18 +444,43 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
     }
   };
 
-  const handleDoubleClick = (e: React.MouseEvent) => {
+  const handleVideoClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300;
+
+    if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+        clickTimeoutRef.current = null;
+      }
+      handleDoubleTapToLike(e);
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+      }
+      clickTimeoutRef.current = setTimeout(() => {
+        togglePlay();
+        clickTimeoutRef.current = null;
+      }, DOUBLE_TAP_DELAY);
+    }
+  };
+
+  const handleDoubleTapToLike = (e: React.MouseEvent) => {
     if (!user) {
       triggerAuthGate("like this video");
       return;
     }
-    
+
+    // Always trigger the center heart pop animation on double-tap
+    setShowHeartAnim(true);
+    setTimeout(() => setShowHeartAnim(false), 1000);
+
+    // Only likes the video if it is not already liked
     if (!isLiked) {
       handleLikeToggle(e);
-      // Show big heart animation in center
-      setShowHeartAnim(true);
-      setTimeout(() => setShowHeartAnim(false), 1000);
     }
   };
 
@@ -585,7 +629,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
     if (isSharing) return;
     setIsSharing(true);
     
-    let shareUrl = `${window.location.origin}/video/${video.id}`;
+    let tempShareUrl = `${window.location.origin}/video/${video.id}`;
     
     try {
       const res = await fetch('/api/shorten', {
@@ -597,47 +641,15 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
       if (res.ok) {
         const data = await res.json();
         if (data.shortUrl) {
-          shareUrl = `${window.location.origin}${data.shortUrl}`;
+          tempShareUrl = `${window.location.origin}${data.shortUrl}`;
         }
       }
     } catch (err) {
       console.warn("Failed to shorten url", err);
     }
 
-    const imageUrl = video.thumbnail_url || video.main_product_image_url;
-    
-    const shareData: any = {
-      title: video.caption ? `${video.caption} | Getnayi` : 'Check out this video | Getnayi',
-      text: 'Found this amazing product video on Getnayi!',
-      url: shareUrl,
-    };
-
-    if (navigator.share) {
-      try {
-        if (imageUrl) {
-          try {
-            const response = await fetch(imageUrl);
-            const blob = await response.blob();
-            const file = new File([blob], 'thumbnail.jpg', { type: blob.type || 'image/jpeg' });
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-              shareData.files = [file];
-            }
-          } catch (e) {
-            console.warn("Could not fetch thumbnail for direct share:", e);
-          }
-        }
-        await navigator.share(shareData);
-      } catch (err) {
-        console.log('Share error or canceled', err);
-      }
-    } else {
-      try {
-        await navigator.clipboard.writeText(shareUrl);
-        alert('Link copied to clipboard!');
-      } catch (err) {
-        console.error('Failed to copy', err);
-      }
-    }
+    setShareUrl(tempShareUrl);
+    setShowShareDrawer(true);
     setIsSharing(false);
   };
 
@@ -691,7 +703,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
   };
 
   return (
-    <div ref={setRefs} className="relative w-full h-[100dvh] snap-start snap-always bg-zinc-900 group shrink-0 overflow-hidden">
+    <div ref={setRefs} className="relative w-full h-full snap-start snap-always bg-zinc-900 group shrink-0 overflow-hidden">
       {/* Video Element */}
       {isNearView ? (
         resolvedVideoUrl && !hasError ? (
@@ -703,8 +715,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
             playsInline
             muted={isMuted}
             className={cn("size-full object-cover transition-opacity duration-300", isBuffering ? "opacity-0" : "opacity-100")}
-            onClick={togglePlay}
-            onDoubleClick={handleDoubleClick}
+            onClick={handleVideoClick}
             onError={(e) => {
               console.warn('Native video error:', e);
               setHasError(true);
@@ -854,14 +865,20 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
         {/* Information Container */}
         <div className="flex flex-col mb-1.5 pointer-events-auto max-w-[90%]">
           
-          {video.categories && (
-            <div className="mb-1.5 flex">
+          <div className="mb-1.5 flex items-center gap-2 flex-wrap">
+            {video.categories && (
               <span className="px-2 py-0.5 bg-white/20 backdrop-blur-md rounded border border-white/20 text-white text-[10px] font-bold uppercase tracking-wider shadow-sm flex items-center">
                 <Tag className="size-3 mr-1" />
                 {video.categories.name}
               </span>
-            </div>
-          )}
+            )}
+            {video.product_url && (
+              <span className="px-2 py-0.5 bg-[#ef2950] border border-[#ef2950] text-white text-[10px] font-bold uppercase tracking-wider shadow-sm flex items-center rounded">
+                <ShoppingBag className="size-3 mr-1" />
+                {extractStoreName(video.product_url)}
+              </span>
+            )}
+          </div>
 
           <div className="flex items-center flex-wrap gap-y-1">
             <span className="text-white font-sans font-bold text-[15px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
@@ -991,15 +1008,15 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
       </div>
 
       {/* Right Side Action Buttons */}
-      <div className="absolute bottom-[80px] right-2 w-14 flex flex-col items-center gap-y-5 z-20 pointer-events-auto pb-safe">
+      <div className="absolute bottom-[80px] right-2 w-14 flex flex-col items-center gap-y-[18px] z-20 pointer-events-auto pb-safe">
         
         {/* Avatar */}
-        <div className="relative mb-2">
-          <div className="size-[48px] rounded-full border-[1.5px] border-white/80 bg-[#1c1c1e] overflow-hidden shrink-0 shadow-sm flex flex-col justify-center items-center">
+        <div className="relative mb-1">
+          <div className="size-[42px] rounded-full border-[1.5px] border-white/80 bg-[#1c1c1e] overflow-hidden shrink-0 shadow-sm flex flex-col justify-center items-center">
             {video.profiles?.avatar_url ? (
               <img src={video.profiles.avatar_url} alt={video.profiles.username} className="size-full object-cover relative z-10" />
             ) : (
-              <div className="size-full flex items-center justify-center text-white font-serif italic text-[16px] font-medium bg-zinc-800 relative z-10">
+              <div className="size-full flex items-center justify-center text-white font-serif italic text-[14px] font-medium bg-zinc-800 relative z-10">
                 {video.profiles?.username?.charAt(0).toLowerCase() || 'v'}
               </div>
             )}
@@ -1009,9 +1026,9 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
             <button type="button" aria-label="button" 
               onClick={handleFollowToggle}
               disabled={isFollowingLoading}
-              className="absolute -bottom-2 left-1/2 -translate-x-1/2 size-6 rounded-full bg-[#ef2950] text-white flex items-center justify-center shadow-md border-[2px] border-black transition-transform active:scale-95 z-20"
+              className="absolute -bottom-1 left-1/2 -translate-x-1/2 size-5 rounded-full bg-[#ef2950] text-white flex items-center justify-center shadow-md border-[1.5px] border-black transition-transform active:scale-95 z-20"
             >
-               <Plus className="size-4" strokeWidth={3} />
+               <Plus className="size-3" strokeWidth={3} />
             </button>
           )}
         </div>
@@ -1021,23 +1038,36 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
           onClick={handleLikeToggle}
           className="flex flex-col items-center group active:scale-95 transition-transform"
         >
-          <svg width="36" height="36" viewBox="0 0 24 24" fill={isLiked ? "#ef2950" : "white"} className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill={isLiked ? "#ef2950" : "white"} className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]">
             <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
           </svg>
-          <span className="text-white font-sans text-[13px] font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] mt-1 tracking-tight text-center w-full">
+          <span className="text-white font-sans text-[12px] font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] mt-0.5 tracking-tight text-center w-full">
             {likesCount >= 1000000 ? (likesCount / 1000000).toFixed(1) + 'M' : likesCount >= 1000 ? (likesCount / 1000).toFixed(1) + 'K' : likesCount}
+          </span>
+        </button>
+
+        {/* Comment Button */}
+        <button type="button" aria-label="Comment"  
+          onClick={() => setShowCommentDrawer(true)}
+          className="flex flex-col items-center group active:scale-95 transition-transform"
+        >
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="white" className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]">
+            <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM9 11H7V9h2v2zm4 0h-2V9h2v2zm4 0h-2V9h2v2z"/>
+          </svg>
+          <span className="text-white font-sans text-[12px] font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] mt-0.5 tracking-tight text-center w-full">
+            {commentsCount >= 1000000 ? (commentsCount / 1000000).toFixed(1) + 'M' : commentsCount >= 1000 ? (commentsCount / 1000).toFixed(1) + 'K' : commentsCount}
           </span>
         </button>
 
         {/* Save/Bookmark Button */}
         <button type="button" aria-label="button"  
           onClick={handleBookmarkToggle}
-          className="flex flex-col items-center group active:scale-95 transition-transform mt-1"
+          className="flex flex-col items-center group active:scale-95 transition-transform"
         >
-          <svg width="36" height="36" viewBox="0 0 24 24" fill={isSaved ? "#facc15" : "white"} className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill={isSaved ? "#facc15" : "white"} className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]">
             <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/>
           </svg>
-          <span className="text-white font-sans text-[13px] font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] mt-1 tracking-tight text-center w-full">
+          <span className="text-white font-sans text-[12px] font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] mt-0.5 tracking-tight text-center w-full">
             {savesCount >= 1000000 ? (savesCount / 1000000).toFixed(1) + 'M' : savesCount >= 1000 ? (savesCount / 1000).toFixed(1) + 'K' : savesCount}
           </span>
         </button>
@@ -1045,17 +1075,17 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
         {/* Share Button */}
         <button type="button" aria-label="button"  
           onClick={handleShare}
-          className="flex flex-col items-center group active:scale-95 transition-transform mt-1"
+          className="flex flex-col items-center group active:scale-95 transition-transform"
           disabled={isSharing}
         >
           {isSharing ? (
-            <Loader2 className="size-9 text-white animate-spin drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]" />
+            <Loader2 className="size-7 text-white animate-spin drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]" />
           ) : (
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="white" className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="white" className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]">
                <path d="M21 12l-7-7v4C7 10 4 15 3 20c2.5-3.5 6-5.1 11-5.1V19l7-7z"/>
             </svg>
           )}
-          <span className="text-white font-sans text-[13px] font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] mt-0 tracking-tight text-center w-full">
+          <span className="text-white font-sans text-[12px] font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] mt-0.5 tracking-tight text-center w-full">
             {isSharing ? 'Wait...' : 'Share'}
           </span>
         </button>
@@ -1063,9 +1093,12 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
         {/* Report Button */}
         <button type="button" aria-label="button"  
           onClick={handleReport}
-          className="flex flex-col items-center group active:scale-95 transition-transform mt-3"
+          className="flex flex-col items-center group active:scale-95 transition-transform"
         >
-          <Flag className="size-[36px] text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)] p-[2px]" fill="currentColor" />
+          <Flag className="size-7 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)] p-[1px]" fill="currentColor" />
+          <span className="text-white font-sans text-[12px] font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] mt-0.5 tracking-tight text-center w-full">
+            Report
+          </span>
         </button>
       </div>
 
@@ -1694,6 +1727,27 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
           </div>
         </div>
       )}
+
+      {/* Comment Drawer Overlay */}
+      <AnimatePresence>
+        {showCommentDrawer && (
+          <CommentDrawer
+            videoId={video.id}
+            videoOwnerId={video.user_id}
+            onClose={() => setShowCommentDrawer(false)}
+            onCommentsCountChange={setCommentsCount}
+            onAuthRequired={triggerAuthGate}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Share Drawer Overlay */}
+      <ShareDrawer
+        isOpen={showShareDrawer}
+        onClose={() => setShowShareDrawer(false)}
+        url={shareUrl || `${window.location.origin}/video/${video.id}`}
+        title={video.caption ? `${video.caption} | Getnayi` : 'Check out this video | Getnayi'}
+      />
 
     </div>
   );
