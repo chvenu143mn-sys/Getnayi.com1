@@ -132,7 +132,19 @@ export function ShareDrawer({
     {
       id: 'copy',
       name: 'Copy Link',
-      icon: copied ? <Check className="size-6 text-white transition-all scale-110" /> : <Copy className="size-6 text-white transition-all scale-100" />,
+      icon: (
+        <AnimatePresence mode="popLayout">
+          {copied ? (
+            <motion.div key="check" initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }}>
+              <Check className="size-6 text-emerald-400" />
+            </motion.div>
+          ) : (
+            <motion.div key="copy" initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }}>
+              <Copy className="size-6 text-white" />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      ),
       color: 'bg-zinc-800',
       action: handleCopyLink,
     },
@@ -291,9 +303,19 @@ export function ShareDrawer({
                 <p className="whitespace-pre-wrap font-medium">{shareContentText}</p>
                 <button 
                   onClick={handleCopyLink}
-                  className="absolute top-2 right-2 p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
+                  className="absolute top-2 right-2 p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors overflow-hidden flex items-center justify-center"
                 >
-                  {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+                  <AnimatePresence mode="wait">
+                    {copied ? (
+                      <motion.div key="check" initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} transition={{ duration: 0.15 }}>
+                        <Check className="size-4 text-emerald-400" />
+                      </motion.div>
+                    ) : (
+                      <motion.div key="copy" initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} transition={{ duration: 0.15 }}>
+                        <Copy className="size-4 text-zinc-400 hover:text-white" />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </button>
               </div>
             </div>
