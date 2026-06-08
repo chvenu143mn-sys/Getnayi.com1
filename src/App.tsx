@@ -20,6 +20,8 @@ import Collection from './pages/Collection';
 import SharedCollection from './pages/SharedCollection';
 import CreatorVerification from './pages/CreatorVerification';
 import CreatorDashboard from './pages/CreatorDashboard';
+import StoreFeed from './pages/StoreFeed';
+import CategoryFeed from './pages/CategoryFeed';
 import ShortUrlRedirect from './pages/ShortUrlRedirect';
 import UpdatePasswordPage from './pages/UpdatePassword';
 import Interests from './pages/Interests';
@@ -39,7 +41,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  if (!user) return <Navigate to="/auth" />;
+  if (!user) return <Navigate to="/auth" replace />;
   
   return <>{children}</>;
 }
@@ -150,6 +152,8 @@ function AppContent() {
       <Route path="/collection/:id" element={<ProtectedRoute><MainLayout><Collection /></MainLayout></ProtectedRoute>} />
       <Route path="/shared-collection" element={<MainLayout><SharedCollection /></MainLayout>} />
       <Route path="/s/:shortId" element={<ShortUrlRedirect />} />
+      <Route path="/store/:name" element={<MainLayout><StoreFeed /></MainLayout>} />
+      <Route path="/category/:id" element={<MainLayout><CategoryFeed /></MainLayout>} />
 
       <Route path="/creator-verification" element={<ProtectedRoute><MainLayout><CreatorVerification /></MainLayout></ProtectedRoute>} />
       <Route path="/creator-dashboard" element={<ProtectedRoute><MainLayout><CreatorDashboard /></MainLayout></ProtectedRoute>} />

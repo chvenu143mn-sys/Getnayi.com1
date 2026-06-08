@@ -343,6 +343,61 @@ const supabaseAdmin = process.env.VITE_SUPABASE_URL
     )
   : null;
 
+function extractStoreName(urlStr: string | null | undefined): string {
+  if (!urlStr) return '';
+  try {
+    const url = new URL(urlStr);
+    const hostname = url.hostname.toLowerCase();
+    let cleanHostname = hostname.replace(/^www\./, '');
+    
+    if (cleanHostname.endsWith('.myshopify.com')) {
+      const shopPrefix = cleanHostname.replace(/\.myshopify\.com$/, '');
+      return shopPrefix.charAt(0).toUpperCase() + shopPrefix.slice(1);
+    }
+    
+    const mappings: { [key: string]: string } = {
+      'amazon': 'Amazon',
+      'amzn': 'Amazon',
+      'flipkart': 'Flipkart',
+      'myntra': 'Myntra',
+      'shopify': 'Shopify',
+      'ajio': 'Ajio',
+      'meesho': 'Meesho',
+      'nykaa': 'Nykaa',
+      'tatacliq': 'Tata CLiQ',
+      'snapdeal': 'Snapdeal',
+      'ebay': 'eBay',
+      'etsy': 'Etsy',
+      'aliexpress': 'AliExpress',
+      'zara': 'Zara',
+      'hm': 'H&M',
+      'nike': 'Nike',
+      'adidas': 'Adidas',
+      'puma': 'Puma',
+      'macys': 'Macy\'s',
+      'walmart': 'Walmart',
+      'target': 'Target',
+      'bestbuy': 'Best Buy',
+      'apple': 'Apple',
+      'samsung': 'Samsung'
+    };
+    
+    const parts = cleanHostname.split('.');
+    for (const part of parts) {
+      if (mappings[part]) {
+        return mappings[part];
+      }
+    }
+    const candidate = parts[0];
+    if (candidate && candidate !== 'co' && candidate !== 'com' && candidate !== 'org' && candidate !== 'net') {
+      return candidate.charAt(0).toUpperCase() + candidate.slice(1);
+    }
+    return 'Store';
+  } catch (e) {
+    return 'Store';
+  }
+}
+
 
 // Middleware for rate limiting via Upstash Redis
 const rateLimitMiddleware = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -1463,12 +1518,13 @@ async function startServer() {
   app.get('/api/search', rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }), async (req, res) => {
     try {
       if (!supabaseAdmin) throw new Error('Database Admin client not configured');
-      const { q, category_id } = req.query;
+      const { q, category_id, store } = req.query;
       
       const qStr = (typeof q === 'string') ? q.trim() : '';
       const selectedCategory = (typeof category_id === 'string' && category_id) ? category_id : null;
+      const storeFilter = (typeof store === 'string' && store) ? store : null;
 
-      if (qStr === '' && !selectedCategory) {
+      if (qStr === '' && !selectedCategory && !storeFilter) {
         return res.json({ videos: [] });
       }
 
@@ -1541,7 +1597,7 @@ async function startServer() {
           queryBuilder = queryBuilder.or(orConditions.join(','));
         }
 
-        const { data: fallbackData } = await queryBuilder.limit(30);
+        const { data: fallbackData } = await queryBuilder.limit(storeFilter ? 300 : 30);
         
         if (fallbackData) {
           for (const video of fallbackData) {
@@ -1562,13 +1618,21 @@ async function startServer() {
            if (usernameData) {
              const JSFiltered = usernameData.filter((v: any) => v.profiles && v.profiles.username.toLowerCase().includes(qStr.toLowerCase()));
              for (const video of JSFiltered) {
-               deduplicatedMap.set(video.id, video);
+                deduplicatedMap.set(video.id, video);
              }
            }
         }
       }
 
       let data = Array.from(deduplicatedMap.values());
+      
+      // Filter by store if specified
+      if (storeFilter) {
+        data = data.filter((v: any) => {
+          const name = extractStoreName(v.product_url);
+          return name.toLowerCase() === storeFilter.toLowerCase();
+        });
+      }
       
       // Additional price filter (JS side)
       if (qStr !== '') {
@@ -1597,7 +1661,7 @@ async function startServer() {
   // Advanced Feed, Comments, and Followers end-points with cursor-based pagination
   app.get('/api/feed', async (req, res) => {
     try {
-      const { tab, categoryId, cursor, limit = 10 } = req.query;
+      const { tab, categoryId, store, cursor, limit = 10 } = req.query;
       const limitNum = parseInt(limit as string) || 10;
       
       let userId: string | null = null;
@@ -1635,7 +1699,41 @@ async function startServer() {
       let rawVideos: any[] = [];
       let finalNextCursor: string | null = null;
 
-      if (tab === 'trending') {
+      if (categoryId || store) {
+        let query = supabaseAdmin!.from('videos')
+          .select(selectQuery)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false });
+
+        if (categoryId) {
+          query = query.eq('category_id', categoryId);
+        }
+
+        let { data, error } = await query;
+
+        if (error && error.message.includes('trust_score')) {
+          selectQuery = `*, categories (id, name), profiles (id, username, avatar_url, is_brand), likes(count), comments(count), saved_videos(count)`;
+          let retryQuery = supabaseAdmin!.from('videos')
+            .select(selectQuery)
+            .eq('status', 'active')
+            .order('created_at', { ascending: false });
+          if (categoryId) retryQuery = retryQuery.eq('category_id', categoryId);
+          const retryRes = await retryQuery;
+          data = retryRes.data;
+          error = retryRes.error;
+        }
+
+        if (error) throw error;
+
+        let filtered = data || [];
+        if (store) {
+          filtered = filtered.filter((v: any) => extractStoreName(v.product_url).toLowerCase() === (store as string).toLowerCase());
+        }
+
+        const offset = cursor ? parseInt(cursor as string) : 0;
+        rawVideos = filtered.slice(offset, offset + limitNum);
+        finalNextCursor = offset + limitNum < filtered.length ? (offset + limitNum).toString() : null;
+      } else if (tab === 'trending') {
         const cacheKey = `feed:trending:${categoryId || 'all'}`;
         let trendingVideos: any[] = [];
         let cached = null;
@@ -2181,6 +2279,52 @@ Generate ONLY a valid JSON object answering this shape exactly:
     } catch (err: any) {
       console.error('/api/generate-metadata error details:', err.status, err.message, err);
       return res.status(500).json({ error: err.message || 'Error generating metadata' });
+    }
+  });
+
+  app.post('/api/generate-title-from-frames', verifyAuth, express.json({ limit: '50mb' }), async (req, res) => {
+    try {
+      const { frames, prompt: userPrompt } = req.body;
+      if (!frames || !Array.isArray(frames) || frames.length === 0) {
+        return res.status(400).json({ error: 'Video frames are required' });
+      }
+
+      if (!process.env.GEMINI_API_KEY) {
+        return res.status(500).json({ error: 'GEMINI_API_KEY is not configured on the server.' });
+      }
+
+      const { GoogleGenAI } = await import('@google/genai');
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      
+      const contents: any[] = [];
+      const defaultPrompt = 'Analyze these frames from a product video. Generate a very short, catchy, highly relevant title (maximum 40 characters) that describes the product or action shown, suitable for a short-form video platform like TikTok. Generate ONLY the title text, nothing else, no quotes, no hashtags.';
+      
+      contents.push(userPrompt ? `${defaultPrompt}\n\nAdditional Context: ${userPrompt}` : defaultPrompt);
+
+      // Limit to 4 frames to save tokens and time
+      const framesToProcess = frames.slice(0, 4);
+      
+      for (const base64DataUrl of framesToProcess) {
+        const matches = base64DataUrl.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
+        if (matches && matches.length === 3) {
+          contents.push({
+            inlineData: {
+              mimeType: matches[1],
+              data: matches[2]
+            }
+          });
+        }
+      }
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: contents
+      });
+
+      return res.json({ success: true, title: response.text?.trim().replace(/^"|"$/g, '') });
+    } catch (err: any) {
+      console.error('/api/generate-title-from-frames error:', err);
+      return res.status(500).json({ error: 'Failed to generate title via AI' });
     }
   });
 
@@ -3329,15 +3473,17 @@ Example: {"productName": "Awesome Shirt", "productPrice": "1499"}`;
 
   app.get(['/video/:videoId', '/shared-collection'], async (req, res, next) => {
     try {
-      let title = 'Getnayi - Discover amazing products';
-      let description = 'Check out this amazing content on Getnayi!';
-      let imageUrl = 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=1000&auto=format&fit=crop'; // Default placeholder
+      let title = (req.query.t as string) || 'Getnayi - Discover amazing products';
+      let description = (req.query.desc as string) || 'Check out this amazing content on Getnayi!';
+      let imageUrl = (req.query.thumb as string) || 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=1000&auto=format&fit=crop';
 
       let currentPath = req.path;
-      let videoUrl = '';
+      let videoUrl = (req.query.v as string) || '';
 
-      const db = supabaseAdmin || (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY ? 
-        createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false } }) : null);
+      // Only initialize DB and query if we are missing some parameter metadata
+      const isDBRequired = !req.query.t || !req.query.thumb || !req.query.desc;
+      const db = isDBRequired ? (supabaseAdmin || (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY ? 
+        createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false } }) : null)) : null;
 
       if (currentPath.startsWith('/video/')) {
         let videoId = currentPath.split('/')[2];
@@ -3350,9 +3496,11 @@ Example: {"productName": "Awesome Shirt", "productPrice": "1499"}`;
               .single();
               
             if (video) {
-              title = video.caption ? `${video.caption} | Getnayi` : `Video by @${video.profiles?.username || 'user'} | Getnayi`;
-              imageUrl = video.thumbnail_url || video.main_product_image_url || imageUrl;
+              const creatorName = video.profiles?.username || 'creator';
+              title = video.caption ? `${video.caption} | Getnayi` : `Video by @${creatorName} | Getnayi`;
+              imageUrl = video.thumbnail_url || (video.video_url?.replace('/playlist.m3u8', '/thumbnail.jpg')) || video.main_product_image_url || imageUrl;
               videoUrl = video.video_url || '';
+              description = `Check out this amazing discovery by @${creatorName} on Getnayi! Watch the full video to see it in action.`;
             }
           } catch(e) {
             console.error(e);

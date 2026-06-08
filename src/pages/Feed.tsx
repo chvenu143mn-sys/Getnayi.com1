@@ -3,19 +3,23 @@ import { supabase } from '../lib/supabase';
 import { Video } from '../types';
 import { VideoPlayer } from '../components/VideoPlayer';
 import { VideoPlayerSkeleton } from '../components/VideoPlayerSkeleton';
-import { Play, Menu, Search } from 'lucide-react';
+import { Play, Menu, Search, Tag, ShoppingBag, X } from 'lucide-react';
 import { useInView } from 'react-intersection-observer';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { SEO } from '../components/SEO';
+import { parseVideoProduct } from '../utils/videoUtils';
 
 export default function Feed() {
   const { videoId } = useParams<{ videoId?: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const categoryParam = searchParams.get('category');
+  const storeParam = searchParams.get('store');
+  
   const [activeTab, setActiveTab] = useState<'for_you' | 'trending'>('for_you');
   
   const [categories, setCategories] = useState<{id: string, name: string}[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const [videos, setVideos] = useState<Video[]>([]);
   
@@ -121,7 +125,7 @@ export default function Feed() {
     setCursor(null);
     setHasMore(true);
     fetchVideos(null);
-  }, [activeTab, selectedCategory]);
+  }, [activeTab, categoryParam, storeParam]);
 
   useEffect(() => {
     if (inView && hasMore && !loading && !loadingMore && cursor !== null) {
@@ -173,7 +177,8 @@ export default function Feed() {
       const params = new URLSearchParams();
       params.append('tab', activeTab);
       params.append('limit', PAGE_SIZE.toString());
-      if (selectedCategory) params.append('categoryId', selectedCategory);
+      if (categoryParam) params.append('categoryId', categoryParam);
+      if (storeParam) params.append('store', storeParam);
       if (currentCursor) params.append('cursor', currentCursor);
 
       const { data: { session } } = await supabase.auth.getSession();
@@ -275,11 +280,12 @@ export default function Feed() {
   }
 
   const activeVideo = videos[activeIndex];
+  const activeVideoCaption = activeVideo ? parseVideoProduct(activeVideo.caption).captionText : '';
   const activeVideoSchema = activeVideo ? {
     '@context': 'https://schema.org',
     '@type': 'VideoObject',
-    name: activeVideo.caption || 'Video on Aisles',
-    description: activeVideo.caption || 'Discover and shop products through immersive video experiences.',
+    name: activeVideoCaption || 'Video on Aisles',
+    description: activeVideoCaption || 'Discover and shop products through immersive video experiences.',
     thumbnailUrl: [
       activeVideo.thumbnail_url || 'https://aisles.app/og-image.jpg'
     ],
@@ -305,8 +311,8 @@ export default function Feed() {
     <div className="relative w-full h-full bg-[#0c0c0e] pb-0">
       {activeVideo && (
         <SEO 
-          title={`${activeVideo.caption ? activeVideo.caption.substring(0, 50) + '...' : 'Aisles Video'} | Aisles`}
-          description={activeVideo.caption || 'Watch this video on Aisles, the premier video commerce platform.'}
+          title={`${activeVideoCaption ? activeVideoCaption.substring(0, 50) + '...' : 'Aisles Video'} | Aisles`}
+          description={activeVideoCaption || 'Watch this video on Aisles, the premier video commerce platform.'}
           image={activeVideo.thumbnail_url}
           type="video.other"
           url={`https://aisles.app/video/${activeVideo.id}`}
@@ -383,6 +389,41 @@ export default function Feed() {
             <Search className="size-[24px]" strokeWidth={2.5} />
           </Link>
         </div>
+
+        {/* Filter overlay indicator */}
+        {(categoryParam || storeParam) && (
+          <div className="mx-4 mt-4 bg-zinc-950/90 backdrop-blur-md border border-white/15 rounded-2xl px-4 py-3 flex items-center justify-between pointer-events-auto shadow-2xl animate-fadeIn select-none">
+            <div className="flex flex-col">
+              <span className="text-[9px] uppercase tracking-wider text-[#ef2950] font-sans font-extrabold">Active Filter</span>
+              <span className="text-white text-[13.5px] font-sans font-extrabold tracking-tight flex items-center gap-2 mt-0.5">
+                {categoryParam ? (
+                  <>
+                    <Tag className="size-3.5 text-zinc-400" />
+                    <span>Category: {categories.find(c => c.id === categoryParam)?.name || "Selected"}</span>
+                  </>
+                ) : (
+                  <>
+                    <ShoppingBag className="size-3.5 text-zinc-400" />
+                    <span>Store: {storeParam}</span>
+                  </>
+                )}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const updated = new URLSearchParams(searchParams);
+                updated.delete('category');
+                updated.delete('store');
+                setSearchParams(updated);
+              }}
+              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 active:scale-95 text-white text-[11px] font-bold rounded-xl border border-white/10 transition-all flex items-center gap-1 cursor-pointer"
+            >
+              <X className="size-3.5" />
+              <span>Clear</span>
+            </button>
+          </div>
+        )}
       </div>
 
       <div 

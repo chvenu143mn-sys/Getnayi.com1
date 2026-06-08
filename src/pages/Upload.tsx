@@ -86,6 +86,7 @@ export default function Upload() {
   const [hashtags, setHashtags] = useState<string>('');
   const [tags, setTags] = useState<string>('');
   const [isExtractingMetadata, setIsExtractingMetadata] = useState(false);
+  const [isGeneratingTitle, setIsGeneratingTitle] = useState(false);
   
   const [isMuted, setIsMuted] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -490,6 +491,45 @@ Generate ONLY a valid JSON object answering this shape exactly:
       alert(err.message || "Could not generate AI metadata. Please try again.");
     } finally {
       setIsExtractingMetadata(false);
+    }
+  };
+
+  const handleAITitleSuggest = async () => {
+    if (filmstripFrames.length === 0) {
+      alert("Please upload a video first so AI can analyze the frames.");
+      return;
+    }
+    setIsGeneratingTitle(true);
+    try {
+      const sessionData = await supabase.auth.getSession();
+      const token = sessionData.data.session?.access_token;
+      
+      const res = await fetch('/api/generate-title-from-frames', {
+        method: 'POST',
+        headers: {
+           'Content-Type': 'application/json',
+           'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ frames: filmstripFrames, prompt: productName || '' })
+      });
+      let resData;
+      try {
+        resData = await res.json();
+      } catch (e) {
+        throw new Error(`Server returned an invalid response (${res.status}).`);
+      }
+      if (!res.ok) {
+        throw new Error(resData.error || "Title generation failed.");
+      }
+      
+      if (resData.title) {
+        setCaption(resData.title);
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Could not generate AI Title. Please try again.");
+    } finally {
+      setIsGeneratingTitle(false);
     }
   };
 
@@ -939,11 +979,11 @@ Generate ONLY a valid JSON object answering this shape exactly:
       
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-4 pt-6 sticky top-0 bg-[#0c0c0e] z-20">
-        <button type="button" aria-label="button"  onClick={() => navigate(-1)} className="text-white hover:text-zinc-300 transition-colors p-1 -ml-2">
+        <button type="button" aria-label="button"  onClick={() => window.history.length > 2 ? navigate(-1) : navigate('/', { replace: true })} className="text-white hover:text-zinc-300 transition-colors p-1 -ml-2">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
         </button>
         <h1 className="text-[17px] font-semibold tracking-wide">New Post</h1>
-        <button type="button" aria-label="button"  onClick={() => navigate(-1)} className="text-white hover:text-zinc-300 transition-colors p-1 -mr-2">
+        <button type="button" aria-label="button"  onClick={() => window.history.length > 2 ? navigate(-1) : navigate('/', { replace: true })} className="text-white hover:text-zinc-300 transition-colors p-1 -mr-2">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
         </button>
       </header>
@@ -1112,205 +1152,233 @@ Generate ONLY a valid JSON object answering this shape exactly:
         )}
 
         {/* Inputs */}
-        <div className="gap-y-6">
-          {/* 3. Product Link */}
-          <div className="flex flex-col">
-            <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1">Product Link (Required) *</label>
-            <div className="relative">
-              <input 
-                type="text" 
-                value={productUrl}
-                onChange={(e) => setProductUrl(e.target.value)}
-                placeholder="e.g. amazon.in/products/item or https://..."
-                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3.5 text-[15px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm pr-10"
+        <div className="flex flex-col gap-6">
+
+          {/* Post Content Details Section */}
+          <div className="flex flex-col gap-6 bg-[#0c0c0e]">
+            {/* Video Title */}
+            <div className="flex flex-col">
+              <div className="flex justify-between items-end mb-2">
+                <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide pl-1">Video Title *</label>
+                <button
+                  type="button"
+                  onClick={handleAITitleSuggest}
+                  disabled={isGeneratingTitle || filmstripFrames.length === 0}
+                  className="text-[12px] flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-300 rounded-lg hover:from-purple-500/30 hover:to-blue-500/30 transition-colors disabled:opacity-50 font-medium border border-purple-500/20"
+                >
+                  {isGeneratingTitle ? (
+                    <><Loader2 className="size-3.5 animate-spin" /> Analyzing frames...</>
+                  ) : (
+                    <><Sparkles className="size-3.5" /> AI Suggest Title</>
+                  )}
+                </button>
+              </div>
+              <textarea 
+                required
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                placeholder="Give your video a catchy title, or use AI..."
+                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3.5 text-[15px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm min-h-[70px]"
               />
+            </div>
+
+            {/* Category */}
+            <div className="flex flex-col">
+              <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1">Category *</label>
+              <select 
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                className="w-full bg-[#151518] text-white/90 rounded-xl px-4 py-3.5 text-[15px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm"
+                required
+              >
+                <option value="" disabled>Select a category</option>
+                {categories.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="w-full h-px bg-white/5 my-1"></div>
+
+          {/* Product Details Section */}
+          <div className="flex flex-col gap-6">
+            <h3 className="text-[16px] font-bold text-white/90 tracking-wide -mb-2">Linked Product Details</h3>
+            
+            {/* Product Link */}
+            <div className="flex flex-col">
+              <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1">Product Link (Required) *</label>
+              <div className="relative">
+                <input 
+                  type="text" 
+                  value={productUrl}
+                  onChange={(e) => setProductUrl(e.target.value)}
+                  placeholder="e.g. amazon.in/products/item or https://..."
+                  className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3.5 text-[15px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm pr-10"
+                />
+                {isVerifyingUrl && (
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
+                    <Loader2 className="size-4 text-zinc-400 animate-spin" />
+                  </div>
+                )}
+              </div>
               {isVerifyingUrl && (
-                <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
-                  <Loader2 className="size-4 text-zinc-400 animate-spin" />
+                <p className="text-zinc-500 text-[11px] mt-1 pl-1 font-sans animate-pulse flex items-center gap-1">
+                  <RefreshCw className="size-3 animate-spin text-[#ef2950]" /> Verifying website link & scraping metadata...
+                </p>
+              )}
+              {urlValidationError && !isVerifyingUrl && (
+                <p className={cn(
+                  "text-xs mt-1 pl-1 font-sans flex items-start gap-1", 
+                  isUrlValid ? "text-amber-400" : "text-red-400"
+                )}>
+                  <AlertCircle className="size-3.5 shrink-0 mt-0.5" />
+                  <span>{urlValidationError}</span>
+                </p>
+              )}
+              {urlMetadata && !isVerifyingUrl && (
+                <div className="mt-2.5 p-3.5 bg-[#1a1a1f] rounded-2xl border border-emerald-500/10 flex items-center justify-between gap-3 animate-fadeIn">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    {urlMetadata.favicon ? (
+                      <img 
+                        src={urlMetadata.favicon} 
+                        alt="Favicon" 
+                        className="size-5 object-contain rounded shrink-0" 
+                        referrerPolicy="no-referrer"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} 
+                      />
+                    ) : (
+                      <Globe className="size-5 text-zinc-500 shrink-0" />
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-zinc-200 text-xs font-semibold truncate font-sans">{urlMetadata.title}</p>
+                      <p className="text-zinc-500 text-[10px] uppercase tracking-wider font-bold font-mono flex flex-wrap items-center gap-1.5 mt-0.5">
+                        <span>{urlMetadata.domain}</span>
+                        {extractStoreName(productUrl) && extractStoreName(productUrl) !== 'Store' && (
+                          <>
+                            <span className="text-zinc-700 font-sans">•</span>
+                            <span className="text-emerald-400 font-sans font-bold normal-case">detected: {extractStoreName(productUrl)}</span>
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="flex items-center gap-1 bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/10 px-2 py-0.5 rounded-full text-[10px] font-bold font-sans tracking-wide shrink-0">
+                    <BadgeCheck className="size-3.5" /> VERIFIED
+                  </span>
                 </div>
               )}
             </div>
-            {isVerifyingUrl && (
-              <p className="text-zinc-500 text-[11px] mt-1 pl-1 font-sans animate-pulse flex items-center gap-1">
-                <RefreshCw className="size-3 animate-spin text-[#ef2950]" /> Verifying website link & scraping metadata...
-              </p>
-            )}
-            {urlValidationError && !isVerifyingUrl && (
-              <p className={cn(
-                "text-xs mt-1 pl-1 font-sans flex items-start gap-1", 
-                isUrlValid ? "text-amber-400" : "text-red-400"
-              )}>
-                <AlertCircle className="size-3.5 shrink-0 mt-0.5" />
-                <span>{urlValidationError}</span>
-              </p>
-            )}
-            {urlMetadata && !isVerifyingUrl && (
-              <div className="mt-2.5 p-3.5 bg-[#1a1a1f] rounded-2xl border border-emerald-500/10 flex items-center justify-between gap-3 animate-fadeIn">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  {urlMetadata.favicon ? (
-                    <img 
-                      src={urlMetadata.favicon} 
-                      alt="Favicon" 
-                      className="size-5 object-contain rounded shrink-0" 
-                      referrerPolicy="no-referrer"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} 
-                    />
-                  ) : (
-                    <Globe className="size-5 text-zinc-500 shrink-0" />
-                  )}
-                  <div className="min-w-0">
-                    <p className="text-zinc-200 text-xs font-semibold truncate font-sans">{urlMetadata.title}</p>
-                    <p className="text-zinc-500 text-[10px] uppercase tracking-wider font-bold font-mono flex flex-wrap items-center gap-1.5 mt-0.5">
-                      <span>{urlMetadata.domain}</span>
-                      {extractStoreName(productUrl) && extractStoreName(productUrl) !== 'Store' && (
-                        <>
-                          <span className="text-zinc-700 font-sans">•</span>
-                          <span className="text-emerald-400 font-sans font-bold normal-case">detected: {extractStoreName(productUrl)}</span>
-                        </>
-                      )}
-                    </p>
-                  </div>
-                </div>
-                <span className="flex items-center gap-1 bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/10 px-2 py-0.5 rounded-full text-[10px] font-bold font-sans tracking-wide shrink-0">
-                  <BadgeCheck className="size-3.5" /> VERIFIED
-                </span>
-              </div>
-            )}
-          </div>
 
-          <div className="flex flex-col">
-            <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1">Product Name *</label>
-            <input 
-              type="text" 
-              required
-              value={productName}
-              onChange={(e) => setProductName(e.target.value)}
-              placeholder="e.g. Premium Wireless Earbuds"
-              className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3.5 text-[15px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm"
-            />
-          </div>
-
-          <div className="flex flex-col">
-            <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1">Product Price (INR ₹) *</label>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 font-sans font-bold text-[16px]">₹</span>
+            {/* Product Name */}
+            <div className="flex flex-col">
+              <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1">Product Name *</label>
               <input 
                 type="text" 
                 required
-                value={productPrice}
-                onChange={(e) => {
-                  const val = e.target.value.replace(/[^\d]/g, '');
-                  setProductPrice(val ? Number(val).toLocaleString('en-IN') : '');
-                }}
-                placeholder="999"
-                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl pl-8 pr-4 py-3.5 text-[15px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm font-semibold"
+                value={productName}
+                onChange={(e) => setProductName(e.target.value)}
+                placeholder="e.g. Premium Wireless Earbuds"
+                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3.5 text-[15px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm"
               />
             </div>
-          </div>
 
-          {/* 4. Tell Us Your Experience */}
-          <div className="flex flex-col">
-            <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1">Tell Us Your Experience *</label>
-            <textarea 
-              required
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              placeholder="Explain what makes this product special, who it's for..."
-              className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3.5 text-[15px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm min-h-[90px]"
-            />
-          </div>
-
-          {/* 5. Category */}
-          <div className="flex flex-col">
-            <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1">Category *</label>
-            <select 
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full bg-[#151518] text-white/90 rounded-xl px-4 py-3.5 text-[15px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm"
-              required
-            >
-              <option value="" disabled>Select a category</option>
-              {categories.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* 6. Product Image & Real Photo & Coupon */}
-          <div className="flex flex-col mt-2">
-            <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-3 pl-1">Product Images</label>
-            <div className="flex gap-4">
-              <div className="flex flex-col gap-2">
-                <span className="text-[12px] text-zinc-500 font-medium pl-1">Product Photo *</span>
-                {mainProductPreview ? (
-                  <div className="size-[84px] rounded-2xl overflow-hidden shrink-0 border border-white/5 shadow-sm bg-zinc-900 relative">
-                    <img src={mainProductPreview} className="size-full object-cover"  alt="" />
-                    <button type="button" aria-label="button" onClick={() => { setMainProductFile(null); setMainProductPreview(null); }} className="absolute top-1 right-1 bg-[#0c0c0e]/50 rounded-full p-1"><X className="size-4" /></button>
-                  </div>
-                ) : (
-                  <label className="size-[84px] rounded-2xl shrink-0 border border-white/10 bg-[#151518] flex items-center justify-center hover:bg-white/5 transition-colors cursor-pointer shadow-sm relative">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-500"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                    <input type="file" accept="image/*" onChange={handleMainProductChange} className="hidden" />
-                  </label>
-                )}
-              </div>
-              <div className="flex flex-col gap-2">
-                <span className="text-[12px] text-zinc-500 font-medium pl-1">Real Photo (Optional)</span>
-                {realLifePreview ? (
-                  <div className="size-[84px] rounded-2xl overflow-hidden shrink-0 border border-white/5 shadow-sm bg-zinc-900 relative">
-                    <img src={realLifePreview} className="size-full object-cover"  alt="" />
-                    <button type="button" aria-label="button" onClick={() => { setRealLifeFile(null); setRealLifePreview(null); }} className="absolute top-1 right-1 bg-[#0c0c0e]/50 rounded-full p-1"><X className="size-4" /></button>
-                  </div>
-                ) : (
-                  <label className="size-[84px] rounded-2xl shrink-0 border border-white/10 bg-[#151518] flex items-center justify-center hover:bg-white/5 transition-colors cursor-pointer shadow-sm relative">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-500"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                    <input type="file" accept="image/*" onChange={handleRealLifeChange} className="hidden" />
-                  </label>
-                )}
+            {/* Product Price */}
+            <div className="flex flex-col">
+              <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1">Product Price (INR ₹) *</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 font-sans font-bold text-[16px]">₹</span>
+                <input 
+                  type="text" 
+                  required
+                  value={productPrice}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^\d]/g, '');
+                    setProductPrice(val ? Number(val).toLocaleString('en-IN') : '');
+                  }}
+                  placeholder="999"
+                  className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl pl-8 pr-4 py-3.5 text-[15px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm font-semibold"
+                />
               </div>
             </div>
-          </div>
 
-          <div className="flex flex-col mt-4">
-             <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1">Promo Coupon (Optional)</label>
-             <div className="flex gap-2 mb-3">
-                <input 
-                  type="text"
-                  value={couponCode}
-                  readOnly
-                  placeholder="Click generate to create code"
-                  className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm font-semibold uppercase tracking-widest text-emerald-400 opacity-80 cursor-not-allowed"
-                />
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    const array = new Uint32Array(3);
-                    window.crypto.getRandomValues(array);
-                    const randomCode = Array.from(array, dec => ('0' + dec.toString(36)).substr(-4)).join('').toUpperCase();
-                    setCouponCode(randomCode);
-                  }}
-                  className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 rounded-xl text-[13px] font-bold whitespace-nowrap transition-colors"
-                >
-                  Generate
-                </button>
-             </div>
-             <textarea 
-                value={couponInstructions}
-                onChange={(e) => setCouponInstructions(e.target.value)}
-                placeholder="Coupon Details & Terms (e.g. Valid on first order only)"
-                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm min-h-[70px]"
-             />
-          </div>
-          
-          <div className="bg-[#101014] border border-white/5 rounded-2xl p-4 mt-2">
-            <h4 className="text-[14px] font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-400 mb-1 flex items-center gap-2">
-              <Sparkles className="size-4 text-purple-400" />
-              AI Discovery & Smart Tags
-            </h4>
-            <p className="text-[12px] text-zinc-400 leading-relaxed font-sans mt-2">
-              Based on the URL, video, and your review, our AI will automatically structure this product, generate search metadata, find optimal hashtags, and generate discovery signals behind the scenes!
-            </p>
+            {/* Product Images */}
+            <div className="flex flex-col mt-2">
+              <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-3 pl-1">Product Images</label>
+              <div className="flex gap-4">
+                <div className="flex flex-col gap-2">
+                  <span className="text-[12px] text-zinc-500 font-medium pl-1">Product Photo *</span>
+                  {mainProductPreview ? (
+                    <div className="size-[84px] rounded-2xl overflow-hidden shrink-0 border border-white/5 shadow-sm bg-zinc-900 relative">
+                      <img src={mainProductPreview} className="size-full object-cover"  alt="" />
+                      <button type="button" aria-label="button" onClick={() => { setMainProductFile(null); setMainProductPreview(null); }} className="absolute top-1 right-1 bg-[#0c0c0e]/50 rounded-full p-1"><X className="size-4" /></button>
+                    </div>
+                  ) : (
+                    <label className="size-[84px] rounded-2xl shrink-0 border border-white/10 bg-[#151518] flex items-center justify-center hover:bg-white/5 transition-colors cursor-pointer shadow-sm relative">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-500"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                      <input type="file" accept="image/*" onChange={handleMainProductChange} className="hidden" />
+                    </label>
+                  )}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <span className="text-[12px] text-zinc-500 font-medium pl-1">Real Photo (Optional)</span>
+                  {realLifePreview ? (
+                    <div className="size-[84px] rounded-2xl overflow-hidden shrink-0 border border-white/5 shadow-sm bg-zinc-900 relative">
+                      <img src={realLifePreview} className="size-full object-cover"  alt="" />
+                      <button type="button" aria-label="button" onClick={() => { setRealLifeFile(null); setRealLifePreview(null); }} className="absolute top-1 right-1 bg-[#0c0c0e]/50 rounded-full p-1"><X className="size-4" /></button>
+                    </div>
+                  ) : (
+                    <label className="size-[84px] rounded-2xl shrink-0 border border-white/10 bg-[#151518] flex items-center justify-center hover:bg-white/5 transition-colors cursor-pointer shadow-sm relative">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-500"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                      <input type="file" accept="image/*" onChange={handleRealLifeChange} className="hidden" />
+                    </label>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Promo Coupon */}
+            <div className="flex flex-col mt-4">
+               <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1">Promo Coupon (Optional)</label>
+               <div className="flex gap-2 mb-3">
+                  <input 
+                    type="text"
+                    value={couponCode}
+                    readOnly
+                    placeholder="Click generate to create code"
+                    className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm font-semibold uppercase tracking-widest text-emerald-400 opacity-80 cursor-not-allowed"
+                  />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      const array = new Uint32Array(3);
+                      window.crypto.getRandomValues(array);
+                      const randomCode = Array.from(array, dec => ('0' + dec.toString(36)).substr(-4)).join('').toUpperCase();
+                      setCouponCode(randomCode);
+                    }}
+                    className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 rounded-xl text-[13px] font-bold whitespace-nowrap transition-colors"
+                  >
+                    Generate
+                  </button>
+               </div>
+               <textarea 
+                  value={couponInstructions}
+                  onChange={(e) => setCouponInstructions(e.target.value)}
+                  placeholder="Coupon Details & Terms (e.g. Valid on first order only)"
+                  className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm min-h-[70px]"
+               />
+            </div>
+            
+            <div className="bg-[#101014] border border-white/5 rounded-2xl p-4 mt-2">
+              <h4 className="text-[14px] font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-400 mb-1 flex items-center gap-2">
+                <Sparkles className="size-4 text-purple-400" />
+                AI Discovery & Smart Tags
+              </h4>
+              <p className="text-[12px] text-zinc-400 leading-relaxed font-sans mt-2">
+                Based on the URL, video, and your review, our AI will automatically structure this product, generate search metadata, find optimal hashtags, and generate discovery signals behind the scenes!
+              </p>
+            </div>
           </div>
         </div>
 

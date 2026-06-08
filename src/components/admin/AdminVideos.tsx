@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { PlaySquare, Search, Filter, Trash2, Eye, ShieldCheck, CheckCircle, XCircle, Tag, ExternalLink, Sparkles, Loader2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { supabase } from '../../lib/supabase';
+import { parseVideoProduct } from '../../utils/videoUtils';
 
 interface AdminVideosProps {
   videos: any[];
@@ -39,7 +40,7 @@ Available Categories:
 ${categories.map(c => c.name).join(', ')}
 
 Video Details:
-Caption: "${video.caption || ''}"
+Caption: "${parseVideoProduct(video.caption).captionText || ''}"
 URL: ${video.product_url || 'None'}
 
 Please choose the BEST single category from the list above for this video. If none fit well, output "Unassigned".
@@ -119,7 +120,7 @@ Respond ONLY with the exact category name as a plain string, nothing else.`;
 
   const filtered = videos.filter(v => {
     const matchesSearch = 
-      (v.caption || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (parseVideoProduct(v.caption).captionText || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (v.profiles?.username || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || v.status === statusFilter;
     return matchesSearch && matchesStatus;
@@ -199,8 +200,8 @@ Respond ONLY with the exact category name as a plain string, nothing else.`;
                       <div className="w-12 h-16 rounded-lg bg-white/5 border border-white/5 flex items-center justify-center text-zinc-500 font-mono text-[9px]">NO IMG</div>
                     )}
                     <div className="min-w-0 flex flex-col justify-center">
-                      <span className="text-white font-semibold text-[13px] truncate max-w-[200px]" title={v.caption}>
-                        {v.caption || 'Untitled Video'}
+                      <span className="text-white font-semibold text-[13px] truncate max-w-[200px]" title={parseVideoProduct(v.caption).captionText}>
+                        {parseVideoProduct(v.caption).captionText || 'Untitled Video'}
                       </span>
                       <span className="text-zinc-500 font-mono text-[10px] mt-1 flex items-center gap-2">
                         <span>views: {v.views || 0}</span>

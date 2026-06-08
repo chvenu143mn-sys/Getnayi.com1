@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FileText, Search, Filter, Trash2, Eye, ShieldCheck, CheckSquare, RefreshCw, CheckCircle, Ban, AlertOctagon } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { parseVideoProduct } from '../../utils/videoUtils';
 
 interface AdminReportsProps {
   reports: any[];
@@ -112,7 +113,7 @@ export default function AdminReports({
                         ) : (
                           <div className="w-8 h-10 rounded bg-white/5" />
                         )}
-                        <span className="max-w-[120px] truncate block text-[11px]">{r.videos.caption || 'Inspect Asset'}</span>
+                        <span className="max-w-[120px] truncate block text-[11px]">{parseVideoProduct(r.videos.caption).captionText || 'Inspect Asset'}</span>
                       </button>
                     ) : (
                       <span className="text-zinc-650 italic text-[11px]">Infringing media purged</span>

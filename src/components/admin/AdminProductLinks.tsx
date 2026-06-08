@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link2, Search, Filter, ShieldCheck, Trash2, Eye, ExternalLink } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { parseVideoProduct } from '../../utils/videoUtils';
 
 interface AdminProductLinksProps {
   products: any[];
@@ -18,7 +19,7 @@ export default function AdminProductLinks({
 
   const matchesFilter = (p: any) => {
     const matchesSearch = 
-      (p.caption || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (parseVideoProduct(p.caption).captionText || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (p.product_url || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (p.username || '').toLowerCase().includes(searchTerm.toLowerCase());
       
@@ -127,7 +128,7 @@ export default function AdminProductLinks({
                         <span className="truncate max-w-[250px]">{prod.product_url}</span>
                         <ExternalLink className="size-3.5 shrink-0" />
                       </a>
-                      <span className="text-[10px] text-zinc-500 font-mono mt-0.5 truncate max-w-[250px]">{prod.caption || 'Product listing'}</span>
+                      <span className="text-[10px] text-zinc-500 font-mono mt-0.5 truncate max-w-[250px]">{parseVideoProduct(prod.caption).captionText || 'Product listing'}</span>
                     </div>
                   </td>
                   <td className="py-4 px-5">

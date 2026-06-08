@@ -151,11 +151,35 @@ export default function CreatorAnalytics({ videos, engagementDetails }: CreatorA
 
   const finalChartData = chartData.length > 0 ? chartData : fallbackData;
 
+  const totalViews = useMemo(() => displayVideos.reduce((acc, v) => acc + v.views, 0), [displayVideos]);
+  const totalLikes = useMemo(() => displayVideos.reduce((acc, v) => acc + v.likes, 0), [displayVideos]);
+  const totalSaves = useMemo(() => displayVideos.reduce((acc, v) => acc + v.saves, 0), [displayVideos]);
+  const commentsCount = useMemo(() => {
+    return publishedVideos.reduce((acc, v) => acc + (engagementDetails.commentsByVideo[v.id] || 0), 0)
+  }, [publishedVideos, engagementDetails]);
+  
+  const engagementRate = totalViews > 0 ? (((totalLikes + totalSaves + commentsCount) / totalViews) * 100).toFixed(1) : '0';
+
   return (
-    <div className="p-4 bg-[#131316] border border-white/5 rounded-3xl shadow-lg flex flex-col mt-6">
+    <div className="p-4 bg-[#131316] border border-white/5 rounded-3xl shadow-lg flex flex-col my-4">
       <div className="flex flex-col mb-4">
-        <h3 className="text-[16px] font-bold text-white tracking-wide">Creator Analytics</h3>
-        <p className="text-[12.5px] font-medium text-emerald-400 mt-1">Real-time engagement for Published posts</p>
+        <h3 className="text-[16px] font-bold text-white tracking-wide">Summary Analytics</h3>
+        <p className="text-[12.5px] font-medium text-emerald-400 mt-1">Real-time engagement for recent posts</p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2 mb-6">
+        <div className="flex flex-col p-3 bg-zinc-900 border border-white/5 rounded-2xl">
+           <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Views</span>
+           <span className="text-[18px] font-sans font-bold text-white tracking-tight">{totalViews >= 1000 ? (totalViews/1000).toFixed(1)+'K' : totalViews}</span>
+        </div>
+        <div className="flex flex-col p-3 bg-zinc-900 border border-white/5 rounded-2xl">
+           <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Likes</span>
+           <span className="text-[18px] font-sans font-bold text-white tracking-tight">{totalLikes >= 1000 ? (totalLikes/1000).toFixed(1)+'K' : totalLikes}</span>
+        </div>
+        <div className="flex flex-col p-3 bg-zinc-900 border border-white/5 rounded-2xl">
+           <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Eng. Rate</span>
+           <span className="text-[18px] font-sans font-bold text-white tracking-tight">{engagementRate}%</span>
+        </div>
       </div>
 
       <div className="h-[260px] w-full text-zinc-400 text-xs mt-2">

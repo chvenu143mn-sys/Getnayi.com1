@@ -106,7 +106,7 @@ export default function AuthPage() {
 
       {/* Back button */}
       <button type="button"
-        onClick={() => navigate(-1)}
+        onClick={() => window.history.length > 2 ? navigate(-1) : navigate('/', { replace: true })}
         className="absolute top-4 left-4 z-20 size-10 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-md flex items-center justify-center border border-white/10 text-white active:scale-95 transition-all"
         aria-label="Go back"
       >

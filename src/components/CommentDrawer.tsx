@@ -311,6 +311,11 @@ export function CommentDrawer({
                               Brand
                             </span>
                           )}
+                          {comment.user_id === videoOwnerId && (
+                            <span className="px-1 text-[8px] bg-[#ef2950]/20 text-[#ef2950] font-bold uppercase tracking-wider rounded">
+                              Creator
+                            </span>
+                          )}
                           <span className="text-[10px] text-white/40 font-medium">
                             {new Date(comment.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                           </span>
@@ -374,6 +379,11 @@ export function CommentDrawer({
                                   {reply.profiles?.is_brand && (
                                     <span className="px-1 text-[8px] bg-sky-500/20 text-sky-400 font-bold uppercase tracking-wider rounded">
                                       Brand
+                                    </span>
+                                  )}
+                                  {reply.user_id === videoOwnerId && (
+                                    <span className="px-1 text-[8px] bg-[#ef2950]/20 text-[#ef2950] font-bold uppercase tracking-wider rounded">
+                                      Creator
                                     </span>
                                   )}
                                   <span className="text-[10px] text-white/40 font-medium">

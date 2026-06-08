@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2, Share2, Play, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'motion/react';
+import { GlobalBackButton } from '../components/GlobalBackButton';
 
 export default function Collection() {
   const { id } = useParams();
@@ -139,7 +140,7 @@ export default function Collection() {
     return (
       <div className="flex-1 w-full bg-[#0c0c0e] text-white flex flex-col h-full items-center justify-center">
         <p>Collection not found.</p>
-        <button type="button" aria-label="button"  onClick={() => navigate(-1)} className="mt-4 px-4 py-2 bg-white/10 rounded-lg">Go Back</button>
+        <button type="button" aria-label="button"  onClick={() => window.history.length > 2 ? navigate(-1) : navigate('/', { replace: true })} className="mt-4 px-4 py-2 bg-white/10 rounded-lg">Go Back</button>
       </div>
     );
   }
@@ -149,9 +150,7 @@ export default function Collection() {
       {/* Header */}
       <div className="sticky top-0 z-20 bg-[#0c0c0e]/80 backdrop-blur-md pt-6 pb-4 px-5 flex items-center justify-between">
         <div className="flex items-center">
-          <button type="button" aria-label="button"  onClick={() => navigate('/saved')} className="p-2 -ml-2 text-white/90 hover:text-white transition-colors">
-            <ArrowLeft className="size-6" />
-          </button>
+          <GlobalBackButton className="p-2 -ml-2 bg-transparent hover:bg-white/5 border-transparent" fallbackPath="/saved" iconClassName="size-6" />
           <h2 className="text-[19px] font-semibold text-white ml-2 tracking-wide">{collection.name}</h2>
         </div>
         <button type="button" aria-label="button"  

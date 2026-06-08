@@ -11,6 +11,9 @@ import { useNavigate } from 'react-router-dom';
 import { GuestGate } from '../components/GuestGate';
 import { ProfileImageCropper } from '../components/ProfileImageCropper';
 import { SEO } from '../components/SEO';
+import CreatorAnalytics from '../components/CreatorAnalytics';
+
+import { GlobalBackButton } from '../components/GlobalBackButton';
 
 export default function ProfilePage() {
   const { user, signOut } = useAuth();
@@ -20,6 +23,11 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
+  const [engagementDetails, setEngagementDetails] = useState({
+    likesByVideo: {} as Record<string, number>,
+    commentsByVideo: {} as Record<string, number>,
+    savesByVideo: {} as Record<string, number>
+  });
 
   // Edit Profile State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -74,7 +82,47 @@ export default function ProfilePage() {
         .eq('user_id', user?.id)
         .order('created_at', { ascending: false });
 
-      if (videosData) setVideos(videosData);
+      if (videosData) {
+        setVideos(videosData);
+        
+        const videoIds = videosData.map(v => v.id);
+        const likesByVideo: Record<string, number> = {};
+        const commentsByVideo: Record<string, number> = {};
+        const savesByVideo: Record<string, number> = {};
+
+        try {
+          const { data: statsData, error: statsError } = await supabase
+            .from('creator_video_stats')
+            .select('*')
+            .eq('user_id', user?.id);
+
+          if (!statsError && statsData && statsData.length > 0) {
+            statsData.forEach((stat: any) => {
+              likesByVideo[stat.video_id] = stat.likes_count || 0;
+              commentsByVideo[stat.video_id] = stat.comments_count || 0;
+              savesByVideo[stat.video_id] = stat.saves_count || 0;
+            });
+          } else {
+            throw new Error('Fallback to metadata counts');
+          }
+        } catch (fbErr) {
+          const countsPromises = videoIds.map(async (id) => {
+            try {
+              const [lCount, cCount, sCount] = await Promise.all([
+                supabase.from('likes').select('*', { count: 'exact', head: true }).eq('video_id', id),
+                supabase.from('comments').select('*', { count: 'exact', head: true }).eq('video_id', id),
+                supabase.from('saved_videos').select('*', { count: 'exact', head: true }).eq('video_id', id)
+              ]);
+              likesByVideo[id] = lCount.count || 0;
+              commentsByVideo[id] = cCount.count || 0;
+              savesByVideo[id] = sCount.count || 0;
+            } catch (err) {}
+          });
+          await Promise.all(countsPromises);
+        }
+        
+        setEngagementDetails({ likesByVideo, commentsByVideo, savesByVideo });
+      }
 
       // Fetch Followers and Following counts
       const { count: fCount } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', user?.id);
@@ -398,9 +446,7 @@ export default function ProfilePage() {
       
       {/* Header */}
       <header className="sticky top-0 z-20 flex items-center justify-between px-6 py-4 pt-6 bg-[#0c0c0e]">
-        <button type="button" aria-label="button"  onClick={() => navigate(-1)} className="p-2 text-white/90 hover:text-white transition-colors -ml-3">
-           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-        </button>
+        <GlobalBackButton className="p-2 bg-transparent hover:bg-white/5 border-transparent -ml-3" />
         <div className="flex items-center gap-x-2.5 -mr-3">
           <button type="button" aria-label="button"  
             onClick={() => navigate('/saved')} 
@@ -520,7 +566,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Dashboard Actions */}
-        <div className="flex w-full gap-x-3 mb-8">
+        <div className="flex w-full gap-x-3 mb-4">
           <button type="button" aria-label="button"  
             onClick={() => navigate('/creator-dashboard')}
             className="flex-1 bg-[#1c1c1e] hover:bg-white/10 active:scale-[0.98] text-white font-medium py-3 rounded-[12px] transition-all border border-white/5 flex flex-col items-center justify-center gap-y-1 tracking-wide group"
@@ -538,6 +584,11 @@ export default function ProfilePage() {
               <span className="text-[12px] text-zinc-300">Admin Panel</span>
             </button>
           )}
+        </div>
+        
+        {/* Creator Analytics Summary */}
+        <div className="w-full">
+           <CreatorAnalytics videos={videos} engagementDetails={engagementDetails} />
         </div>
       </div>
 

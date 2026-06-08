@@ -5,6 +5,8 @@ import { supabase } from '../lib/supabase';
 import { Video } from '../types';
 import { parseVideoProduct } from '../utils/videoUtils';
 
+import { GlobalBackButton } from '../components/GlobalBackButton';
+
 export default function Trending() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -83,12 +85,7 @@ export default function Trending() {
       {/* Header */}
       <div className="sticky top-0 z-20 bg-[#0c0c0e]/95 backdrop-blur-md pt-6 pb-3 px-5 border-b border-white/5 shrink-0">
         <div className="flex items-center gap-x-3 mb-4">
-          <button type="button" 
-            onClick={() => navigate(-1)} 
-            className="p-2 -ml-2 text-white/90 hover:text-white transition-colors hover:bg-white/5 rounded-full"
-          >
-            <ArrowLeft className="size-5" />
-          </button>
+          <GlobalBackButton className="p-2 -ml-2 hover:bg-white/5 bg-transparent border-transparent" />
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-[#ef2950]/10 shrink-0">
               <TrendingUp className="size-[18px] text-[#ef2950]" />

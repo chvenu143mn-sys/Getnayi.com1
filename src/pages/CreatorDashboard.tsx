@@ -476,7 +476,7 @@ export default function CreatorDashboard() {
             <p className="text-zinc-400 max-w-[280px]">
               You need Creator or Administrator privileges to access the Creator Studio.
             </p>
-            <button type="button" aria-label="Return" onClick={() => navigate(-1)} className="mt-8 px-6 py-2.5 bg-white text-black font-semibold rounded-xl text-sm transition-transform active:scale-95">
+            <button type="button" aria-label="Return" onClick={() => window.history.length > 2 ? navigate(-1) : navigate('/', { replace: true })} className="mt-8 px-6 py-2.5 bg-white text-black font-semibold rounded-xl text-sm transition-transform active:scale-95">
               Go Back
             </button>
           </div>

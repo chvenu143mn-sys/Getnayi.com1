@@ -20,6 +20,7 @@ import {
   Search
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { parseVideoProduct } from '../utils/videoUtils';
 
 const groupNotifications = (notifs: UINotification[]) => {
   const todayList: UINotification[] = [];
@@ -607,7 +608,7 @@ export default function Notifications() {
       uiType = 'system';
       iconColor = 'red';
       title = 'Video Rejection Update';
-      content = `Your video "${notif.video?.caption || 'Untitled Video'}" was rejected. Reason: ${notif.rejection_reason || 'No reason specified'}`;
+      content = `Your video "${parseVideoProduct(notif.video?.caption).captionText || 'Untitled Video'}" was rejected. Reason: ${notif.rejection_reason || 'No reason specified'}`;
     } else if (notif.type === 'like') {
       uiType = 'like';
       content = 'liked your video.';
@@ -894,7 +895,7 @@ export default function Notifications() {
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-white truncate leading-tight">
-                        {selectedNotification.video.caption || 'Untitled Video'}
+                        {parseVideoProduct(selectedNotification.video.caption).captionText || 'Untitled Video'}
                       </p>
                       <p className="text-xs text-zinc-500 mt-1 truncate">
                         Uploaded video status update
@@ -1052,7 +1053,7 @@ export default function Notifications() {
                       <Info className="size-3 text-[#ef2950]" /> Video Attachment
                     </div>
                     <p className="text-xs font-semibold text-white truncate mt-1">
-                      {previewNotification.video.caption || 'Untitled Video'}
+                      {parseVideoProduct(previewNotification.video.caption).captionText || 'Untitled Video'}
                     </p>
                   </div>
                 </div>

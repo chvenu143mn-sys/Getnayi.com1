@@ -1,20 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ChevronRight, Loader2 } from 'lucide-react';
+import { Search, ChevronRight, ChevronLeft, Loader2, Tag, ShoppingBag, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../lib/supabase';
 import { Profile } from '../types';
 import { cn } from '../lib/utils';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+
+import { GlobalBackButton } from '../components/GlobalBackButton';
 
 export default function Explore() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const categoryParam = searchParams.get('category');
+  const storeParam = searchParams.get('store');
+
+  const selectedCategory = categoryParam;
+  const selectedStore = storeParam;
+
+  const setSelectedCategory = (val: string | null) => {
+    const updated = new URLSearchParams(searchParams);
+    if (val === null) {
+      updated.delete('category');
+    } else {
+      updated.set('category', val);
+    }
+    updated.delete('store'); // Clear store when selecting category
+    setSearchParams(updated);
+  };
+
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const activeRequestRef = React.useRef<number>(0);
   
   const [categories, setCategories] = useState<{id: string, name: string}[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [trendingTags, setTrendingTags] = useState<string[]>([
     "Skincare", "Fashion", "Tech", "Beauty", "Home", "Fitness"
   ]);
@@ -49,7 +68,7 @@ export default function Explore() {
   }, []);
 
   useEffect(() => {
-    if (!searchQuery.trim() && !selectedCategory) {
+    if (!searchQuery.trim() && !selectedCategory && !selectedStore) {
       setSearchResults([]);
       setIsSearching(false);
       return;
@@ -61,11 +80,12 @@ export default function Explore() {
     const controller = new AbortController();
 
     const doSearch = async () => {
-      console.log(`[Explore] Searching for: "${searchQuery}", Category: "${selectedCategory}"`);
+      console.log(`[Explore] Searching for: "${searchQuery}", Category: "${selectedCategory}", Store: "${selectedStore}"`);
       try {
         const queryParams = new URLSearchParams();
         if (searchQuery.trim()) queryParams.append('q', searchQuery.trim());
         if (selectedCategory) queryParams.append('category_id', selectedCategory);
+        if (selectedStore) queryParams.append('store', selectedStore);
         
         const req = await fetch(`/api/search?${queryParams.toString()}`, {
           signal: controller.signal
@@ -97,12 +117,13 @@ export default function Explore() {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [searchQuery, selectedCategory]);
+  }, [searchQuery, selectedCategory, selectedStore]);
 
   return (
     <div className="flex-1 w-full bg-[#0c0c0e] text-white font-sans h-full flex flex-col overflow-hidden">
       {/* Header & Search */}
-      <div className="sticky top-0 z-20 bg-[#0c0c0e] pt-6 pb-2 px-5 shrink-0">
+      <div className="sticky top-0 z-20 bg-[#0c0c0e] py-2 px-5 shrink-0 flex items-center gap-3">
+        <GlobalBackButton />
         <div className="relative w-full">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-[18px] text-zinc-400" />
           <input 
@@ -113,15 +134,17 @@ export default function Explore() {
             className="w-full bg-[#1c1c1e] text-white/90 placeholder-zinc-400 rounded-2xl pl-[42px] pr-4 py-3 text-[15px] tracking-wide border border-white/5 focus:outline-none transition-colors"
           />
         </div>
-        
-        {/* Categories Pill Scroller */}
+      </div>
+      
+      {/* Categories Pill Scroller */}
+      <div className="sticky top-[88px] z-20 bg-[#0c0c0e] pb-2 px-5 shrink-0">
         {categories.length > 0 && (
-          <div className="w-full overflow-x-auto no-scrollbar mt-4 flex items-center gap-2 pointer-events-auto snap-x">
+          <div className="w-full overflow-x-auto no-scrollbar flex items-center gap-2 pointer-events-auto snap-x">
             <button type="button" aria-label="button"  
               onClick={() => setSelectedCategory(null)}
               className={cn(
                 "whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium transition-all backdrop-blur-md border snap-start shrink-0",
-                selectedCategory === null 
+                (selectedCategory === null && selectedStore === null)
                   ? "bg-white text-black border-white" 
                   : "bg-[#0c0c0e]/40 text-white/80 border-white/10 hover:bg-[#0c0c0e]/60 hover:text-white"
               )}
@@ -148,8 +171,43 @@ export default function Explore() {
 
       <div className="flex-1 overflow-y-auto no-scrollbar pb-6 flex flex-col mt-2 px-5 gap-y-8 min-h-0">
         
-        {(searchQuery.trim() !== '' || selectedCategory) ? (
+        {(searchQuery.trim() !== '' || selectedCategory || selectedStore) ? (
           <section>
+            {/* Filter indicators */}
+            {(selectedCategory || selectedStore) && (
+              <div className="bg-zinc-950/80 backdrop-blur-md border border-white/10 rounded-2xl p-4 flex items-center justify-between mb-4 shadow-xl select-none">
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase font-sans font-extrabold tracking-wider text-[#ef2950]">Active Browse Filter</span>
+                  <span className="text-white text-[14px] font-sans font-extrabold tracking-tight flex items-center gap-2 mt-1">
+                    {selectedCategory ? (
+                       <>
+                         <Tag className="size-4 text-zinc-400" />
+                         <span>Category: {categories.find(c => c.id === selectedCategory)?.name || "Selected"}</span>
+                       </>
+                    ) : (
+                       <>
+                         <ShoppingBag className="size-4 text-zinc-400" />
+                         <span>Store: {selectedStore}</span>
+                       </>
+                    )}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const updated = new URLSearchParams(searchParams);
+                    updated.delete('category');
+                    updated.delete('store');
+                    setSearchParams(updated);
+                  }}
+                  className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border border-white/5 active:scale-95"
+                >
+                  <X className="size-3.5" />
+                  <span>Clear Filter</span>
+                </button>
+              </div>
+            )}
+
             <h3 className="text-[15px] font-semibold text-white tracking-wide mb-3 flex items-center">
                Search Results 
                {isSearching && <Loader2 className="size-4 ml-2 animate-spin text-zinc-500" />}

@@ -120,6 +120,7 @@ export function extractStoreName(urlStr: string | null | undefined): string {
     
     const mappings: { [key: string]: string } = {
       'amazon': 'Amazon',
+      'amzn': 'Amazon',
       'flipkart': 'Flipkart',
       'myntra': 'Myntra',
       'shopify': 'Shopify',

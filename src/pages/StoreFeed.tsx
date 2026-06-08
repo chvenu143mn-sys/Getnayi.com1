@@ -1,50 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, Play } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Loader2, Play } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { GlobalBackButton } from '../components/GlobalBackButton';
+import { extractStoreName } from '../utils/videoUtils';
 
-export default function SharedCollection() {
-  const [searchParams] = useSearchParams();
+export default function StoreFeed() {
+  const { name } = useParams();
   const navigate = useNavigate();
-  
-  const name = searchParams.get('n') || 'Shared Collection';
-  const vParam = searchParams.get('v');
-  const videoIds = vParam ? vParam.split(',') : [];
-
   const [videos, setVideos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const title = decodeURIComponent(name || '');
 
   useEffect(() => {
-    async function fetchSharedVideos() {
-      if (videoIds.length === 0) {
-        setLoading(false);
-        return;
-      }
-      
+    async function fetchStoreVideos() {
       try {
-        const { data, error } = await supabase
+        const { data: allVideos, error: vpError } = await supabase
           .from('videos')
           .select('*')
-          .eq('status', 'active')
-          .in('id', videoIds);
+          .order('created_at', { ascending: false })
+          .limit(100); // Fetch a batch to filter locally as matching exact URLs or domains might need pg search, but we just want matching store names
 
-        if (error) throw error;
+        if (vpError) throw vpError;
         
-        // Sort videos based on the order in the videoIds array to preserve the share order
-        const sortedData = (data || []).toSorted(
-          (a, b) => videoIds.indexOf(a.id) - videoIds.indexOf(b.id)
-        );
-        
-        setVideos(sortedData);
+        const matchedVideos = (allVideos || []).filter(v => extractStoreName(v.product_url) === title);
+        setVideos(matchedVideos);
       } catch (err) {
-        console.error("Error fetching shared collection:", err);
+        console.error(err);
       } finally {
         setLoading(false);
       }
     }
-    fetchSharedVideos();
-  }, [vParam]);
+    fetchStoreVideos();
+  }, [title]);
 
   if (loading) {
     return (
@@ -59,31 +47,28 @@ export default function SharedCollection() {
       {/* Header */}
       <div className="sticky top-0 z-20 bg-[#0c0c0e]/80 backdrop-blur-md pt-6 pb-4 px-5 flex items-center">
         <GlobalBackButton className="p-2 -ml-2 bg-transparent hover:bg-white/5 border-transparent" iconClassName="size-6" />
-        <div className="ml-2 flex flex-col">
-          <h2 className="text-[19px] font-semibold text-white tracking-wide truncate">{name}</h2>
-          <span className="text-xs text-zinc-400 font-medium">{videos.length} videos</span>
-        </div>
+        <h2 className="text-[19px] font-semibold text-white ml-2 tracking-wide truncate">{title}</h2>
       </div>
       
       <div className="px-5 pt-2 flex-1 overflow-y-auto no-scrollbar">
         {videos.length === 0 ? (
           <div className="py-20 text-center text-zinc-500">
-            <p className="text-sm font-medium">No videos found in this collection link.</p>
+            <p className="text-sm font-medium">No videos found for this store.</p>
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-[2px]">
-            {videos.map((video) => (
+            {videos.map((item) => (
               <div 
-                key={video.id} 
-                onClick={() => navigate(`/video/${video.id}`)}
+                key={item.id} 
+                onClick={() => navigate(`/video/${item.id}`)}
                 className="aspect-[3/4] bg-zinc-900 overflow-hidden relative group cursor-pointer"
               >
-                {video.thumbnail_url || video.main_product_image_url ? (
-                  <img src={video.thumbnail_url || video.main_product_image_url} alt="Video thumbnail" className="size-full object-cover" />
+                {item.thumbnail_url || item.main_product_image_url ? (
+                  <img src={item.thumbnail_url || item.main_product_image_url} alt="Video thumbnail" className="size-full object-cover" />
                 ) : (
                   <div className="size-full flex items-center justify-center text-zinc-600 bg-zinc-800 text-xs">No img</div>
                 )}
-                <div className="absolute inset-0 bg-[#0c0c0e]/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <div className="absolute inset-0 bg-[#0c0c0e]/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center border border-[#ef2950]">
                   <Play className="size-8 fill-white/80 text-white/80" />
                 </div>
               </div>

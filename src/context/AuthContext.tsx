@@ -34,13 +34,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
-    console.log('--- BROWSER GETSESSION CHECK STARTED');
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('--- BROWSER GETSESSION COMPLETED:', session);
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    const checkSession = async () => {
+      try {
+        console.log('--- BROWSER GETSESSION CHECK STARTED');
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          if (error.message.includes('Refresh Token Not Found') || error.message.includes('Invalid Refresh Token')) {
+             console.warn('Refresh token not found or invalid. Normalizing session to null.');
+             // Clear any stale local state
+             await supabase.auth.signOut().catch(() => {});
+          } else {
+             console.warn('Auth getSession error:', error.message);
+          }
+        }
+        
+        console.log('--- BROWSER GETSESSION COMPLETED:', session);
+        setSession(session);
+        setUser(session?.user ?? null);
+      } catch (err) {
+        console.warn('Auth getSession exception:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    checkSession();
 
     const {
       data: { subscription },

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AlertTriangle, ShieldAlert, Trash2, Eye, Ban, CheckCircle } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { parseVideoProduct } from '../../utils/videoUtils';
 
 interface AdminSpamProps {
   spamItems: any[];
@@ -20,7 +21,7 @@ export default function AdminSpam({
   const [searchTerm, setSearchTerm] = useState('');
 
   const filtered = spamItems.filter(item => {
-    const mainText = `${item.video?.caption || ''} ${item.reasons.join(' ')} ${item.video?.profiles?.username || ''}`.toLowerCase();
+    const mainText = `${parseVideoProduct(item.video?.caption).captionText || ''} ${item.reasons.join(' ')} ${item.video?.profiles?.username || ''}`.toLowerCase();
     return mainText.includes(searchTerm.toLowerCase());
   });
 
@@ -81,7 +82,7 @@ export default function AdminSpam({
                   <div className="w-12 h-16 rounded-lg bg-white/5 border border-white/5" />
                 )}
                 <div className="min-w-0">
-                  <p className="text-white font-semibold text-sm truncate max-w-[150px]">{item.video?.caption || 'Untitled Video'}</p>
+                  <p className="text-white font-semibold text-sm truncate max-w-[150px]">{parseVideoProduct(item.video?.caption).captionText || 'Untitled Video'}</p>
                   <p className="text-zinc-500 text-[10px] font-mono mt-0.5">by @{item.video?.profiles?.username || 'uploader'}</p>
                   {item.video?.product_url && (
                     <p className="text-[#F97316] text-[10px] font-mono truncate max-w-[150px] mt-1 hover:underline">

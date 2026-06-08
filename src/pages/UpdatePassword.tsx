@@ -12,11 +12,15 @@ export default function UpdatePasswordPage() {
 
   useEffect(() => {
     // Check if we have a session to update password for
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error && (error.message.includes('Refresh Token') || error.message.includes('Refresh Token Not Found'))) {
+        console.warn('Harmless refresh token error ignored during password update.');
+        return;
+      }
       if (!session) {
         setError('No active session found. Please try the reset link again.');
       }
-    });
+    }).catch(() => {});
 
     // Handle hash fragment processing for password reset
     const hash = window.location.hash;

@@ -26,33 +26,56 @@ interface ShareDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   url: string;
-  title?: string;
-  text?: string;
+  videoTitle?: string;
+  productName?: string;
+  productPrice?: number | null;
+  couponCode?: string;
+  thumbnailUrl?: string;
+  creatorName?: string;
+  categoryName?: string;
 }
 
-export function ShareDrawer({ isOpen, onClose, url, title, text }: ShareDrawerProps) {
+export function ShareDrawer({ 
+  isOpen, 
+  onClose, 
+  url, 
+  videoTitle, 
+  productName, 
+  productPrice, 
+  couponCode, 
+  thumbnailUrl, 
+  creatorName,
+  categoryName
+}: ShareDrawerProps) {
   const [copied, setCopied] = useState(false);
+  const [cardGenerating, setCardGenerating] = useState(false);
+  const cardRef = React.useRef<HTMLDivElement>(null);
+
+  const fallbackTitle = videoTitle || 'Check out this video';
+  const nameStr = productName ? ` - ${productName}` : '';
+  const priceStr = productPrice ? `. Guess the price! It's just ₹${String(productPrice).replace(/^\d/, 'x')} 🔥` : '';
+  const couponStr = couponCode ? `. Coupon code: masked.` : '';
+  
+  // Strict standard sharing template
+  const shareContentText = `${fallbackTitle}${nameStr}${priceStr}${couponStr}\n\nWatch here: \n${url}`;
 
   const handleCopyLink = async () => {
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(shareContentText);
       setCopied(true);
       setTimeout(() => {
         setCopied(false);
-        onClose();
       }, 1500);
     } catch (err) {
       console.error('Failed to copy text:', err);
     }
   };
 
-  const handleNativeShare = async () => {
+  const handleNativeShareText = async () => {
     try {
       if (navigator.share) {
         await navigator.share({
-          title: title || 'Check out this video',
-          text: text || undefined,
-          url: url,
+          text: shareContentText,
         });
         onClose();
       }
@@ -63,11 +86,53 @@ export function ShareDrawer({ isOpen, onClose, url, title, text }: ShareDrawerPr
     }
   };
 
+  const generateAndShareCard = async () => {
+    if (!cardRef.current || cardGenerating) return;
+    setCardGenerating(true);
+    try {
+      // Dynamic import to keep bundle smaller on load
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(cardRef.current, {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: null, // transparent
+      });
+      
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        
+        const file = new File([blob], 'share-card.png', { type: 'image/png' });
+        
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            text: shareContentText,
+          });
+        } else {
+          // Fallback to downloading
+          const dataUrl = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = dataUrl;
+          link.download = 'getnayi-share.png';
+          link.click();
+          URL.revokeObjectURL(dataUrl);
+        }
+        
+        setCardGenerating(false);
+        onClose();
+      }, 'image/png');
+      
+    } catch (err) {
+      console.error('Failed to generate card', err);
+      setCardGenerating(false);
+    }
+  };
+
   const socialLinks = [
     {
       id: 'copy',
       name: 'Copy Link',
-      icon: copied ? <Check className="size-6 text-white" /> : <Copy className="size-6 text-white" />,
+      icon: copied ? <Check className="size-6 text-white transition-all scale-110" /> : <Copy className="size-6 text-white transition-all scale-100" />,
       color: 'bg-zinc-800',
       action: handleCopyLink,
     },
@@ -77,7 +142,7 @@ export function ShareDrawer({ isOpen, onClose, url, title, text }: ShareDrawerPr
       icon: <BrandIcons.WhatsApp className="size-7 text-white" />,
       color: 'bg-[#25D366]',
       action: () => {
-        window.open(`https://wa.me/?text=${encodeURIComponent(`${title ? title + ' ' : ''}${url}`)}`, '_blank');
+        window.open(`https://wa.me/?text=${encodeURIComponent(shareContentText)}`, '_blank');
         onClose();
       },
     },
@@ -87,8 +152,7 @@ export function ShareDrawer({ isOpen, onClose, url, title, text }: ShareDrawerPr
       icon: <BrandIcons.Instagram className="size-7 text-white" />,
       color: 'bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888]',
       action: () => {
-        // Direct messages are hard to deep link with prefilled text, but we can open IG
-        handleNativeShare(); // Usually IG preferred flow is through native
+        handleNativeShareText(); 
       },
     },
     {
@@ -97,14 +161,26 @@ export function ShareDrawer({ isOpen, onClose, url, title, text }: ShareDrawerPr
       icon: <BrandIcons.Telegram className="size-7 text-white" />,
       color: 'bg-[#0088cc]',
       action: () => {
-        window.open(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title || '')}`, '_blank');
+        window.open(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(shareContentText)}`, '_blank');
         onClose();
       },
     },
   ];
 
-  // If native share exists, we can add it to the list as well or just fall back to instagram native
-  // Since the user asked specifically for WhatsApp, Instagram, Telegram, Copy link we will stick to those
+  // Pick background based on category hash
+  const getCategoryColor = (cat?: string) => {
+    if (!cat) return 'from-rose-500 to-indigo-600';
+    const hash = cat.split('').reduce((acc, char) => char.charCodeAt(0) + acc, 0);
+    const colors = [
+      'from-emerald-500 to-teal-700',
+      'from-amber-500 to-orange-600',
+      'from-blue-500 to-cyan-600',
+      'from-rose-500 to-pink-700',
+      'from-violet-500 to-fuchsia-600',
+      'from-indigo-500 to-blue-700'
+    ];
+    return colors[hash % colors.length];
+  };
 
   return (
     <AnimatePresence>
@@ -113,7 +189,7 @@ export function ShareDrawer({ isOpen, onClose, url, title, text }: ShareDrawerPr
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[60] bg-black/60 pointer-events-auto flex items-end justify-center"
+          className="fixed inset-0 z-[60] bg-black/80 pointer-events-auto flex items-end justify-center backdrop-blur-[2px]"
           onClick={onClose}
         >
         <motion.div
@@ -121,29 +197,109 @@ export function ShareDrawer({ isOpen, onClose, url, title, text }: ShareDrawerPr
           animate={{ y: 0 }}
           exit={{ y: '100%' }}
           transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-          className="bg-[#1c1c1e] w-full max-w-md rounded-t-[24px] flex flex-col shadow-[0_-8px_30px_rgba(0,0,0,0.5)] overflow-hidden relative pb-safe"
+          className="bg-[#1c1c1e] w-full max-w-md rounded-t-[24px] flex flex-col shadow-[0_-8px_30px_rgba(0,0,0,0.5)] overflow-hidden relative pb-safe h-fit max-h-[90vh]"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Pull Drawer Bar Accent */}
           <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mt-4 mb-2 shrink-0" />
 
-          {/* Header */}
-          <div className="px-5 pb-4 pt-2 border-b border-white/5 flex items-center justify-between shrink-0">
-            <h3 className="text-white font-sans font-bold text-[16px] tracking-wide text-center w-full">
-              Share to
-            </h3>
-            <button
-              type="button"
-              onClick={onClose}
-              className="absolute right-4 top-5 p-1.5 rounded-full bg-white/10 text-zinc-300 hover:text-white transition-colors"
-            >
-              <X className="size-4" strokeWidth={2.5} />
+          <div className="px-5 pb-4 pt-2 flex justify-between items-center shrink-0">
+            <h3 className="font-bold text-white text-[18px]">Share</h3>
+            <button onClick={onClose} className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
+              <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Share Options Grid */}
-          <div className="px-5 py-8">
-            <div className="grid grid-cols-4 gap-4">
+          <div className="overflow-y-auto no-scrollbar pb-6 px-5 flex flex-col gap-6">
+            
+            {/* Visual Card Preview */}
+            <div className="flex flex-col gap-2.5 items-center">
+              <span className="text-[12px] font-semibold text-zinc-400 uppercase tracking-wider self-start pl-1">Card Preview</span>
+              
+              {/* THE CARD WE TURN INTO AN IMAGE */}
+              <div 
+                ref={cardRef} 
+                className={cn(
+                  "w-full aspect-[4/5] rounded-[24px] rounded-tl-[48px] rounded-br-[48px] overflow-hidden p-6 flex flex-col justify-between relative isolate",
+                  "bg-gradient-to-br shadow-2xl",
+                  getCategoryColor(categoryName)
+                )}
+              >
+                {/* Overlay pattern/noise */}
+                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none"></div>
+                <div className="absolute inset-0 bg-black/20 pointer-events-none"></div>
+
+                {/* Top Section */}
+                <div className="relative z-10 flex justify-between items-start">
+                  {categoryName ? (
+                     <div className="bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-full text-white text-[11px] font-bold uppercase tracking-wider shadow-sm border border-white/20 inline-flex">
+                       {categoryName}
+                     </div>
+                  ) : (
+                     <div className="bg-black/40 backdrop-blur-md px-3 py-1 rounded-full text-white/90 text-[10px] font-bold uppercase tracking-widest border border-white/10 inline-flex">
+                       DISCOVERY
+                     </div>
+                  )}
+
+                  <div className="bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg border border-white/10 shadow-lg flex items-center justify-center">
+                    <span className="text-white text-[13px] font-black tracking-widest font-sans">GETNAYI</span>
+                  </div>
+                </div>
+
+                {/* Middle Section (Image if present) */}
+                {thumbnailUrl && (
+                  <div className="relative z-10 flex-1 my-6 rounded-[20px] rounded-tl-[36px] rounded-br-[36px] overflow-hidden shadow-2xl border-4 border-white/10 mx-auto w-full max-w-[280px]">
+                    <img src={thumbnailUrl} className="w-full h-full object-cover" crossOrigin="anonymous" alt="Preview"/>
+                    {productPrice && (
+                      <div className="absolute bottom-4 left-4 right-4 bg-black/70 backdrop-blur-md p-3 rounded-2xl border border-white/20 shadow-2xl backdrop-saturate-150">
+                         <span className="text-white/70 text-[10px] uppercase font-bold tracking-widest block mb-0.5">Price</span>
+                         <span className="text-white text-[24px] font-black tracking-tight leading-none">₹{String(productPrice).replace(/^\d/, 'x')}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Bottom Section */}
+                <div className="relative z-10 mt-auto bg-black/40 backdrop-blur-md p-5 rounded-3xl border border-white/10 shadow-xl overflow-hidden">
+                   {productName && (
+                     <h2 className="text-white text-[22px] font-extrabold leading-tight mb-2 pr-4">{productName}</h2>
+                   )}
+                   <p className="text-white/80 text-[13.5px] leading-relaxed line-clamp-3 mb-4 font-medium">{fallbackTitle}</p>
+                   {creatorName && (
+                     <div className="flex items-center gap-2 pt-4 border-t border-white/10">
+                       <div className="size-6 rounded-full bg-gradient-to-tr from-rose-500 to-indigo-500 flex items-center justify-center">
+                          <span className="text-white text-[10px] font-bold">@</span>
+                       </div>
+                       <span className="text-white text-[13px] font-bold tracking-wide">{creatorName}</span>
+                     </div>
+                   )}
+                </div>
+              </div>
+              
+              <button 
+                onClick={generateAndShareCard}
+                disabled={cardGenerating}
+                className="w-full mt-3 py-3.5 bg-white/10 hover:bg-white/15 text-white/90 rounded-xl font-bold text-[14px] flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+              >
+                {cardGenerating ? "Generating Card..." : "Share Visual Card"}
+              </button>
+            </div>
+            
+            {/* Standard Text Copying Box (Preview) */}
+            <div className="flex flex-col gap-2 items-start mt-2">
+              <span className="text-[12px] font-semibold text-zinc-400 uppercase tracking-wider pl-1">Message Preview</span>
+              <div className="bg-black/30 w-full p-3.5 rounded-xl border border-white/5 text-[13px] text-zinc-300 leading-relaxed font-sans relative group">
+                <p className="whitespace-pre-wrap font-medium">{shareContentText}</p>
+                <button 
+                  onClick={handleCopyLink}
+                  className="absolute top-2 right-2 p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
+                >
+                  {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Social Share Grid */}
+            <div className="grid grid-cols-4 gap-4 mt-2">
               {socialLinks.map((item) => (
                 <button
                   key={item.id}
@@ -162,18 +318,17 @@ export function ShareDrawer({ isOpen, onClose, url, title, text }: ShareDrawerPr
                 </button>
               ))}
             </div>
-            
+
             {navigator.share && (
-              <div className="mt-8 border-t border-white/10 pt-6">
-                <button
-                  onClick={handleNativeShare}
-                  className="w-full bg-white/5 hover:bg-white/10 text-white py-3.5 rounded-xl font-semibold text-[14px] transition-colors flex items-center justify-center gap-2"
-                >
-                  <Send className="size-4" />
-                  More Options
-                </button>
-              </div>
+              <button
+                onClick={handleNativeShareText}
+                className="w-full bg-white/5 hover:bg-white/10 text-white/90 py-3.5 rounded-xl font-semibold text-[14px] transition-colors flex items-center justify-center gap-2 active:scale-95 mt-2"
+              >
+                <Send className="size-4" />
+                More Options
+              </button>
             )}
+
           </div>
          </motion.div>
         </motion.div>

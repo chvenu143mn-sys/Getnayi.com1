@@ -22,13 +22,14 @@ import AdminSettings from '../components/admin/AdminSettings';
 import AdminAuditLogs from '../components/admin/AdminAuditLogs';
 import AdminSearchInfra from '../components/admin/AdminSearchInfra';
 import AdminModeration from '../components/admin/AdminModeration';
+import { parseVideoProduct } from '../utils/videoUtils';
 
 const handleViewVideo = (video: any) => {
     if (!video) return;
     if (video.video_url) {
       window.open(video.video_url, '_blank');
   } else {
-      alert(`Viewing video context: "${video.caption || 'No caption'}" (ID: ${video.id})`);
+      alert(`Viewing video context: "${parseVideoProduct(video.caption).captionText || 'No caption'}" (ID: ${video.id})`);
   }
 };
 
@@ -704,7 +705,7 @@ export default function Admin() {
       )}>
         <div className="h-16 flex items-center justify-between px-6 border-b border-white/5 shrink-0 gap-3">
           <div className="flex items-center gap-3">
-            <button type="button" aria-label="button"  onClick={() => navigate(-1)} className="p-1 -ml-2 text-zinc-400 hover:text-white transition-colors">
+            <button type="button" aria-label="button"  onClick={() => window.history.length > 2 ? navigate(-1) : navigate('/', { replace: true })} className="p-1 -ml-2 text-zinc-400 hover:text-white transition-colors">
                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
             </button>
             <div className="size-8 rounded-full bg-[#F97316] text-white flex items-center justify-center font-bold text-xl">G</div>
@@ -758,7 +759,7 @@ export default function Admin() {
       <div className="flex-1 flex flex-col h-screen bg-[#0A0A0C] w-full relative overflow-hidden">
         {/* Mobile Header */}
         <div className="md:hidden h-16 border-b border-white/5 flex items-center px-4 shrink-0 bg-[#141416] z-30 w-full relative">
-          <button type="button" aria-label="button"  onClick={() => navigate(-1)} className="p-2 -ml-2 text-white/90 hover:text-white transition-colors">
+          <button type="button" aria-label="button"  onClick={() => window.history.length > 2 ? navigate(-1) : navigate('/', { replace: true })} className="p-2 -ml-2 text-white/90 hover:text-white transition-colors">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
           </button>
           <button type="button" aria-label="button"  
@@ -1079,7 +1080,7 @@ export default function Admin() {
                                    ) : (
                                       <div className="size-10 rounded-md bg-white/10" />
                                    )}
-                                   <span className="truncate max-w-[200px]">{v.caption || 'Untitled Video'}</span>
+                                   <span className="truncate max-w-[200px]">{parseVideoProduct(v.caption).captionText || 'Untitled Video'}</span>
                                 </td>
                                 <td className="py-4 px-5">
                                    <div className="flex items-center gap-2">
