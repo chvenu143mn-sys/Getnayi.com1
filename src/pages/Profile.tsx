@@ -271,9 +271,20 @@ export default function ProfilePage() {
   const [editVideoTags, setEditVideoTags] = useState('');
   const [editVideoProductName, setEditVideoProductName] = useState('');
   const [editVideoProductPrice, setEditVideoProductPrice] = useState('');
+  const [editVideoProductUrl, setEditVideoProductUrl] = useState('');
+  const [editVideoCategoryId, setEditVideoCategoryId] = useState('');
+  const [categories, setCategories] = useState<{id: string, name: string}[]>([]);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [isEditingVideo, setIsEditingVideo] = useState(false);
   const [editVideoError, setEditVideoError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const { data } = await supabase.from('categories').select('*').order('name');
+      if (data) setCategories(data);
+    };
+    fetchCategories();
+  }, []);
 
   const handleEditVideoClick = (e: React.MouseEvent, video: any) => {
     e.stopPropagation();
@@ -289,6 +300,8 @@ export default function ProfilePage() {
     setEditVideoTags(Array.isArray(video.tags) ? video.tags.join(', ') : '');
     setEditVideoProductName(parsedCaption.product_name || '');
     setEditVideoProductPrice(parsedCaption.product_price ? parsedCaption.product_price.toString() : '');
+    setEditVideoProductUrl(video.product_url || '');
+    setEditVideoCategoryId(video.category_id || '');
     setActiveMenuId(null);
   };
 
@@ -320,7 +333,9 @@ export default function ProfilePage() {
         },
         body: JSON.stringify({
           caption: JSON.stringify(newCaptionObj),
-          tags: newTagsArray
+          tags: newTagsArray,
+          product_url: editVideoProductUrl || null,
+          category_id: editVideoCategoryId || null
         })
       });
 
@@ -625,7 +640,7 @@ export default function ProfilePage() {
                              {video.status === 'processing' 
                                ? 'Processing...' 
                                : video.status === 'pending_review' 
-                                 ? 'Pending Review' 
+                                 ? 'Under Review' 
                                  : 'Restricted'}
                            </span>
                         </div>
@@ -1047,6 +1062,29 @@ export default function ProfilePage() {
                     placeholder="Enter product price..."
                     className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 transition-colors"
                   />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 mb-2 uppercase tracking-wider">Product URL</label>
+                  <input 
+                    type="text"
+                    value={editVideoProductUrl}
+                    onChange={(e) => setEditVideoProductUrl(e.target.value)}
+                    placeholder="Enter product URL..."
+                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 mb-2 uppercase tracking-wider">Category</label>
+                  <select 
+                    value={editVideoCategoryId}
+                    onChange={(e) => setEditVideoCategoryId(e.target.value)}
+                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 transition-colors appearance-none"
+                  >
+                    <option value="" disabled>Select category...</option>
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-zinc-400 mb-2 uppercase tracking-wider">Hashtags / Tags (comma separated)</label>

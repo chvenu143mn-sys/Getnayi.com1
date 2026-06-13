@@ -10,7 +10,7 @@ import { Video } from '../types';
 import { GuestGate } from './GuestGate';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { parseVideoProduct, formatINR, extractStoreName } from '../utils/videoUtils';
 import { CommentDrawer } from './CommentDrawer';
@@ -880,6 +880,21 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
         {/* Information Container */}
         <div className="flex flex-col mb-1.5 pointer-events-auto max-w-[90%]">
           
+          <div className="flex items-center flex-wrap gap-y-1 mb-1.5">
+            <span className="text-white font-sans font-bold text-[15px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+              @{video.profiles?.username || (video as any).public_profiles?.username || 'user'}
+            </span>
+            {(video.profiles?.is_brand || (video as any).public_profiles?.is_brand) && (
+              <BadgeCheck className="size-[15px] text-[#3897f0] ml-1 shrink-0 drop-shadow-sm" fill="currentColor" strokeWidth={0} />
+            )}
+            {/* Kept 'You' badge for self-identification, but removed inline follow button to clean up layout. The avatar follow button is used instead. */}
+            {user && video.user_id === user.id && (
+              <span className="ml-2.5 px-1.5 py-0.5 bg-white/10 text-white/70 rounded text-[9.5px] font-bold uppercase tracking-wider border border-white/5">
+                You
+              </span>
+            )}
+          </div>
+
           <div className="mb-1.5 flex items-center gap-2 flex-wrap">
             {video.categories && (
               <button
@@ -909,34 +924,6 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                 <ShoppingBag className="size-3 mr-1 shrink-0" />
                 <span className="truncate">{extractStoreName(video.product_url)}</span>
               </button>
-            )}
-          </div>
-
-          <div className="flex items-center flex-wrap gap-y-1">
-            <span className="text-white font-sans font-bold text-[15px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-              @{video.profiles?.username || (video as any).public_profiles?.username || 'user'}
-            </span>
-            {(video.profiles?.is_brand || (video as any).public_profiles?.is_brand) && (
-              <BadgeCheck className="size-[15px] text-[#3897f0] ml-1 shrink-0 drop-shadow-sm" fill="currentColor" strokeWidth={0} />
-            )}
-            {/* Inline dynamic follow/you action badge next to username */}
-            {(!user || video.user_id !== user?.id) ? (
-              <button type="button" aria-label="button" 
-                onClick={handleFollowToggle}
-                disabled={isFollowingLoading}
-                className={cn(
-                  "ml-3 px-2 py-0.5 rounded-full text-[10.5px] font-semibold tracking-wide transition-all duration-200 pointer-events-auto border",
-                  isFollowing 
-                    ? "bg-white/10 text-white/50 border-white/10" 
-                    : "bg-[#ef2950] hover:bg-[#ff3b61] text-white border-transparent shadow-sm active:scale-95"
-                )}
-              >
-                {isFollowing ? 'Following' : 'Follow'}
-              </button>
-            ) : (
-              <span className="ml-2.5 px-1.5 py-0.5 bg-white/10 text-white/70 rounded text-[9.5px] font-bold uppercase tracking-wider border border-white/5">
-                You
-              </span>
             )}
           </div>
 
@@ -971,19 +958,19 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                   >
                     <div className="pt-2 flex flex-wrap gap-1.5 max-w-full">
                       {video.tags.map((tag: string, index: number) => {
-                         const isHashtag = tag.startsWith('#');
+                         const cleanTag = tag.replace(/^#/, '');
+                         const displayTag = tag.startsWith('#') ? tag : `#${tag}`;
                          return (
-                           <span 
-                             key={index} 
+                           <Link
+                             key={index}
+                             to={`/explore?q=${encodeURIComponent(cleanTag)}`}
+                             onClick={(e) => e.stopPropagation()}
                              className={cn(
-                               "px-2 py-0.5 rounded-md text-[11px] font-medium tracking-wide shadow-sm backdrop-blur-md border",
-                               isHashtag 
-                                 ? "bg-purple-500/20 text-purple-200 border-purple-500/30" 
-                                 : "bg-white/10 text-white/90 border-white/10"
+                               "px-2 py-0.5 rounded-md text-[11px] font-medium tracking-wide shadow-sm backdrop-blur-md border transition-colors cursor-pointer bg-purple-500/20 text-purple-200 border-purple-500/30 hover:bg-purple-500/30"
                              )}
                            >
-                             {tag}
-                           </span>
+                             {displayTag}
+                           </Link>
                          );
                       })}
                     </div>
@@ -1031,7 +1018,12 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                   <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
                   </svg>
-                  <span>Use Coupon: {parsedProduct.couponCode}</span>
+                  <span>
+                    View Coupon
+                    {parsedProduct.couponDiscountValue && (
+                      ` (Save ${parsedProduct.couponDiscountType === 'rupees' ? '₹' : ''}${parsedProduct.couponDiscountValue}${parsedProduct.couponDiscountType === 'percentage' ? '%' : ''})`
+                    )}
+                  </span>
                 </motion.button>
               )}
             </div>
@@ -1425,11 +1417,17 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                          : "bg-[#151518] border-zinc-800"
                      )}
                    >
-                     <div className="flex items-center gap-2 text-emerald-400 font-bold text-[14px] uppercase tracking-wider mb-2.5">
+                     <div className="flex items-center gap-2 text-emerald-400 font-bold uppercase tracking-wider mb-2.5">
                        <svg className="size-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
                        </svg>
-                       <span>Exclusive Discount Match</span>
+                       {parsedProduct.couponDiscountValue ? (
+                         <span className="text-[15px] text-emerald-300">
+                           USE THIS COUPON TO SAVE {parsedProduct.couponDiscountType === 'rupees' ? '₹' : ''}{parsedProduct.couponDiscountValue}{parsedProduct.couponDiscountType === 'percentage' ? '%' : ''}
+                         </span>
+                       ) : (
+                         <span className="text-[14px]">Exclusive Discount Match</span>
+                       )}
                      </div>
                      
                      <div className="flex gap-3 bg-zinc-950/80 border border-white/5 p-3 rounded-xl items-center justify-between mb-4">
@@ -1807,7 +1805,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                 </div>
               </button>
               
-              <button className="flex items-center w-full p-4 hover:bg-white/5 rounded-xl transition-colors text-left group" onClick={(e) => { e.stopPropagation(); alert('Reported. Thanks for keeping the community safe.'); setShowMoreOptions(false); }}>
+              <button className="flex items-center w-full p-4 hover:bg-white/5 rounded-xl transition-colors text-left group" onClick={(e) => { e.stopPropagation(); setShowMoreOptions(false); handleReport(e); }}>
                 <div className="bg-white/10 p-2.5 rounded-full mr-4 group-hover:bg-red-500/20 group-hover:text-red-400 transition-colors">
                   <AlertOctagon className="size-5 text-zinc-300 group-hover:text-red-400" />
                 </div>
@@ -1908,6 +1906,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
           <CommentDrawer
             videoId={video.id}
             videoOwnerId={video.user_id}
+            initialCommentsCount={commentsCount}
             onClose={() => setShowCommentDrawer(false)}
             onCommentsCountChange={setCommentsCount}
             onAuthRequired={triggerAuthGate}
@@ -1924,6 +1923,8 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
         productName={parsedProduct.productName}
         productPrice={parsedProduct.productPrice}
         couponCode={parsedProduct.couponCode}
+        couponDiscountValue={parsedProduct.couponDiscountValue}
+        couponDiscountType={parsedProduct.couponDiscountType}
         categoryName={video.categories?.name}
         thumbnailUrl={video.thumbnail_url || (video.video_url?.replace('/playlist.m3u8', '/thumbnail.jpg')) || undefined}
         creatorName={video.profiles?.username}

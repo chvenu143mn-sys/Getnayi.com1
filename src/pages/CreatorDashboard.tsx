@@ -138,6 +138,18 @@ export default function CreatorDashboard() {
   
   const [profile, setProfile] = useState<Profile | null>(null);
   const [videos, setVideos] = useState<Video[]>([]);
+  const [categories, setCategories] = useState<{id: string, name: string}[]>([]);
+
+  // Edit Video State
+  const [videoToEdit, setVideoToEdit] = useState<any>(null);
+  const [editVideoCaptionText, setEditVideoCaptionText] = useState('');
+  const [editVideoTags, setEditVideoTags] = useState('');
+  const [editVideoProductName, setEditVideoProductName] = useState('');
+  const [editVideoProductPrice, setEditVideoProductPrice] = useState('');
+  const [editVideoProductUrl, setEditVideoProductUrl] = useState('');
+  const [editVideoCategoryId, setEditVideoCategoryId] = useState('');
+  const [isEditingVideo, setIsEditingVideo] = useState(false);
+  const [editVideoError, setEditVideoError] = useState<string | null>(null);
   const [engagementDetails, setEngagementDetails] = useState({
     likesByVideo: {} as Record<string, number>,
     commentsByVideo: {} as Record<string, number>,
@@ -154,8 +166,16 @@ export default function CreatorDashboard() {
     if (user) {
       fetchCreatorData();
       fetchTrendingTags();
+      fetchCategories();
     }
   }, [user]);
+
+  const fetchCategories = async () => {
+    try {
+      const { data } = await supabase.from('categories').select('*').order('name');
+      if (data) setCategories(data);
+    } catch (err) {}
+  };
 
   const fetchTrendingTags = async () => {
     try {
@@ -170,6 +190,75 @@ export default function CreatorDashboard() {
       }
     } catch (err) {
       console.error('Error fetching trending tags', err);
+    }
+  };
+
+  const handleEditVideoClick = (e: React.MouseEvent, videoId: string) => {
+    e.stopPropagation();
+    const video = videos.find(v => v.id === videoId);
+    if (!video) return;
+    setVideoToEdit(video);
+    setEditVideoError(null);
+    let parsedCaption: any = {};
+    try {
+      if (video.caption) {
+        parsedCaption = typeof video.caption === 'string' ? JSON.parse(video.caption) : video.caption;
+      }
+    } catch(e) {}
+    setEditVideoCaptionText(parsedCaption.captionText || '');
+    setEditVideoTags(Array.isArray(video.tags) ? video.tags.join(', ') : '');
+    setEditVideoProductName(parsedCaption.product_name || '');
+    setEditVideoProductPrice(parsedCaption.product_price ? parsedCaption.product_price.toString() : '');
+    setEditVideoProductUrl(video.product_url || '');
+    setEditVideoCategoryId(video.category_id || '');
+  };
+
+  const handleSaveVideoEdit = async () => {
+    if (!videoToEdit) return;
+    setIsEditingVideo(true);
+    setEditVideoError(null);
+    try {
+      const sessionData = await supabase.auth.getSession();
+      const token = sessionData.data.session?.access_token;
+      
+      let newCaptionObj: any = {};
+      try {
+        if (videoToEdit.caption) {
+          newCaptionObj = typeof videoToEdit.caption === 'string' ? JSON.parse(videoToEdit.caption) : videoToEdit.caption;
+        }
+      } catch(e) {}
+      newCaptionObj.captionText = editVideoCaptionText.trim();
+      if (editVideoProductName.trim()) newCaptionObj.product_name = editVideoProductName.trim();
+      if (editVideoProductPrice.trim() && !isNaN(Number(editVideoProductPrice))) newCaptionObj.product_price = Number(editVideoProductPrice);
+      
+      const newTagsArray = editVideoTags.split(',').flatMap(t => { const trimmed = t.trim(); return trimmed ? [trimmed] : []; });
+
+      const res = await fetch(`/api/videos/${videoToEdit.id}`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          caption: JSON.stringify(newCaptionObj),
+          tags: newTagsArray,
+          product_url: editVideoProductUrl || null,
+          category_id: editVideoCategoryId || null
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to update video');
+      }
+
+      const { data } = await res.json();
+      setVideos(prev => prev.map(v => v.id === videoToEdit.id ? { ...v, caption: data.caption, tags: data.tags, product_url: data.product_url, category_id: data.category_id } : v));
+      setVideoToEdit(null);
+    } catch(err: any) {
+      setEditVideoError(err.message);
+    } finally {
+      setIsEditingVideo(false);
     }
   };
 
@@ -476,7 +565,7 @@ export default function CreatorDashboard() {
             <p className="text-zinc-400 max-w-[280px]">
               You need Creator or Administrator privileges to access the Creator Studio.
             </p>
-            <button type="button" aria-label="Return" onClick={() => window.history.length > 2 ? navigate(-1) : navigate('/', { replace: true })} className="mt-8 px-6 py-2.5 bg-white text-black font-semibold rounded-xl text-sm transition-transform active:scale-95">
+            <button type="button" aria-label="Return" onClick={() => (window.history.state && window.history.state.idx > 0) ? navigate(-1) : navigate('/', { replace: true })} className="mt-8 px-6 py-2.5 bg-white text-black font-semibold rounded-xl text-sm transition-transform active:scale-95">
               Go Back
             </button>
           </div>
@@ -912,23 +1001,32 @@ export default function CreatorDashboard() {
                         </div>
 
                         {/* Performance ledger Metrics breakdown */}
-                        <div className="grid grid-cols-2 gap-x-3.5 gap-y-1 text-right shrink-0 pr-1">
-                           <div className="flex items-center justify-end text-[11.5px] text-zinc-400 font-mono tracking-wide">
-                              <Eye className="size-3.5 mr-1 text-zinc-500" strokeWidth={2} />
-                              <span>{video.views >= 1000 ? (video.views/1000).toFixed(1) + 'K' : video.views}</span>
-                           </div>
-                           <div className="flex items-center justify-end text-[11.5px] text-zinc-400 font-mono tracking-wide">
-                              <Heart className="size-3.5 mr-1 text-[#ef2950] fill-[#ef2950]/10" strokeWidth={2} />
-                              <span>{video.likes >= 1000 ? (video.likes/1000).toFixed(1) + 'K' : video.likes}</span>
-                           </div>
-                           <div className="flex items-center justify-end text-[11.5px] text-zinc-400 font-mono tracking-wide">
-                              <Bookmark className="size-3.5 mr-1 text-amber-500" strokeWidth={2} />
-                              <span>{video.saves}</span>
-                           </div>
-                           <div className="flex items-center justify-end text-[11.5px] text-zinc-400 font-mono tracking-wide">
-                              <MessageSquare className="size-3.5 mr-1 text-indigo-400" strokeWidth={2} />
-                              <span>{video.comments}</span>
-                           </div>
+                        <div className="flex flex-col gap-2 shrink-0 pr-1">
+                          <button 
+                            className="bg-white/5 hover:bg-white/10 text-zinc-300 p-1.5 rounded-md transition-colors self-end"
+                            onClick={(e) => handleEditVideoClick(e, video.id)}
+                            title="Edit Video Options"
+                          >
+                            <svg className="size-3.5 text-zinc-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                          </button>
+                          <div className="grid grid-cols-2 gap-x-3.5 gap-y-1 text-right">
+                             <div className="flex items-center justify-end text-[11.5px] text-zinc-400 font-mono tracking-wide">
+                                <Eye className="size-3.5 mr-1 text-zinc-500" strokeWidth={2} />
+                                <span>{video.views >= 1000 ? (video.views/1000).toFixed(1) + 'K' : video.views}</span>
+                             </div>
+                             <div className="flex items-center justify-end text-[11.5px] text-zinc-400 font-mono tracking-wide">
+                                <Heart className="size-3.5 mr-1 text-[#ef2950] fill-[#ef2950]/10" strokeWidth={2} />
+                                <span>{video.likes >= 1000 ? (video.likes/1000).toFixed(1) + 'K' : video.likes}</span>
+                             </div>
+                             <div className="flex items-center justify-end text-[11.5px] text-zinc-400 font-mono tracking-wide">
+                                <Bookmark className="size-3.5 mr-1 text-amber-500" strokeWidth={2} />
+                                <span>{video.saves}</span>
+                             </div>
+                             <div className="flex items-center justify-end text-[11.5px] text-zinc-400 font-mono tracking-wide">
+                                <MessageSquare className="size-3.5 mr-1 text-indigo-400" strokeWidth={2} />
+                                <span>{video.comments}</span>
+                             </div>
+                          </div>
                         </div>
                      </div>
                    ))}
@@ -940,6 +1038,119 @@ export default function CreatorDashboard() {
           </div>
         )}
       </div>
+
+      {/* Edit Video Modal */}
+      <AnimatePresence>
+        {videoToEdit && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#0c0c0e]/80 backdrop-blur-md"
+            onClick={() => !isEditingVideo && setVideoToEdit(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-zinc-950 border border-white/10 p-6 rounded-3xl w-full max-w-[400px] shadow-2xl relative"
+            >
+              <button type="button" aria-label="Close"  
+                onClick={() => setVideoToEdit(null)}
+                className="absolute top-5 right-5 text-zinc-500 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-full p-1.5"
+                disabled={isEditingVideo}
+              >
+                <ChevronRight className="size-4 rotate-180" />
+              </button>
+              
+              <h2 className="text-xl font-display font-semibold text-white mb-6">Edit Video</h2>
+              
+              <div className="space-y-4 max-h-[60vh] overflow-y-auto no-scrollbar pb-2 pr-1">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 mb-2 uppercase tracking-wider">Caption/Text</label>
+                  <textarea 
+                    value={editVideoCaptionText}
+                    onChange={(e) => setEditVideoCaptionText(e.target.value)}
+                    placeholder="Enter new caption..."
+                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 transition-colors h-24 resize-none"
+                  />
+                  <div className="text-right text-xs text-zinc-500 mt-1">
+                    {editVideoCaptionText.length} characters
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 mb-2 uppercase tracking-wider">Product Name</label>
+                  <input 
+                    type="text"
+                    value={editVideoProductName}
+                    onChange={(e) => setEditVideoProductName(e.target.value)}
+                    placeholder="Enter product name..."
+                     className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 mb-2 uppercase tracking-wider">Product Price</label>
+                  <input 
+                    type="number"
+                    value={editVideoProductPrice}
+                    onChange={(e) => setEditVideoProductPrice(e.target.value)}
+                    placeholder="Enter product price..."
+                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 mb-2 uppercase tracking-wider">Product URL</label>
+                  <input 
+                    type="text"
+                    value={editVideoProductUrl}
+                    onChange={(e) => setEditVideoProductUrl(e.target.value)}
+                    placeholder="Enter product URL..."
+                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 mb-2 uppercase tracking-wider">Category</label>
+                  <select 
+                    value={editVideoCategoryId}
+                    onChange={(e) => setEditVideoCategoryId(e.target.value)}
+                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 transition-colors appearance-none"
+                  >
+                    <option value="" disabled>Select category...</option>
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 mb-2 uppercase tracking-wider">Hashtags / Tags (comma separated)</label>
+                  <textarea 
+                    value={editVideoTags}
+                    onChange={(e) => setEditVideoTags(e.target.value)}
+                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 transition-colors h-20 resize-none font-mono text-sm leading-relaxed"
+                  />
+                </div>
+                
+                {editVideoError && (
+                   <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+                      <p className="text-xs text-red-500 text-center font-medium">{editVideoError}</p>
+                   </div>
+                )}
+              </div>
+              
+              <button type="button" aria-label="button" 
+                onClick={handleSaveVideoEdit}
+                disabled={isEditingVideo}
+                className="w-full mt-6 py-3.5 bg-white hover:bg-zinc-200 text-black font-semibold font-sans text-sm rounded-xl transition-all flex items-center justify-center disabled:opacity-50 active:scale-[0.98] shadow-lg shadow-white/5"
+              >
+                {isEditingVideo ? <RefreshCw className="size-5 animate-spin" /> : 'Save Changes'}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

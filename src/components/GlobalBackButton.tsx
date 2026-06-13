@@ -20,11 +20,9 @@ export function GlobalBackButton({ className, iconClassName, fallbackPath = '/' 
   }
 
   const handleBack = () => {
-    // If there is enough history (length > 2 because 1 is empty, 2 is current page), go back
-    if (window.history.length > 2) {
+    if (window.history.state && window.history.state.idx > 0) {
       navigate(-1);
     } else {
-      // Otherwise fallback to home feed or specified path
       navigate(fallbackPath, { replace: true });
     }
   };

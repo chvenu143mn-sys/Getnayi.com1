@@ -140,7 +140,7 @@ export default function Collection() {
     return (
       <div className="flex-1 w-full bg-[#0c0c0e] text-white flex flex-col h-full items-center justify-center">
         <p>Collection not found.</p>
-        <button type="button" aria-label="button"  onClick={() => window.history.length > 2 ? navigate(-1) : navigate('/', { replace: true })} className="mt-4 px-4 py-2 bg-white/10 rounded-lg">Go Back</button>
+        <button type="button" aria-label="button"  onClick={() => (window.history.state && window.history.state.idx > 0) ? navigate(-1) : navigate('/', { replace: true })} className="mt-4 px-4 py-2 bg-white/10 rounded-lg">Go Back</button>
       </div>
     );
   }

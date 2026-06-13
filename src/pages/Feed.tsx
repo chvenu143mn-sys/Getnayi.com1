@@ -16,6 +16,7 @@ export default function Feed() {
   const [searchParams, setSearchParams] = useSearchParams();
   const categoryParam = searchParams.get('category');
   const storeParam = searchParams.get('store');
+  const tagParam = searchParams.get('tag');
   
   const [activeTab, setActiveTab] = useState<'for_you' | 'trending'>('for_you');
   
@@ -125,7 +126,7 @@ export default function Feed() {
     setCursor(null);
     setHasMore(true);
     fetchVideos(null);
-  }, [activeTab, categoryParam, storeParam]);
+  }, [activeTab, categoryParam, storeParam, tagParam]);
 
   useEffect(() => {
     if (inView && hasMore && !loading && !loadingMore && cursor !== null) {
@@ -151,25 +152,15 @@ export default function Feed() {
     try {
       let fetchedVideos: Video[] = [];
       if (videoId && !currentCursor) {
-        // Fetch the specific video
-        const { data: specVideo, error: specError } = await supabase
-          .from('videos')
-          .select(`
-            *,
-            categories (id, name),
-            profiles (
-              id,
-              username,
-              avatar_url,
-              is_brand
-            )
-          `)
-          .eq('status', 'active')
-          .eq('id', videoId)
-          .maybeSingle();
-
-        if (specVideo && !specError && !controller.signal.aborted) {
-          fetchedVideos.push(specVideo);
+        // Fetch the specific video via API to bypass any client RLS restrictions
+        const specRes = await fetch(`/api/videos/${videoId}`);
+        if (!specRes.ok) {
+          console.warn('Failed to fetch specific video. It might be deleted or restricted.');
+        } else {
+          const specData = await specRes.json();
+          if (specData.data && !controller.signal.aborted) {
+            fetchedVideos.push(specData.data);
+          }
         }
       }
 
@@ -179,6 +170,7 @@ export default function Feed() {
       params.append('limit', PAGE_SIZE.toString());
       if (categoryParam) params.append('categoryId', categoryParam);
       if (storeParam) params.append('store', storeParam);
+      if (tagParam) params.append('tag', tagParam);
       if (currentCursor) params.append('cursor', currentCursor);
 
       const { data: { session } } = await supabase.auth.getSession();
@@ -390,21 +382,59 @@ export default function Feed() {
           </Link>
         </div>
 
+        {/* Categories scrollbar */}
+        {!storeParam && !tagParam && categories.length > 0 && (
+          <div className="w-full overflow-x-auto no-scrollbar flex items-center gap-2 pointer-events-auto px-4 py-2 mt-1 snap-x">
+             <button type="button" aria-label="category"
+                onClick={() => {
+                   const updated = new URLSearchParams(searchParams);
+                   updated.delete('category');
+                   setSearchParams(updated);
+                }}
+                className={cn(
+                  "whitespace-nowrap px-3.5 py-1.5 rounded-full text-[13px] font-bold transition-all shadow-md backdrop-blur-md snap-start shrink-0 flex items-center",
+                  !categoryParam 
+                    ? "bg-white text-black border-white" 
+                    : "bg-black/40 text-white border border-white/20 hover:bg-black/60"
+                )}
+             >
+                All
+             </button>
+            {categories.map(cat => (
+              <button type="button" aria-label="category" key={cat.id}
+                onClick={() => {
+                   const updated = new URLSearchParams(searchParams);
+                   updated.set('category', cat.id);
+                   setSearchParams(updated);
+                }}
+                className={cn(
+                  "whitespace-nowrap px-3.5 py-1.5 rounded-full text-[13px] font-bold transition-all shadow-md backdrop-blur-md border snap-start shrink-0 flex items-center",
+                  categoryParam === cat.id 
+                    ? "bg-white text-black border-white" 
+                    : "bg-black/40 text-white/90 border-white/20 hover:bg-black/60"
+                )}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Filter overlay indicator */}
-        {(categoryParam || storeParam) && (
-          <div className="mx-4 mt-4 bg-zinc-950/90 backdrop-blur-md border border-white/15 rounded-2xl px-4 py-3 flex items-center justify-between pointer-events-auto shadow-2xl animate-fadeIn select-none">
+        {(storeParam || tagParam) && (
+          <div className="mx-4 mt-2 bg-zinc-950/90 backdrop-blur-md border border-white/15 rounded-2xl px-4 py-3 flex items-center justify-between pointer-events-auto shadow-2xl animate-fadeIn select-none">
             <div className="flex flex-col">
               <span className="text-[9px] uppercase tracking-wider text-[#ef2950] font-sans font-extrabold">Active Filter</span>
               <span className="text-white text-[13.5px] font-sans font-extrabold tracking-tight flex items-center gap-2 mt-0.5">
-                {categoryParam ? (
-                  <>
-                    <Tag className="size-3.5 text-zinc-400" />
-                    <span>Category: {categories.find(c => c.id === categoryParam)?.name || "Selected"}</span>
-                  </>
-                ) : (
+                {storeParam ? (
                   <>
                     <ShoppingBag className="size-3.5 text-zinc-400" />
                     <span>Store: {storeParam}</span>
+                  </>
+                ) : (
+                  <>
+                    <Tag className="size-3.5 text-zinc-400" />
+                    <span>Tag: #{tagParam}</span>
                   </>
                 )}
               </span>
@@ -415,6 +445,7 @@ export default function Feed() {
                 const updated = new URLSearchParams(searchParams);
                 updated.delete('category');
                 updated.delete('store');
+                updated.delete('tag');
                 setSearchParams(updated);
               }}
               className="px-3 py-1.5 bg-white/10 hover:bg-white/20 active:scale-95 text-white text-[11px] font-bold rounded-xl border border-white/10 transition-all flex items-center gap-1 cursor-pointer"

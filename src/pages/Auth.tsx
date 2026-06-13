@@ -101,12 +101,12 @@ export default function AuthPage() {
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: "url('https://images.unsplash.com/photo-1515347619362-e61e6878b193?auto=format&fit=crop&w=800&q=80')" }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-black/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/95 to-black/70" />
       </div>
 
       {/* Back button */}
       <button type="button"
-        onClick={() => window.history.length > 2 ? navigate(-1) : navigate('/', { replace: true })}
+        onClick={() => (window.history.state && window.history.state.idx > 0) ? navigate(-1) : navigate('/', { replace: true })}
         className="absolute top-4 left-4 z-20 size-10 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-md flex items-center justify-center border border-white/10 text-white active:scale-95 transition-all"
         aria-label="Go back"
       >

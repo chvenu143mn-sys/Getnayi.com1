@@ -23,6 +23,7 @@ interface Comment {
 interface CommentDrawerProps {
   videoId: string;
   videoOwnerId: string;
+  initialCommentsCount: number;
   onClose: () => void;
   onCommentsCountChange: (count: number) => void;
   onAuthRequired: (reason: string) => void;
@@ -31,13 +32,17 @@ interface CommentDrawerProps {
 export function CommentDrawer({
   videoId,
   videoOwnerId,
+  initialCommentsCount,
   onClose,
   onCommentsCountChange,
   onAuthRequired,
 }: CommentDrawerProps) {
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
+  const [totalComments, setTotalComments] = useState(initialCommentsCount);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,27 +84,40 @@ export function CommentDrawer({
     };
   };
 
-  const fetchComments = async () => {
-    setLoading(true);
-    setError(null);
+  const fetchComments = async (reset = false) => {
+    if (reset) {
+      setLoading(true);
+      setError(null);
+      setNextCursor(null);
+    } else {
+      setLoadingMore(true);
+    }
+
     try {
-      const response = await fetch(`/api/comments?video_id=${videoId}&limit=100`);
+      const cursorParams = !reset && nextCursor ? `&cursor=${nextCursor}` : '';
+      const response = await fetch(`/api/comments?video_id=${videoId}&limit=50${cursorParams}`);
       if (!response.ok) throw new Error('Failed to load comments');
       const json = await response.json();
       
       const parsed = (json.data || []).map((item: any) => parseComment(item));
-      setComments(parsed);
-      onCommentsCountChange(parsed.length);
+      
+      if (reset) {
+        setComments(parsed);
+      } else {
+        setComments(prev => [...prev, ...parsed]);
+      }
+      setNextCursor(json.nextCursor);
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Something went wrong');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
   useEffect(() => {
-    fetchComments();
+    fetchComments(true);
   }, [videoId]);
 
   const handlePostComment = async (e: React.FormEvent) => {
@@ -150,7 +168,9 @@ export function CommentDrawer({
       const newComment = parseComment(json.comment);
 
       setComments((prev) => [newComment, ...prev]);
-      onCommentsCountChange(comments.length + 1);
+      const newTotal = totalComments + 1;
+      setTotalComments(newTotal);
+      onCommentsCountChange(newTotal);
 
       setInputText('');
       setReplyingTo(null);
@@ -189,7 +209,9 @@ export function CommentDrawer({
       }
 
       setComments((prev) => prev.filter((c) => c.id !== commentId));
-      onCommentsCountChange(Math.max(0, comments.length - 1));
+      const newTotal = Math.max(0, totalComments - 1);
+      setTotalComments(newTotal);
+      onCommentsCountChange(newTotal);
     } catch (err: any) {
       alert(err.message || 'Could not delete comment');
     }
@@ -246,7 +268,7 @@ export function CommentDrawer({
         <div className="px-5 pb-4 border-b border-white/5 flex items-center justify-between shrink-0">
           <div className="w-6" /> {/* Spacer for centering */}
           <h3 className="text-white font-sans font-bold text-[15px] tracking-wide">
-            {comments.length} comments
+            {totalComments} comments
           </h3>
           <button
             type="button"
@@ -428,6 +450,26 @@ export function CommentDrawer({
                   </div>
                 );
               })}
+              
+              {/* Load More Button */}
+              {nextCursor && (
+                <div className="pt-2 pb-4 flex justify-center">
+                  <button
+                    onClick={() => fetchComments()}
+                    disabled={loadingMore}
+                    className="px-5 py-2.5 bg-white/5 hover:bg-white/10 active:scale-95 transition-all rounded-full flex items-center gap-2 border border-white/10 group"
+                  >
+                    {loadingMore ? (
+                      <Loader2 className="size-4 animate-spin text-white/60" />
+                    ) : (
+                      <CornerDownRight className="size-4 text-white/60 group-hover:text-white" />
+                    )}
+                    <span className="text-sm font-semibold tracking-wide text-white/80 group-hover:text-white">
+                      View previous comments
+                    </span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

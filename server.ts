@@ -25,6 +25,29 @@ import { GoogleGenAI } from '@google/genai';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
+const generateContentWithRetry = async (aiInstance: any, params: any, retries = 3) => {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await aiInstance.models.generateContent(params);
+    } catch (err: any) {
+      const isRetryable = err?.status === 'UNAVAILABLE' || 
+                          err?.status === 503 || 
+                          err?.status === 429 ||
+                          err?.message?.includes('high demand') || 
+                          err?.message?.includes('temporarily overloaded') ||
+                          (err?.error?.code === 503 || err?.error?.code === 429) ||
+                          (err?.error?.status === 'UNAVAILABLE');
+                          
+      if (isRetryable && i < retries) {
+         console.warn(`Gemini API overloaded/rate-limited (Attempt ${i + 1}/${retries}). Retrying in ${1000 * (i + 1)}ms...`);
+         await new Promise(res => setTimeout(res, 1000 * (i + 1)));
+         continue;
+      }
+      throw err;
+    }
+  }
+};
+
 // Background processor for video metadata
 const analyzeVideoMetadata = async (supabaseAdminClient: any, videoId: string, caption: string, productContext: string) => {
   if (!supabaseAdminClient || !process.env.GEMINI_API_KEY) return;
@@ -46,7 +69,7 @@ Return ONLY a valid JSON object with this exact structure, no markdown formattin
   "search_aliases": "comma separated string of synonyms and related concepts that people might search for"
 }`;
 
-    const response = await ai.models.generateContent({
+    const response = await generateContentWithRetry(ai, {
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
@@ -484,12 +507,10 @@ function setupCronJobs() {
             if (v.product_url && !isAllowedMarketplace(v.product_url)) {
               nextStatus = 'pending_review';
             }
-            if (nextStatus !== 'pending_review') {
-              console.log(`[CRON] Activating stuck video ${v.id} (Bunny GUID: ${guid}) to ${nextStatus}`);
-              await supabaseAdmin.from('videos').update({ 
-                status: nextStatus
-              }).eq('id', v.id);
-            }
+            console.log(`[CRON] Activating stuck video ${v.id} (Bunny GUID: ${guid}) to ${nextStatus}`);
+            await supabaseAdmin.from('videos').update({ 
+              status: nextStatus
+            }).eq('id', v.id);
           } else if (checkInfo.status === 5 || checkInfo.status === 6) {
              console.log(`[CRON] Rejecting stuck video ${v.id} (Bunny GUID: ${guid})`);
              await supabaseAdmin.from('videos').update({ 
@@ -1498,16 +1519,23 @@ async function startServer() {
         }
       });
 
-      let sortedTags = Object.entries(tagScores)
+      let sortedTagsWithScores = Object.entries(tagScores)
         .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-        .map(entry => entry[0]);
+        .slice(0, 30)
+        .map(entry => ({ tag: entry[0], score: entry[1] }));
         
-      if (sortedTags.length === 0) {
-        sortedTags = ["Skincare", "Fashion", "Tech", "Beauty", "Home", "Fitness"];
+      if (sortedTagsWithScores.length === 0) {
+        sortedTagsWithScores = [
+          {tag: "Skincare", score: 100},
+          {tag: "Fashion", score: 90},
+          {tag: "Tech", score: 80},
+          {tag: "Beauty", score: 70},
+          {tag: "Home", score: 60},
+          {tag: "Fitness", score: 50}
+        ];
       }
 
-      return res.json({ trendingTags: sortedTags });
+      return res.json({ trendingTags: sortedTagsWithScores.map(t => t.tag).slice(0, 10), trendingTagScores: sortedTagsWithScores });
     } catch(err: any) {
       console.error('/api/trending Error:', err);
       // Fallback tags if database is unready
@@ -1532,9 +1560,10 @@ async function startServer() {
 
       // If user provided a search query, use our advanced native PostgreSQL pg_trgm fuzzy search RPC
       if (qStr !== '') {
+        const cleanSearchTerm = qStr.replace(/^#/, '').toLowerCase();
         // Run optimized trigram similarity search directly in DB
         const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('search_videos_v2', {
-          search_term: qStr,
+          search_term: cleanSearchTerm,
           p_category_id: selectedCategory
         });
 
@@ -1659,9 +1688,39 @@ async function startServer() {
   });
 
   // Advanced Feed, Comments, and Followers end-points with cursor-based pagination
+  app.get('/api/videos/:id', async (req, res) => {
+    try {
+      if (!supabaseAdmin) throw new Error('DB not initialized');
+      const { id } = req.params;
+      
+      const { data, error } = await supabaseAdmin
+        .from('videos')
+        .select(`
+          *,
+          categories (id, name),
+          profiles (
+            id,
+            username,
+            avatar_url,
+            is_brand
+          )
+        `)
+        .eq('id', id)
+        .maybeSingle();
+        
+      if (error) throw error;
+      if (!data) return res.status(404).json({ error: 'Video not found' });
+      
+      return res.json({ data });
+    } catch (err: any) {
+      console.error('Fetch video err:', err);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   app.get('/api/feed', async (req, res) => {
     try {
-      const { tab, categoryId, store, cursor, limit = 10 } = req.query;
+      const { tab, categoryId, store, tag, cursor, limit = 10 } = req.query;
       const limitNum = parseInt(limit as string) || 10;
       
       let userId: string | null = null;
@@ -1699,15 +1758,14 @@ async function startServer() {
       let rawVideos: any[] = [];
       let finalNextCursor: string | null = null;
 
-      if (categoryId || store) {
+      if (categoryId || store || tag) {
         let query = supabaseAdmin!.from('videos')
           .select(selectQuery)
           .eq('status', 'active')
           .order('created_at', { ascending: false });
 
-        if (categoryId) {
-          query = query.eq('category_id', categoryId);
-        }
+        if (categoryId) query = query.eq('category_id', categoryId);
+        if (tag) query = query.contains('tags', [tag]);
 
         let { data, error } = await query;
 
@@ -1718,6 +1776,7 @@ async function startServer() {
             .eq('status', 'active')
             .order('created_at', { ascending: false });
           if (categoryId) retryQuery = retryQuery.eq('category_id', categoryId);
+          if (tag) retryQuery = retryQuery.contains('tags', [tag]);
           const retryRes = await retryQuery;
           data = retryRes.data;
           error = retryRes.error;
@@ -2246,7 +2305,7 @@ Generate ONLY a valid JSON object answering this shape exactly:
 
       const { GoogleGenAI, Type } = await import('@google/genai');
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
+      const response = await generateContentWithRetry(ai, {
         model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
@@ -2316,7 +2375,7 @@ Generate ONLY a valid JSON object answering this shape exactly:
         }
       }
 
-      const response = await ai.models.generateContent({
+      const response = await generateContentWithRetry(ai, {
         model: 'gemini-2.5-flash',
         contents: contents
       });
@@ -2342,7 +2401,7 @@ Generate ONLY a valid JSON object answering this shape exactly:
 
       const { GoogleGenAI } = await import('@google/genai');
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
+      const response = await generateContentWithRetry(ai, {
         model: 'gemini-2.5-flash',
         contents: prompt
       });
@@ -2442,7 +2501,7 @@ Body Snippet: ${bodyText}
 Respond ONLY with a valid JSON object containing "productName" and "productPrice" (as a number or simple price string, e.g. "1499"). If you cannot extract them, leave them blank. Do not include markdown codeblocks or quotes.
 Example: {"productName": "Awesome Shirt", "productPrice": "1499"}`;
 
-                const aiResponse = await ai.models.generateContent({
+                const aiResponse = await generateContentWithRetry(ai, {
                     model: 'gemini-2.5-flash',
                     contents: prompt
                 });
@@ -2691,6 +2750,8 @@ Example: {"productName": "Awesome Shirt", "productPrice": "1499"}`;
       const patch: any = {};
       if (caption !== undefined) patch.caption = caption;
       if (tags !== undefined && Array.isArray(tags)) patch.tags = tags;
+      if (req.body.product_url !== undefined) patch.product_url = req.body.product_url;
+      if (req.body.category_id !== undefined) patch.category_id = req.body.category_id;
 
       if (Object.keys(patch).length === 0) {
         return res.json({ success: true, message: 'No changes provided' });

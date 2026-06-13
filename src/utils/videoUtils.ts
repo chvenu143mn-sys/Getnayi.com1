@@ -12,6 +12,8 @@ export interface ParsedProduct {
   whatILiked: string;
   thingsToKnow: string;
   couponCode: string;
+  couponDiscountValue: string;
+  couponDiscountType: string;
   couponInstructions: string;
   couponTerms: string;
 }
@@ -29,6 +31,8 @@ export function parseVideoProduct(caption: string | null | undefined): ParsedPro
     whatILiked: '',
     thingsToKnow: '',
     couponCode: '',
+    couponDiscountValue: '',
+    couponDiscountType: 'percentage',
     couponInstructions: '',
     couponTerms: '',
   };
@@ -71,6 +75,8 @@ export function parseVideoProduct(caption: string | null | undefined): ParsedPro
         whatILiked: data.what_liked || '',
         thingsToKnow: data.things_know || '',
         couponCode: data.coupon_code || '',
+        couponDiscountValue: data.coupon_discount_value || '',
+        couponDiscountType: data.coupon_discount_type || 'percentage',
         couponInstructions: data.coupon_instructions || '',
         couponTerms: data.coupon_terms || '',
       };

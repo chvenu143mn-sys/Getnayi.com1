@@ -1,18 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { Search, ChevronRight, ChevronLeft, Loader2, Tag, ShoppingBag, X } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { supabase } from '../lib/supabase';
-import { Profile } from '../types';
-import { cn } from '../lib/utils';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect } from "react";
+import {
+  Search,
+  ChevronRight,
+  ChevronLeft,
+  Loader2,
+  Tag,
+  ShoppingBag,
+  X,
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { supabase } from "../lib/supabase";
+import { Profile } from "../types";
+import { cn } from "../lib/utils";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { TagCloud } from "../components/TagCloud";
 
-import { GlobalBackButton } from '../components/GlobalBackButton';
+import { GlobalBackButton } from "../components/GlobalBackButton";
 
 export default function Explore() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const categoryParam = searchParams.get('category');
-  const storeParam = searchParams.get('store');
+  const categoryParam = searchParams.get("category");
+  const storeParam = searchParams.get("store");
+  const qParam = searchParams.get("q");
 
   const selectedCategory = categoryParam;
   const selectedStore = storeParam;
@@ -20,50 +30,84 @@ export default function Explore() {
   const setSelectedCategory = (val: string | null) => {
     const updated = new URLSearchParams(searchParams);
     if (val === null) {
-      updated.delete('category');
+      updated.delete("category");
     } else {
-      updated.set('category', val);
+      updated.set("category", val);
     }
-    updated.delete('store'); // Clear store when selecting category
+    updated.delete("store"); // Clear store when selecting category
     setSearchParams(updated);
   };
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(qParam || "");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const activeRequestRef = React.useRef<number>(0);
-  
-  const [categories, setCategories] = useState<{id: string, name: string}[]>([]);
+
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>(
+    [],
+  );
   const [trendingTags, setTrendingTags] = useState<string[]>([
-    "Skincare", "Fashion", "Tech", "Beauty", "Home", "Fitness"
+    "Skincare",
+    "Fashion",
+    "Tech",
+    "Beauty",
+    "Home",
+    "Fitness",
   ]);
+  const [trendingTagScores, setTrendingTagScores] = useState<{tag: string, score: number}[]>([]);
+
+  useEffect(() => {
+    if (qParam !== null && qParam !== searchQuery) {
+      setSearchQuery(qParam);
+    }
+  }, [qParam]);
 
   const handleSearchClick = (query: string) => {
     setSearchQuery(query);
     setIsSearching(true);
+    const updated = new URLSearchParams(searchParams);
+    updated.set("q", query);
+    setSearchParams(updated);
+  };
+
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val);
+    const updated = new URLSearchParams(searchParams);
+    if (!val) {
+      updated.delete("q");
+    } else {
+      updated.set("q", val);
+    }
+    setSearchParams(updated, { replace: true });
   };
 
   useEffect(() => {
     const fetchCategoriesAndTags = async () => {
       try {
-        const { data } = await supabase.from('categories').select('id, name').order('name');
+        const { data } = await supabase
+          .from("categories")
+          .select("id, name")
+          .order("name");
         if (data) setCategories(data);
       } catch (e) {
-        console.error('Categories fetch error:', e);
+        console.error("Categories fetch error:", e);
       }
 
       try {
-        const res = await fetch('/api/trending');
+        const res = await fetch("/api/trending");
         if (res.ok) {
           const data = await res.json();
           if (data.trendingTags && data.trendingTags.length > 0) {
             setTrendingTags(data.trendingTags);
           }
+          if (data.trendingTagScores && data.trendingTagScores.length > 0) {
+            setTrendingTagScores(data.trendingTagScores);
+          }
         }
       } catch (e) {
-        console.error('Trending fetch error:', e);
+        console.error("Trending fetch error:", e);
       }
-    }
+    };
     fetchCategoriesAndTags();
   }, []);
 
@@ -80,19 +124,22 @@ export default function Explore() {
     const controller = new AbortController();
 
     const doSearch = async () => {
-      console.log(`[Explore] Searching for: "${searchQuery}", Category: "${selectedCategory}", Store: "${selectedStore}"`);
+      console.log(
+        `[Explore] Searching for: "${searchQuery}", Category: "${selectedCategory}", Store: "${selectedStore}"`,
+      );
       try {
         const queryParams = new URLSearchParams();
-        if (searchQuery.trim()) queryParams.append('q', searchQuery.trim());
-        if (selectedCategory) queryParams.append('category_id', selectedCategory);
-        if (selectedStore) queryParams.append('store', selectedStore);
-        
+        if (searchQuery.trim()) queryParams.append("q", searchQuery.trim());
+        if (selectedCategory)
+          queryParams.append("category_id", selectedCategory);
+        if (selectedStore) queryParams.append("store", selectedStore);
+
         const req = await fetch(`/api/search?${queryParams.toString()}`, {
-          signal: controller.signal
+          signal: controller.signal,
         });
-        
+
         const data = await req.json();
-        
+
         if (activeRequestRef.current === requestId) {
           if (data && data.videos) {
             setSearchResults(data.videos);
@@ -102,7 +149,7 @@ export default function Explore() {
           setIsSearching(false);
         }
       } catch (err: any) {
-        if (err.name !== 'AbortError') {
+        if (err.name !== "AbortError") {
           console.error(`[Explore] Search Error:`, err);
         }
         if (activeRequestRef.current === requestId) {
@@ -126,40 +173,48 @@ export default function Explore() {
         <GlobalBackButton />
         <div className="relative w-full">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-[18px] text-zinc-400" />
-          <input 
-            type="text" 
-            placeholder="Search creators or products" 
+          <input
+            type="text"
+            placeholder="Search creators or products"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="w-full bg-[#1c1c1e] text-white/90 placeholder-zinc-400 rounded-2xl pl-[42px] pr-4 py-3 text-[15px] tracking-wide border border-white/5 focus:outline-none transition-colors"
           />
         </div>
       </div>
-      
-      {/* Categories Pill Scroller */}
-      <div className="sticky top-[88px] z-20 bg-[#0c0c0e] pb-2 px-5 shrink-0">
+
+      {/* Categories & Tags Header */}
+      <div className="sticky top-[88px] z-20 bg-[#0c0c0e] pb-4 px-5 shrink-0 flex flex-col gap-3 border-b border-white/5 shadow-md">
         {categories.length > 0 && (
           <div className="w-full overflow-x-auto no-scrollbar flex items-center gap-2 pointer-events-auto snap-x">
-            <button type="button" aria-label="button"  
+            <button
+              type="button"
+              aria-label="button"
               onClick={() => setSelectedCategory(null)}
               className={cn(
                 "whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium transition-all backdrop-blur-md border snap-start shrink-0",
-                (selectedCategory === null && selectedStore === null)
-                  ? "bg-white text-black border-white" 
-                  : "bg-[#0c0c0e]/40 text-white/80 border-white/10 hover:bg-[#0c0c0e]/60 hover:text-white"
+                selectedCategory === null && selectedStore === null
+                  ? "bg-white text-black border-white"
+                  : "bg-[#0c0c0e]/40 text-white/80 border-white/10 hover:bg-[#0c0c0e]/60 hover:text-white",
               )}
             >
               All
             </button>
-            {categories.map(cat => (
-              <button type="button" aria-label="category"  
+            {categories.map((cat) => (
+              <button
+                type="button"
+                aria-label="category"
                 key={cat.id}
-                onClick={() => setSelectedCategory(selectedCategory === cat.id ? null : cat.id)}
+                onClick={() =>
+                  setSelectedCategory(
+                    selectedCategory === cat.id ? null : cat.id,
+                  )
+                }
                 className={cn(
                   "whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium transition-all backdrop-blur-md border snap-start shrink-0",
-                  selectedCategory === cat.id 
-                    ? "bg-white text-black border-white" 
-                    : "bg-[#0c0c0e]/40 text-white/80 border-white/10 hover:bg-[#0c0c0e]/60 hover:text-white"
+                  selectedCategory === cat.id
+                    ? "bg-white text-black border-white"
+                    : "bg-[#0c0c0e]/40 text-white/80 border-white/10 hover:bg-[#0c0c0e]/60 hover:text-white",
                 )}
               >
                 {cat.name}
@@ -167,28 +222,56 @@ export default function Explore() {
             ))}
           </div>
         )}
+
+        {/* Popular Tags Scroller */}
+        {trendingTags.length > 0 && (
+          <div className="w-full overflow-x-auto no-scrollbar flex items-center gap-2 pointer-events-auto snap-x mt-1">
+            <span className="text-[11px] font-bold text-white/40 uppercase tracking-widest mr-2 shrink-0 flex items-center gap-1">
+              Popular Tags
+            </span>
+            {trendingTags.map((tag, idx) => {
+              const cleanTag = tag.replace(/^#/, "");
+              return (
+                <button
+                  key={`trend-${idx}`}
+                  type="button"
+                  onClick={() => handleSearchClick(cleanTag)}
+                  className="whitespace-nowrap px-3 py-1 rounded-md text-[13px] font-medium transition-colors border border-purple-500/20 bg-purple-500/10 hover:bg-purple-500/30 text-purple-100 snap-start shrink-0 flex items-center gap-0.5"
+                >
+                  <span className="text-purple-400 opacity-60">#</span>
+                  {cleanTag}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto no-scrollbar pb-6 flex flex-col mt-2 px-5 gap-y-8 min-h-0">
-        
-        {(searchQuery.trim() !== '' || selectedCategory || selectedStore) ? (
+        {searchQuery.trim() !== "" || selectedCategory || selectedStore ? (
           <section>
             {/* Filter indicators */}
             {(selectedCategory || selectedStore) && (
               <div className="bg-zinc-950/80 backdrop-blur-md border border-white/10 rounded-2xl p-4 flex items-center justify-between mb-4 shadow-xl select-none">
                 <div className="flex flex-col">
-                  <span className="text-[10px] uppercase font-sans font-extrabold tracking-wider text-[#ef2950]">Active Browse Filter</span>
+                  <span className="text-[10px] uppercase font-sans font-extrabold tracking-wider text-[#ef2950]">
+                    Active Browse Filter
+                  </span>
                   <span className="text-white text-[14px] font-sans font-extrabold tracking-tight flex items-center gap-2 mt-1">
                     {selectedCategory ? (
-                       <>
-                         <Tag className="size-4 text-zinc-400" />
-                         <span>Category: {categories.find(c => c.id === selectedCategory)?.name || "Selected"}</span>
-                       </>
+                      <>
+                        <Tag className="size-4 text-zinc-400" />
+                        <span>
+                          Category:{" "}
+                          {categories.find((c) => c.id === selectedCategory)
+                            ?.name || "Selected"}
+                        </span>
+                      </>
                     ) : (
-                       <>
-                         <ShoppingBag className="size-4 text-zinc-400" />
-                         <span>Store: {selectedStore}</span>
-                       </>
+                      <>
+                        <ShoppingBag className="size-4 text-zinc-400" />
+                        <span>Store: {selectedStore}</span>
+                      </>
                     )}
                   </span>
                 </div>
@@ -196,8 +279,8 @@ export default function Explore() {
                   type="button"
                   onClick={() => {
                     const updated = new URLSearchParams(searchParams);
-                    updated.delete('category');
-                    updated.delete('store');
+                    updated.delete("category");
+                    updated.delete("store");
                     setSearchParams(updated);
                   }}
                   className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border border-white/5 active:scale-95"
@@ -209,91 +292,152 @@ export default function Explore() {
             )}
 
             <h3 className="text-[15px] font-semibold text-white tracking-wide mb-3 flex items-center">
-               Search Results 
-               {isSearching && <Loader2 className="size-4 ml-2 animate-spin text-zinc-500" />}
+              Search Results
+              {isSearching && (
+                <Loader2 className="size-4 ml-2 animate-spin text-zinc-500" />
+              )}
             </h3>
             <div className="flex flex-col gap-y-3">
-               {searchResults.length === 0 && !isSearching ? (
-                 <p className="text-zinc-500 text-sm">No videos found.</p>
-               ) : (
-                 <div className="grid grid-cols-2 gap-3">
-                 {searchResults.map((video) => (
-                   <button type="button" aria-label="button" key={video.id} onClick={() => navigate(`/video/${video.id}`)} className="relative aspect-[9/16] bg-zinc-900 rounded-xl overflow-hidden group">
-                     {video.thumbnail_url ? (
-                        <img src={video.thumbnail_url} alt={video.caption} className="size-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                     ) : (
-                        <div className="size-full flex items-center justify-center text-zinc-700 bg-zinc-900">No Image</div>
-                     )}
-                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-3 text-left">
+              {searchResults.length === 0 && !isSearching ? (
+                <p className="text-zinc-500 text-sm">No videos found.</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  {searchResults.map((video) => (
+                    <button
+                      type="button"
+                      aria-label="button"
+                      key={video.id}
+                      onClick={() => navigate(`/video/${video.id}`)}
+                      className="relative aspect-[9/16] bg-zinc-900 rounded-xl overflow-hidden group"
+                    >
+                      {video.thumbnail_url ? (
+                        <img
+                          src={video.thumbnail_url}
+                          alt={video.caption}
+                          className="size-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                        />
+                      ) : (
+                        <div className="size-full flex items-center justify-center text-zinc-700 bg-zinc-900">
+                          No Image
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-3 text-left">
                         {(() => {
-                           let textToShow = video.caption || 'No caption';
-                           try {
-                             if (video.caption && (video.caption.startsWith('{') || video.caption.startsWith('['))) {
-                               const parsed = JSON.parse(video.caption);
-                               textToShow = parsed.product_name || parsed.captionText || video.caption;
-                               if (parsed.product_price) {
-                                 textToShow += ` - ₹${parsed.product_price}`;
-                               }
-                             }
-                           } catch(e) {}
-                           return <p className="text-white text-xs line-clamp-2 mt-auto font-medium break-words leading-snug drop-shadow-md">{textToShow}</p>;
+                          let textToShow = video.caption || "No caption";
+                          try {
+                            if (
+                              video.caption &&
+                              (video.caption.startsWith("{") ||
+                                video.caption.startsWith("["))
+                            ) {
+                              const parsed = JSON.parse(video.caption);
+                              textToShow =
+                                parsed.product_name ||
+                                parsed.captionText ||
+                                video.caption;
+                              if (parsed.product_price) {
+                                textToShow += ` - ₹${parsed.product_price}`;
+                              }
+                            }
+                          } catch (e) {}
+                          return (
+                            <p className="text-white text-xs line-clamp-2 mt-auto font-medium break-words leading-snug drop-shadow-md">
+                              {textToShow}
+                            </p>
+                          );
                         })()}
-                        {video.profiles && <p className="text-zinc-300 text-[11px] mt-1.5 drop-shadow">@{video.profiles.username}</p>}
-                     </div>
-                   </button>
-                 ))}
-                 </div>
-               )}
+                        {video.profiles && (
+                          <p className="text-zinc-300 text-[11px] mt-1.5 drop-shadow">
+                            @{video.profiles.username}
+                          </p>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
         ) : (
           <>
             {/* Recent Searches */}
             <section>
-              <h3 className="text-[15px] font-semibold text-white tracking-wide mb-3">Recent Searches</h3>
+              <h3 className="text-[15px] font-semibold text-white tracking-wide mb-3">
+                Recent Searches
+              </h3>
               <div className="flex flex-wrap gap-2.5">
                 {["Glow serum", "Skincare", "Hair oil"].map((query, i) => (
-                  <button type="button" aria-label="button"  key={i} onClick={() => handleSearchClick(query)} className="px-4 py-2 bg-[#1c1c1e] border border-white/5 rounded-xl text-[14px] text-white/80 font-medium tracking-wide hover:bg-white/5 transition-colors">
+                  <button
+                    type="button"
+                    aria-label="button"
+                    key={i}
+                    onClick={() => handleSearchClick(query)}
+                    className="px-4 py-2 bg-[#1c1c1e] border border-white/5 rounded-xl text-[14px] text-white/80 font-medium tracking-wide hover:bg-white/5 transition-colors"
+                  >
                     {query}
                   </button>
                 ))}
               </div>
             </section>
 
-            {/* Trending Searches */}
-            <section>
-              <h3 className="text-[15px] font-semibold text-white tracking-wide mb-3">Trending Searches</h3>
-              <div className="flex flex-col gap-y-0 relative -mx-2">
-                {trendingTags.map((query, i) => (
-                  <button type="button" aria-label="button"  key={i} onClick={() => handleSearchClick(query)} className="w-full flex items-center justify-between py-3.5 px-2 hover:bg-white/[0.02] rounded-xl transition-colors cursor-pointer group text-left">
-                    <div className="flex items-center gap-x-3">
-                      <div className="size-[18px] flex items-center justify-center shrink-0">
-                        <svg className="size-5 text-white/40 group-hover:text-white/70 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-                      </div>
-                      <span className="text-[15px] text-white/90 font-medium tracking-wide">{query}</span>
-                    </div>
-                    <ChevronRight className="size-[18px] text-white/30 group-hover:text-white/60 transition-colors" />
-                  </button>
-                ))}
-              </div>
-            </section>
+            {/* Interactive Tag Cloud */}
+            {trendingTagScores && trendingTagScores.length > 0 && (
+              <section className="mt-4 pb-4">
+                <h3 className="text-[15px] font-semibold text-white tracking-wide mb-3 flex items-center justify-between">
+                  <span>Popular Trending Tags</span>
+                  <Tag className="size-4 text-purple-400" />
+                </h3>
+                <div className="bg-[#1c1c1e] border border-white/5 rounded-2xl p-2 w-full h-[260px] flex items-center justify-center -mx-1" style={{ width: 'calc(100% + 8px)' }}>
+                  <TagCloud 
+                    tags={trendingTagScores} 
+                    onTagClick={(tag) => handleSearchClick(tag)} 
+                  />
+                </div>
+              </section>
+            )}
 
             {/* Popular Creators */}
             <section className="pb-8">
-              <h3 className="text-[15px] font-semibold text-white tracking-wide mb-4">Popular Creators</h3>
-              
+              <h3 className="text-[15px] font-semibold text-white tracking-wide mb-4">
+                Popular Creators
+              </h3>
+
               <div className="flex gap-x-4 overflow-x-auto pb-2 scrollbar-none snap-x pr-5 -mx-5 px-5">
                 {[
-                  { name: "Sia", img: "https://images.unsplash.com/photo-1556228578-0d85b1a4d571?q=80&w=200&auto=format&fit=crop" },
-                  { name: "Mike", img: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=200&auto=format&fit=crop" },
-                  { name: "Alina", img: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop" },
-                  { name: "Raj", img: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop" }
+                  {
+                    name: "Sia",
+                    img: "https://images.unsplash.com/photo-1556228578-0d85b1a4d571?q=80&w=200&auto=format&fit=crop",
+                  },
+                  {
+                    name: "Mike",
+                    img: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=200&auto=format&fit=crop",
+                  },
+                  {
+                    name: "Alina",
+                    img: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop",
+                  },
+                  {
+                    name: "Raj",
+                    img: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop",
+                  },
                 ].map((creator, i) => (
-                  <button type="button" aria-label="button"  key={i} onClick={() => handleSearchClick(creator.name)} className="flex flex-col items-center shrink-0 snap-start bg-transparent border-none">
+                  <button
+                    type="button"
+                    aria-label="button"
+                    key={i}
+                    onClick={() => handleSearchClick(creator.name)}
+                    className="flex flex-col items-center shrink-0 snap-start bg-transparent border-none"
+                  >
                     <div className="size-[72px] rounded-full overflow-hidden mb-2 bg-zinc-800">
-                      <img src={creator.img} alt={creator.name} className="size-full object-cover" />
+                      <img
+                        src={creator.img}
+                        alt={creator.name}
+                        className="size-full object-cover"
+                      />
                     </div>
-                    <span className="text-[14px] font-medium text-white/90 tracking-wide">{creator.name}</span>
+                    <span className="text-[14px] font-medium text-white/90 tracking-wide">
+                      {creator.name}
+                    </span>
                   </button>
                 ))}
               </div>

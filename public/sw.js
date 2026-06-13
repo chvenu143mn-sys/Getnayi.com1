@@ -1,4 +1,4 @@
-const CACHE_NAME = 'getnayi-cache-v1';
+const CACHE_NAME = 'getnayi-cache-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/manifest.webmanifest',
@@ -75,7 +75,15 @@ self.addEventListener('fetch', (event) => {
     url.hostname.includes('fonts.googleapis.com') || 
     url.hostname.includes('fonts.gstatic.com');
 
-  if (isStaticAsset) {
+  // Video and Media Assets -> Cache first, fallback to Network
+  const isMediaAsset = 
+    url.pathname.endsWith('.mp4') ||
+    url.pathname.endsWith('.webm') ||
+    url.pathname.endsWith('.m3u8') ||
+    url.pathname.endsWith('.ts') ||
+    url.pathname.includes('/vz-'); // BunnyCDN video delivery pattern often used
+
+  if (isStaticAsset || isMediaAsset) {
     event.respondWith(
       caches.match(request).then((cachedResponse) => {
         if (cachedResponse) {
@@ -96,6 +104,28 @@ self.addEventListener('fetch', (event) => {
             console.error('[Service Worker] Fetch failed hook', err);
           });
       })
+    );
+    return;
+  }
+
+  // Data and API Requests (Supabase, Backend) -> Network first, fallback to Cache
+  const isApiRequest = url.pathname.startsWith('/api/') || url.hostname.includes('supabase.co');
+
+  if (isApiRequest) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response && response.status === 200) {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME + '-data').then((cache) => {
+              cache.put(request, responseToCache);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          return caches.match(request);
+        })
     );
     return;
   }
