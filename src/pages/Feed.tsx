@@ -20,8 +20,6 @@ export default function Feed() {
   
   const [activeTab, setActiveTab] = useState<'for_you' | 'trending'>('for_you');
   
-  const [categories, setCategories] = useState<{id: string, name: string}[]>([]);
-
   const [videos, setVideos] = useState<Video[]>([]);
   
   const [loading, setLoading] = useState(true);
@@ -112,14 +110,6 @@ export default function Feed() {
       setPullDistance(0);
     }
   };
-
-  useEffect(() => {
-    async function fetchCategories() {
-      const { data } = await supabase.from('categories').select('id, name').order('name');
-      if (data) setCategories(data);
-    }
-    fetchCategories();
-  }, []);
 
   useEffect(() => {
     setVideos([]);
@@ -381,44 +371,6 @@ export default function Feed() {
             <Search className="size-[24px]" strokeWidth={2.5} />
           </Link>
         </div>
-
-        {/* Categories scrollbar */}
-        {!storeParam && !tagParam && categories.length > 0 && (
-          <div className="w-full overflow-x-auto no-scrollbar flex items-center gap-2 pointer-events-auto px-4 py-2 mt-1 snap-x">
-             <button type="button" aria-label="category"
-                onClick={() => {
-                   const updated = new URLSearchParams(searchParams);
-                   updated.delete('category');
-                   setSearchParams(updated);
-                }}
-                className={cn(
-                  "whitespace-nowrap px-3.5 py-1.5 rounded-full text-[13px] font-bold transition-all shadow-md backdrop-blur-md snap-start shrink-0 flex items-center",
-                  !categoryParam 
-                    ? "bg-white text-black border-white" 
-                    : "bg-black/40 text-white border border-white/20 hover:bg-black/60"
-                )}
-             >
-                All
-             </button>
-            {categories.map(cat => (
-              <button type="button" aria-label="category" key={cat.id}
-                onClick={() => {
-                   const updated = new URLSearchParams(searchParams);
-                   updated.set('category', cat.id);
-                   setSearchParams(updated);
-                }}
-                className={cn(
-                  "whitespace-nowrap px-3.5 py-1.5 rounded-full text-[13px] font-bold transition-all shadow-md backdrop-blur-md border snap-start shrink-0 flex items-center",
-                  categoryParam === cat.id 
-                    ? "bg-white text-black border-white" 
-                    : "bg-black/40 text-white/90 border-white/20 hover:bg-black/60"
-                )}
-              >
-                {cat.name}
-              </button>
-            ))}
-          </div>
-        )}
 
         {/* Filter overlay indicator */}
         {(storeParam || tagParam) && (

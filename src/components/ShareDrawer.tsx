@@ -23,14 +23,31 @@ export function ShareDrawer({
   onClose, 
   url, 
   videoTitle,
-  creatorName
+  creatorName,
+  productName,
+  couponCode,
+  couponDiscountValue,
+  couponDiscountType
 }: ShareDrawerProps) {
   const [copied, setCopied] = useState(false);
 
   const fallbackTitle = videoTitle || 'Check out this video';
-  const shareText = creatorName 
-    ? `${fallbackTitle} by @${creatorName} on Getnayi!\n\n${url}`
-    : `${fallbackTitle}\n\nWatch here: ${url}`;
+  
+  let shareText = creatorName 
+    ? `${fallbackTitle} by @${creatorName} on Getnayi.`
+    : `${fallbackTitle} on Getnayi.`;
+    
+  if (productName) {
+    shareText += `\n\nFeaturing: ${productName}`;
+  }
+  
+  if (couponCode && couponDiscountValue) {
+    const symbol = couponDiscountType === 'percentage' ? '%' : '$';
+    const amount = couponDiscountType === 'percentage' ? `${couponDiscountValue}%` : `$${couponDiscountValue}`;
+    shareText += `\nUse code ${couponCode} for ${amount} off!`;
+  }
+  
+  shareText += `\n\nWatch here: ${url}`;
 
   const handleCopyLink = async () => {
     try {

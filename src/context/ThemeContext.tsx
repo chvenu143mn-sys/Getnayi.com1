@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-type Theme = 'midnight' | 'dark-grey';
+type Theme = 'dark' | 'light';
 
 interface ThemeContextType {
   theme: Theme;
@@ -8,31 +8,31 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType>({
-  theme: 'midnight',
+  theme: 'dark',
   toggleTheme: () => {},
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
     const savedTheme = localStorage.getItem('app-theme') as Theme;
-    return savedTheme === 'dark-grey' ? 'dark-grey' : 'midnight';
+    return savedTheme === 'light' ? 'light' : 'dark';
   });
 
   const toggleTheme = React.useCallback(() => {
     setTheme((prev) => {
-      const newTheme = prev === 'midnight' ? 'dark-grey' : 'midnight';
+      const newTheme = prev === 'dark' ? 'light' : 'dark';
       localStorage.setItem('app-theme', newTheme);
       return newTheme;
     });
   }, []);
 
   useEffect(() => {
-    if (theme === 'dark-grey') {
-      document.documentElement.classList.add('theme-dark-grey');
-      document.documentElement.classList.remove('theme-midnight');
+    if (theme === 'light') {
+      document.documentElement.classList.add('light');
+      document.documentElement.classList.remove('dark');
     } else {
-      document.documentElement.classList.add('theme-midnight');
-      document.documentElement.classList.remove('theme-dark-grey');
+      document.documentElement.classList.add('dark');
+      document.documentElement.classList.remove('light');
     }
   }, [theme]);
 

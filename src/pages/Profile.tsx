@@ -15,15 +15,32 @@ import CreatorAnalytics from '../components/CreatorAnalytics';
 
 import { GlobalBackButton } from '../components/GlobalBackButton';
 
+// Stale-While-Revalidate memory cache for profile loads to provide instantaneous navigation/loading
+interface ProfileCache {
+  profile: Profile | null;
+  videos: Video[];
+  engagementDetails: {
+    likesByVideo: Record<string, number>;
+    commentsByVideo: Record<string, number>;
+    savesByVideo: Record<string, number>;
+  };
+  followersCount: number;
+  followingCount: number;
+}
+const profileMemoryCache: Record<string, ProfileCache> = {};
+
 export default function ProfilePage() {
   const { user, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [videos, setVideos] = useState<Video[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [engagementDetails, setEngagementDetails] = useState({
+  // Initialize state optimistically from local SWR memory cache if visited previously
+  const initialCached = user?.id ? profileMemoryCache[user.id] : null;
+
+  const [profile, setProfile] = useState<Profile | null>(initialCached ? initialCached.profile : null);
+  const [videos, setVideos] = useState<Video[]>(initialCached ? initialCached.videos : []);
+  const [loading, setLoading] = useState(!initialCached);
+  const [engagementDetails, setEngagementDetails] = useState(initialCached ? initialCached.engagementDetails : {
     likesByVideo: {} as Record<string, number>,
     commentsByVideo: {} as Record<string, number>,
     savesByVideo: {} as Record<string, number>
@@ -31,9 +48,9 @@ export default function ProfilePage() {
 
   // Edit Profile State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editBio, setEditBio] = useState('');
-  const [editInstagram, setEditInstagram] = useState('');
-  const [editTiktok, setEditTiktok] = useState('');
+  const [editBio, setEditBio] = useState(initialCached?.profile?.bio || '');
+  const [editInstagram, setEditInstagram] = useState(initialCached?.profile?.instagram || '');
+  const [editTiktok, setEditTiktok] = useState(initialCached?.profile?.tiktok || '');
   const [avatarObj, setAvatarObj] = useState<{ file: File; preview: string } | null>(null);
   const [cropperSrc, setCropperSrc] = useState<string | null>(null);
   const [pendingFileName, setPendingFileName] = useState<string>('');
@@ -47,92 +64,117 @@ export default function ProfilePage() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   // Follow Counts
-  const [followersCount, setFollowersCount] = useState(0);
-  const [followingCount, setFollowingCount] = useState(0);
+  const [followersCount, setFollowersCount] = useState(initialCached ? initialCached.followersCount : 0);
+  const [followingCount, setFollowingCount] = useState(initialCached ? initialCached.followingCount : 0);
 
   // Removed global event listener effect for activeMenuId
 
   useEffect(() => {
     if (user) {
-      fetchProfileAndVideos();
+      const cached = profileMemoryCache[user.id];
+      if (cached) {
+        setProfile(cached.profile);
+        setVideos(cached.videos);
+        setEngagementDetails(cached.engagementDetails);
+        setFollowersCount(cached.followersCount);
+        setFollowingCount(cached.followingCount);
+        setEditBio(cached.profile?.bio || '');
+        setEditInstagram(cached.profile?.instagram || '');
+        setEditTiktok(cached.profile?.tiktok || '');
+        setLoading(false);
+      }
+      fetchProfileAndVideos(!cached);
     }
   }, [user]);
 
-  const fetchProfileAndVideos = async () => {
-    setLoading(true);
+  const fetchProfileAndVideos = async (showSpinner = true) => {
+    if (!user) return;
+    if (showSpinner) {
+      setLoading(true);
+    }
     try {
-      // Fetch Profile
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user?.id)
-        .single();
-        
-      if (profileData) {
-        setProfile(profileData);
-        setEditBio(profileData.bio || '');
-        setEditInstagram(profileData.instagram || '');
-        setEditTiktok(profileData.tiktok || '');
+      // Execute foundational profile queries concurrently using Promise.all (Industry Standard)
+      const [
+        profileRes,
+        videosRes,
+        followersRes,
+        followingRes,
+        statsRes
+      ] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', user.id).single(),
+        supabase.from('videos').select('*, categories (id, name)').eq('user_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', user.id),
+        supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', user.id),
+        supabase.from('creator_video_stats').select('*').eq('user_id', user.id)
+      ]);
+
+      let freshProfile: Profile | null = null;
+      if (!profileRes.error && profileRes.data) {
+        freshProfile = profileRes.data;
+        setProfile(freshProfile);
+        setEditBio(freshProfile.bio || '');
+        setEditInstagram(freshProfile.instagram || '');
+        setEditTiktok(freshProfile.tiktok || '');
       }
 
-      // Fetch User's Videos
-      const { data: videosData } = await supabase
-        .from('videos')
-        .select('*, categories (id, name)')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false });
+      const fCount = followersRes.count || 0;
+      const followingC = followingRes.count || 0;
+      setFollowersCount(fCount);
+      setFollowingCount(followingC);
 
-      if (videosData) {
-        setVideos(videosData);
-        
+      const videosData = videosRes.data || [];
+      setVideos(videosData);
+
+      const likesByVideo: Record<string, number> = {};
+      const commentsByVideo: Record<string, number> = {};
+      const savesByVideo: Record<string, number> = {};
+
+      const statsData = statsRes.data;
+      const statsError = statsRes.error;
+
+      if (!statsError && statsData && statsData.length > 0) {
+        statsData.forEach((stat: any) => {
+          likesByVideo[stat.video_id] = stat.likes_count || 0;
+          commentsByVideo[stat.video_id] = stat.comments_count || 0;
+          savesByVideo[stat.video_id] = stat.saves_count || 0;
+        });
+      } else {
+        // Safe batch-chunked head count retrieval for fallback bounds
         const videoIds = videosData.map(v => v.id);
-        const likesByVideo: Record<string, number> = {};
-        const commentsByVideo: Record<string, number> = {};
-        const savesByVideo: Record<string, number> = {};
-
-        try {
-          const { data: statsData, error: statsError } = await supabase
-            .from('creator_video_stats')
-            .select('*')
-            .eq('user_id', user?.id);
-
-          if (!statsError && statsData && statsData.length > 0) {
-            statsData.forEach((stat: any) => {
-              likesByVideo[stat.video_id] = stat.likes_count || 0;
-              commentsByVideo[stat.video_id] = stat.comments_count || 0;
-              savesByVideo[stat.video_id] = stat.saves_count || 0;
-            });
-          } else {
-            throw new Error('Fallback to metadata counts');
+        if (videoIds.length > 0) {
+          const batchSize = 5;
+          for (let i = 0; i < videoIds.length; i += batchSize) {
+            const batch = videoIds.slice(i, i + batchSize);
+            await Promise.all(batch.map(async (id) => {
+              try {
+                const [lCount, cCount, sCount] = await Promise.all([
+                  supabase.from('likes').select('*', { count: 'exact', head: true }).eq('video_id', id),
+                  supabase.from('comments').select('*', { count: 'exact', head: true }).eq('video_id', id),
+                  supabase.from('saved_videos').select('*', { count: 'exact', head: true }).eq('video_id', id)
+                ]);
+                likesByVideo[id] = lCount.count || 0;
+                commentsByVideo[id] = cCount.count || 0;
+                savesByVideo[id] = sCount.count || 0;
+              } catch (err) {}
+            }));
           }
-        } catch (fbErr) {
-          const countsPromises = videoIds.map(async (id) => {
-            try {
-              const [lCount, cCount, sCount] = await Promise.all([
-                supabase.from('likes').select('*', { count: 'exact', head: true }).eq('video_id', id),
-                supabase.from('comments').select('*', { count: 'exact', head: true }).eq('video_id', id),
-                supabase.from('saved_videos').select('*', { count: 'exact', head: true }).eq('video_id', id)
-              ]);
-              likesByVideo[id] = lCount.count || 0;
-              commentsByVideo[id] = cCount.count || 0;
-              savesByVideo[id] = sCount.count || 0;
-            } catch (err) {}
-          });
-          await Promise.all(countsPromises);
         }
-        
-        setEngagementDetails({ likesByVideo, commentsByVideo, savesByVideo });
       }
 
-      // Fetch Followers and Following counts
-      const { count: fCount } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', user?.id);
-      const { count: followingC } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', user?.id);
-      
-      setFollowersCount(fCount || 0);
-      setFollowingCount(followingC || 0);
+      const freshEngagement = { likesByVideo, commentsByVideo, savesByVideo };
+      setEngagementDetails(freshEngagement);
+
+      // Persist results securely in local cache
+      profileMemoryCache[user.id] = {
+        profile: freshProfile || profile,
+        videos: videosData,
+        engagementDetails: freshEngagement,
+        followersCount: fCount,
+        followingCount: followingC
+      };
 
     } catch (err) {
-      console.error('Error fetching profile:', err);
+      console.error('Error fetching profile & statistics concurrently:', err);
     } finally {
       setLoading(false);
     }
@@ -237,13 +279,22 @@ export default function ProfilePage() {
          const err = await res.json();
          throw new Error(err.error || 'Failed to update profile');
       }
-      setProfile(prev => prev ? { 
-        ...prev, 
-        bio: editBio, 
-        instagram: editInstagram, 
-        tiktok: editTiktok,
-        avatar_url: finalAvatarUrl || prev.avatar_url
-      } : null);
+      setProfile(prev => {
+        const next = prev ? { 
+          ...prev, 
+          bio: editBio, 
+          instagram: editInstagram, 
+          tiktok: editTiktok,
+          avatar_url: finalAvatarUrl || prev.avatar_url
+        } : null;
+        if (user && next) {
+          const cached = profileMemoryCache[user.id];
+          if (cached) {
+            profileMemoryCache[user.id] = { ...cached, profile: next };
+          }
+        }
+        return next;
+      });
       setIsEditModalOpen(false);
       setAvatarObj(null);
     } catch (err: any) {
@@ -345,7 +396,13 @@ export default function ProfilePage() {
       }
 
       const { data } = await res.json();
-      setVideos(prev => prev.map(v => v.id === videoToEdit.id ? { ...v, caption: data.caption, tags: data.tags } : v));
+      setVideos(prev => {
+        const next = prev.map(v => v.id === videoToEdit.id ? { ...v, caption: data.caption, tags: data.tags } : v);
+        if (user && profileMemoryCache[user.id]) {
+          profileMemoryCache[user.id].videos = next;
+        }
+        return next;
+      });
       setVideoToEdit(null);
     } catch(err: any) {
       setEditVideoError(err.message);
@@ -387,7 +444,13 @@ export default function ProfilePage() {
         }
       }
 
-      setVideos(prev => prev.filter(v => v.id !== videoToDelete));
+      setVideos(prev => {
+        const next = prev.filter(v => v.id !== videoToDelete);
+        if (user && profileMemoryCache[user.id]) {
+          profileMemoryCache[user.id].videos = next;
+        }
+        return next;
+      });
       setVideoToDelete(null);
     } catch (err: any) {
       console.error("Error deleting video:", err);
@@ -399,30 +462,67 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-[calc(100dvh-64px-env(safe-area-inset-bottom))] w-full bg-[#0c0c0e] text-white font-sans">
-        {/* Header Skeleton */}
-        <header className="sticky top-0 z-10 flex items-center justify-between p-4 bg-[#0c0c0e]/80 backdrop-blur-xl border-b border-white/5">
-          <div className="w-32 h-6 bg-zinc-900 rounded-md animate-pulse"></div>
-          <div className="size-8 bg-zinc-900 rounded-full animate-pulse"></div>
+      <div className="min-h-[calc(100dvh-64px-env(safe-area-inset-bottom))] w-full bg-[#0c0c0e] text-white font-sans flex flex-col">
+        {/* Header Skeleton matching the real navigation bar */}
+        <header className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-[#0c0c0e] border-b border-white/5">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-zinc-900 rounded-full animate-pulse" />
+            <div className="w-24 h-5 bg-zinc-900 rounded animate-pulse" />
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="w-5 h-5 bg-zinc-900 rounded-full animate-pulse" />
+            <div className="w-5 h-5 bg-zinc-900 rounded-full animate-pulse" />
+          </div>
         </header>
 
-        {/* Profile Info Skeleton */}
-        <div className="px-4 py-8 flex flex-col items-center border-b border-white/5">
-          <div className="size-24 rounded-full bg-zinc-900 animate-pulse border border-white/5 mb-5" />
-          <div className="w-40 h-6 bg-zinc-900 rounded-md animate-pulse mb-4"></div>
-          <div className="w-64 h-4 bg-zinc-900 rounded-md animate-pulse mb-8"></div>
-          
-          <div className="flex gap-x-12 text-center text-sm mb-8 w-full justify-center">
-            <div className="gap-y-2"><div className="w-8 h-6 bg-zinc-900 rounded mx-auto animate-pulse"></div><div className="w-12 h-4 bg-zinc-900 rounded animate-pulse"></div></div>
-            <div className="gap-y-2"><div className="w-8 h-6 bg-zinc-900 rounded mx-auto animate-pulse"></div><div className="w-12 h-4 bg-zinc-900 rounded animate-pulse"></div></div>
-            <div className="gap-y-2"><div className="w-8 h-6 bg-zinc-900 rounded mx-auto animate-pulse"></div><div className="w-12 h-4 bg-zinc-900 rounded animate-pulse"></div></div>
+        {/* Profile Info Skeleton matches layout styles perfectly */}
+        <div className="px-5 pt-4 pb-8 flex flex-col items-start border-b border-white/5 w-full">
+          {/* Top Row: Avatar & Name */}
+          <div className="flex items-center w-full mb-6">
+            <div className="size-[84px] rounded-full bg-zinc-900 animate-pulse border-[1.5px] border-white/10 shrink-0" />
+            <div className="flex flex-col ml-5 justify-center flex-1 space-y-2">
+              <div className="w-36 h-6 bg-zinc-900 rounded animate-pulse" />
+              <div className="w-24 h-4 bg-zinc-900 rounded animate-pulse" />
+            </div>
+          </div>
+
+          {/* Stats Segment */}
+          <div className="flex justify-between w-[90%] max-w-[300px] mb-6 pt-2">
+            <div className="flex flex-col items-center space-y-1.5">
+              <div className="w-10 h-5 bg-zinc-900 rounded animate-pulse mx-auto" />
+              <div className="w-12 h-3 bg-zinc-900/60 rounded animate-pulse" />
+            </div>
+            <div className="flex flex-col items-center space-y-1.5">
+              <div className="w-10 h-5 bg-zinc-900 rounded animate-pulse mx-auto" />
+              <div className="w-14 h-3 bg-zinc-900/60 rounded animate-pulse" />
+            </div>
+            <div className="flex flex-col items-center space-y-1.5">
+              <div className="w-10 h-5 bg-zinc-900 rounded animate-pulse mx-auto" />
+              <div className="w-14 h-3 bg-zinc-900/60 rounded animate-pulse" />
+            </div>
+          </div>
+
+          {/* Bio text block */}
+          <div className="w-full max-w-sm mb-6 space-y-2.5">
+            <div className="w-3/4 h-4 bg-zinc-900 rounded animate-pulse" />
+            <div className="w-2/3 h-4 bg-zinc-900 rounded animate-pulse" />
+            <div className="w-1/2 h-4 bg-zinc-900 rounded animate-pulse" />
+          </div>
+
+          {/* Buttons Block */}
+          <div className="flex gap-2.5 w-full mb-2">
+            <div className="flex-1 h-10 bg-zinc-900 rounded-xl animate-pulse" />
+            <div className="flex-1 h-10 bg-zinc-900 rounded-xl animate-pulse" />
+            <div className="w-12 h-10 bg-zinc-900 rounded-xl animate-pulse" />
           </div>
         </div>
 
-        {/* Video Grid Skeleton */}
+        {/* Video Grid Skeleton matching real 3x grid aspect */}
         <div className="grid grid-cols-3 gap-0.5 mt-0.5">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="aspect-[9/16] bg-zinc-900 animate-pulse" />
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
+            <div key={i} className="aspect-[9/16] bg-zinc-900/85 animate-pulse relative overflow-hidden border border-white/5 rounded-sm">
+              <div className="absolute bottom-2 left-2 w-10 h-3.5 bg-white/10 rounded animate-pulse" />
+            </div>
           ))}
         </div>
       </div>
@@ -925,11 +1025,11 @@ export default function ProfilePage() {
 
                   <button type="button" aria-label="button"  onClick={toggleTheme} className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5">
                     <div className="size-[42px] rounded-full bg-[#1c1c1e] shrink-0 mr-4 flex items-center justify-center border border-white/5 group-hover:bg-zinc-800 transition-colors">
-                      <Palette className="size-5 text-zinc-400" strokeWidth={1.5} />
+                      {theme === 'light' ? <SunMoon className="size-5 text-zinc-400" strokeWidth={1.5} /> : <Moon className="size-5 text-zinc-400" strokeWidth={1.5} />}
                     </div>
                     <div className="flex-1 mr-2">
                        <h4 className="text-[15px] font-medium text-white tracking-wide mb-0.5">Theme</h4>
-                       <p className="text-[13px] text-zinc-400 tracking-wide">Dark</p>
+                       <p className="text-[13px] text-zinc-400 tracking-wide capitalize">{theme}</p>
                     </div>
                     <ChevronRight className="size-[18px] text-zinc-600 group-hover:text-white/70 transition-colors" />
                   </button>

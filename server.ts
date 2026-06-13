@@ -366,6 +366,39 @@ const supabaseAdmin = process.env.VITE_SUPABASE_URL
     )
   : null;
 
+// Helper to get request-specific Supabase client (respects user authentication context for RLS when admin key is absent)
+function getRequestSupabaseClient(req: express.Request) {
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY && supabaseAdmin) {
+    return supabaseAdmin;
+  }
+  
+  const token = req.headers.authorization?.split(' ')[1];
+  if (token && process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
+    try {
+      return createClient(
+        process.env.VITE_SUPABASE_URL,
+        process.env.VITE_SUPABASE_ANON_KEY,
+        {
+          auth: { persistSession: false },
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        }
+      );
+    } catch (e) {
+      console.error('Failed to initialize request-specific Supabase client:', e);
+    }
+  }
+  
+  return supabaseAdmin || createClient(
+    process.env.VITE_SUPABASE_URL || '',
+    process.env.VITE_SUPABASE_ANON_KEY || '',
+    { auth: { persistSession: false } }
+  );
+}
+
 function extractStoreName(urlStr: string | null | undefined): string {
   if (!urlStr) return '';
   try {
@@ -642,7 +675,16 @@ async function startServer() {
     next();
   });
   
-  app.use(cors({ origin: process.env.VITE_APP_URL || '*' })); // Stricter CORS if env exists
+  app.use(cors({
+    origin: (origin, callback) => {
+      if (!origin || origin === 'null') {
+        callback(null, true);
+      } else {
+        callback(null, origin);
+      }
+    },
+    credentials: true
+  }));
 
   setupCronJobs();
 
@@ -719,9 +761,10 @@ async function startServer() {
       let sessionToken = req.signedCookies?.viewer_session;
       if (!sessionToken) {
         sessionToken = crypto.randomUUID();
+        const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
         res.cookie('viewer_session', sessionToken, {
           httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
+          secure: isSecure,
           signed: true,
           maxAge: 365 * 24 * 60 * 60 * 1000 // 1 year
         });
@@ -730,6 +773,35 @@ async function startServer() {
       const token = userId || sessionToken;
 
       if (!isRedisEnabled()) {
+        if (supabaseAdmin) {
+          const { error } = await supabaseAdmin.rpc('increment_video_views', {
+            video_id_param: videoId,
+            session_token_param: token
+          });
+          if (error) {
+            console.error('[Views Fallback] DB execution failed:', error.message);
+            return res.status(500).json({ error: error.message });
+          }
+          
+          const { data, error: fetchErr } = await supabaseAdmin
+            .from('videos')
+            .select('views')
+            .eq('id', videoId)
+            .single();
+            
+          const currentViews = (!fetchErr && data) ? data.views : null;
+          
+          if (userId) {
+            adjustInterestScore(userId, videoId, 'view').catch(e => console.error("View score adjust error:", e));
+          }
+
+          return res.json({
+            success: true,
+            buffered: false,
+            newly_viewed: true,
+            views: currentViews
+          });
+        }
         return res.json({ success: true, buffered: false });
       }
 
@@ -2000,11 +2072,38 @@ async function startServer() {
       const { video_id, cursor, limit = 20 } = req.query;
       const limitNum = parseInt(limit as string) || 20;
 
-      let query = supabaseAdmin!.from('comments').select('*, profiles(username, avatar_url, is_brand)').eq('video_id', video_id).order('created_at', { ascending: false }).limit(limitNum);
+      // Try ordering by is_pinned descending, then created_at descending (industry standard)
+      let query = supabaseAdmin!
+        .from('comments')
+        .select('*, profiles(username, avatar_url, is_brand)')
+        .eq('video_id', video_id)
+        .order('is_pinned', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(limitNum);
+
       if (cursor) query = query.lt('created_at', cursor);
 
-      const { data, error } = await query;
-      if (error) throw error;
+      let { data, error } = await query;
+      
+      if (error) {
+        // Fallback in case is_pinned column hasn't been added yet in their Supabase DB schema
+        if (error.code === '42703' || (error.message && error.message.includes('is_pinned'))) {
+          console.warn("is_pinned column not present in comments table, falling back to standard sorting...");
+          let fallbackQuery = supabaseAdmin!
+            .from('comments')
+            .select('*, profiles(username, avatar_url, is_brand)')
+            .eq('video_id', video_id)
+            .order('created_at', { ascending: false })
+            .limit(limitNum);
+
+          if (cursor) fallbackQuery = fallbackQuery.lt('created_at', cursor);
+          const fallbackRes = await fallbackQuery;
+          if (fallbackRes.error) throw fallbackRes.error;
+          data = fallbackRes.data;
+        } else {
+          throw error;
+        }
+      }
 
       const nextCursor = data && data.length === limitNum ? data[data.length - 1].created_at : null;
       return res.json({ data: data || [], nextCursor });
@@ -2022,8 +2121,25 @@ async function startServer() {
          return res.status(400).json({ error: 'Comment cannot be empty' });
       }
       
-      // Shadowban check
-      const isShadowbanned = user.user_metadata?.is_banned === true;
+      // Shadowban check (Admins, testing developers with chvenu143mn@gmail.com, or user with is_admin metadata are never banned)
+      const isTestingDeveloper = user.email === 'chvenu143mn@gmail.com' || user.user_metadata?.is_admin === true;
+      
+      // If the developer is currently banned, let's automatically UNBAN them so they can test comments normally!
+      if (isTestingDeveloper && user.user_metadata?.is_banned === true) {
+        if (supabaseAdmin) {
+          try {
+            await supabaseAdmin.auth.admin.updateUserById(user.id, {
+              user_metadata: { ...user.user_metadata, is_banned: false }
+            });
+            user.user_metadata.is_banned = false; // local variable update
+            console.log(`[Moderation] Automatically unbanned testing developer: ${user.email}`);
+          } catch (unbanError) {
+            console.error('Failed to auto-unban developer:', unbanError);
+          }
+        }
+      }
+
+      const isShadowbanned = user.user_metadata?.is_banned === true && !isTestingDeveloper;
 
       // Spam Filter: regex for URLs or spam phrases
       const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.[a-zA-Z]{2,}(\/[^\s]*)?)/i;
@@ -2037,13 +2153,13 @@ async function startServer() {
             const spamCount = await redis.incr(spamKey);
             if (spamCount === 1) await redis.expire(spamKey, 3600); // 1 hr window
 
-            if (spamCount >= 3) {
-              // Auto shadowban
-              if (supabaseAdmin) {
-                await supabaseAdmin.auth.admin.updateUserById(user.id, {
-                  user_metadata: { ...user.user_metadata, is_banned: true }
-                });
-              }
+            if (spamCount >= 3 && !isTestingDeveloper) {
+               // Auto shadowban
+               if (supabaseAdmin) {
+                 await supabaseAdmin.auth.admin.updateUserById(user.id, {
+                   user_metadata: { ...user.user_metadata, is_banned: true }
+                 });
+               }
             }
          } catch (redisError) {
             handleRedisError(redisError, 'spamTracking');
@@ -2078,7 +2194,7 @@ async function startServer() {
                const count = await redis.incr(rapidCountKey);
                if (count === 1) await redis.expire(rapidCountKey, 60);
 
-               if (count >= 3 && supabaseAdmin) {
+               if (count >= 3 && supabaseAdmin && !isTestingDeveloper) {
                   await supabaseAdmin.auth.admin.updateUserById(user.id, {
                      user_metadata: { ...user.user_metadata, is_banned: true }
                   });
@@ -2108,10 +2224,94 @@ async function startServer() {
     }
   });
 
+  // Toggle pinning a comment - only video creator or admin can call
+  app.put('/api/comments/:commentId/pin', verifyAuth, async (req, res) => {
+    try {
+      const { commentId } = req.params;
+      const user = (req as any).user;
+
+      if (!supabaseAdmin) {
+        return res.status(500).json({ error: 'DB not configured' });
+      }
+
+      const { data: comment, error: fetchCommentErr } = await supabaseAdmin
+        .from('comments')
+        .select('*')
+        .eq('id', commentId)
+        .single();
+
+      if (fetchCommentErr || !comment) {
+        return res.status(404).json({ error: 'Comment not found' });
+      }
+
+      const { data: video, error: fetchVideoErr } = await supabaseAdmin
+        .from('videos')
+        .select('user_id')
+        .eq('id', comment.video_id)
+        .single();
+
+      if (fetchVideoErr || !video) {
+        return res.status(404).json({ error: 'Associated video not found' });
+      }
+
+      const isVideoOwner = video.user_id === user.id;
+      const isAdmin = user.user_metadata?.is_admin === true;
+
+      if (!isVideoOwner && !isAdmin) {
+        return res.status(403).json({ error: 'Only the video creator or an admin can pin comments' });
+      }
+
+      const currentPinnedStatus = comment.is_pinned === true;
+
+      if (currentPinnedStatus) {
+        // Toggle Pin off
+        const { error: unpinErr } = await supabaseAdmin
+          .from('comments')
+          .update({ is_pinned: false })
+          .eq('id', commentId);
+
+        if (unpinErr) {
+          if (unpinErr.code === '42703' || (unpinErr.message && unpinErr.message.includes('is_pinned'))) {
+            return res.status(400).json({ error: 'Database column is_pinned missing. Please execute database.sql' });
+          }
+          throw unpinErr;
+        }
+        return res.json({ success: true, is_pinned: false, message: 'Comment unpinned successfully' });
+      } else {
+        // Clear all pins on this video (industry standard: only 1 pinned comment per video)
+        await supabaseAdmin
+          .from('comments')
+          .update({ is_pinned: false })
+          .eq('video_id', comment.video_id);
+
+        // Pin this comment
+        const { error: pinErr } = await supabaseAdmin
+          .from('comments')
+          .update({ is_pinned: true })
+          .eq('id', commentId);
+
+        if (pinErr) {
+          if (pinErr.code === '42703' || (pinErr.message && pinErr.message.includes('is_pinned'))) {
+            return res.status(400).json({ error: 'Database column is_pinned missing. Please execute database.sql' });
+          }
+          throw pinErr;
+        }
+        return res.json({ success: true, is_pinned: true, message: 'Comment pinned successfully' });
+      }
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message });
+    }
+  });
+
   app.delete('/api/comments/:commentId', verifyAuth, async (req, res) => {
     try {
       const { commentId } = req.params;
       const user = (req as any).user;
+
+      // Handle simulated/temporary comment deletion gracefully (bypasses DB checking)
+      if (commentId && commentId.startsWith('temp-')) {
+        return res.json({ success: true, message: 'Comment deleted successfully' });
+      }
 
       if (!supabaseAdmin) {
         return res.status(500).json({ error: 'DB not configured' });
@@ -2124,7 +2324,7 @@ async function startServer() {
         .single();
 
       if (fetchError || !comment) {
-        return res.status(102 + 302).json({ error: 'Comment not found' }); // Standard 404
+        return res.status(404).json({ error: 'Comment not found' });
       }
 
       const isCommentOwner = comment.user_id === user.id;
@@ -2144,6 +2344,16 @@ async function startServer() {
 
       if (!isCommentOwner && !isVideoOwner && !isAdmin) {
         return res.status(403).json({ error: 'Not authorized to delete this comment' });
+      }
+
+      // Use supabaseAdmin with service-role permissions to clean up and delete (bypasses RLS limits for comments created by other users)
+      const { error: repliesDeleteError } = await supabaseAdmin
+        .from('comments')
+        .delete()
+        .like('content', `%"parent_id":"${commentId}"%`);
+
+      if (repliesDeleteError) {
+        console.error('Failed to clean up comment replies:', repliesDeleteError);
       }
 
       const { error: deleteError } = await supabaseAdmin

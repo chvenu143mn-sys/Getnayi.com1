@@ -162,8 +162,12 @@ CREATE TABLE IF NOT EXISTS public.comments (
   video_id uuid references public.videos(id) on delete cascade not null,
   user_id uuid references public.profiles(id) on delete cascade not null,
   content text not null,
+  is_pinned boolean default false,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+
+-- Ensure is_pinned column exists if the table was created previously without it
+ALTER TABLE public.comments ADD COLUMN IF NOT EXISTS is_pinned boolean default false;
 
 ALTER TABLE public.comments ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Comments are viewable by everyone" ON public.comments;
