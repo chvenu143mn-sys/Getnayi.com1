@@ -70,7 +70,7 @@ Return ONLY a valid JSON object with this exact structure, no markdown formattin
 }`;
 
     const response = await generateContentWithRetry(ai, {
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.5-flash',
       contents: prompt,
       config: {
         responseMimeType: 'application/json'
@@ -2516,7 +2516,7 @@ Generate ONLY a valid JSON object answering this shape exactly:
       const { GoogleGenAI, Type } = await import('@google/genai');
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const response = await generateContentWithRetry(ai, {
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.5-flash',
         contents: prompt,
         config: {
            responseMimeType: 'application/json',
@@ -2565,10 +2565,10 @@ Generate ONLY a valid JSON object answering this shape exactly:
       const { GoogleGenAI } = await import('@google/genai');
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       
-      const contents: any[] = [];
+      const parts: any[] = [];
       const defaultPrompt = 'Analyze these frames from a product video. Generate a very short, catchy, highly relevant title (maximum 40 characters) that describes the product or action shown, suitable for a short-form video platform like TikTok. Generate ONLY the title text, nothing else, no quotes, no hashtags.';
       
-      contents.push(userPrompt ? `${defaultPrompt}\n\nAdditional Context: ${userPrompt}` : defaultPrompt);
+      parts.push({ text: userPrompt ? `${defaultPrompt}\n\nAdditional Context: ${userPrompt}` : defaultPrompt });
 
       // Limit to 4 frames to save tokens and time
       const framesToProcess = frames.slice(0, 4);
@@ -2576,7 +2576,7 @@ Generate ONLY a valid JSON object answering this shape exactly:
       for (const base64DataUrl of framesToProcess) {
         const matches = base64DataUrl.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
         if (matches && matches.length === 3) {
-          contents.push({
+          parts.push({
             inlineData: {
               mimeType: matches[1],
               data: matches[2]
@@ -2586,8 +2586,8 @@ Generate ONLY a valid JSON object answering this shape exactly:
       }
 
       const response = await generateContentWithRetry(ai, {
-        model: 'gemini-2.5-flash',
-        contents: contents
+        model: 'gemini-3.5-flash',
+        contents: { parts }
       });
 
       return res.json({ success: true, title: response.text?.trim().replace(/^"|"$/g, '') });
@@ -2612,7 +2612,7 @@ Generate ONLY a valid JSON object answering this shape exactly:
       const { GoogleGenAI } = await import('@google/genai');
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const response = await generateContentWithRetry(ai, {
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.5-flash',
         contents: prompt
       });
 
@@ -2712,7 +2712,7 @@ Respond ONLY with a valid JSON object containing "productName" and "productPrice
 Example: {"productName": "Awesome Shirt", "productPrice": "1499"}`;
 
                 const aiResponse = await generateContentWithRetry(ai, {
-                    model: 'gemini-2.5-flash',
+                    model: 'gemini-3.5-flash',
                     contents: prompt
                 });
                 

@@ -1025,11 +1025,11 @@ export default function ProfilePage() {
 
                   <button type="button" aria-label="button"  onClick={toggleTheme} className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5">
                     <div className="size-[42px] rounded-full bg-[#1c1c1e] shrink-0 mr-4 flex items-center justify-center border border-white/5 group-hover:bg-zinc-800 transition-colors">
-                      {theme === 'light' ? <SunMoon className="size-5 text-zinc-400" strokeWidth={1.5} /> : <Moon className="size-5 text-zinc-400" strokeWidth={1.5} />}
+                      <Palette className="size-5 text-zinc-400" strokeWidth={1.5} />
                     </div>
                     <div className="flex-1 mr-2">
                        <h4 className="text-[15px] font-medium text-white tracking-wide mb-0.5">Theme</h4>
-                       <p className="text-[13px] text-zinc-400 tracking-wide capitalize">{theme}</p>
+                       <p className="text-[13px] text-zinc-400 tracking-wide">Dark</p>
                     </div>
                     <ChevronRight className="size-[18px] text-zinc-600 group-hover:text-white/70 transition-colors" />
                   </button>

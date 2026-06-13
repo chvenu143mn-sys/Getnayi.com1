@@ -334,7 +334,7 @@ export default function Upload() {
               }
             });
           } catch (e) {
-            console.error("Failed to sync backend approval status:", e);
+            console.warn("Could not sync approval status on this attempt");
           }
           setApprovalStatus('approved');
           // Cache status in local storage
@@ -704,6 +704,27 @@ Generate ONLY a valid JSON object answering this shape exactly:
         }
       }, 'image/jpeg', 0.8);
     }
+  };
+
+  const captureFrameAtTime = (time: number) => {
+    if (!previewVideoRef.current) return;
+    const video = previewVideoRef.current;
+    
+    // Pause video to seek
+    const wasPlaying = !video.paused;
+    video.pause();
+    
+    // Create a temporary handler for the seeked event
+    const handleSeeked = () => {
+      video.removeEventListener('seeked', handleSeeked);
+      captureFrame();
+      if (wasPlaying) {
+         video.play().catch(e => console.log('resume blocked', e));
+      }
+    };
+    
+    video.addEventListener('seeked', handleSeeked);
+    video.currentTime = time;
   };
 
   const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1080,36 +1101,17 @@ Generate ONLY a valid JSON object answering this shape exactly:
         </button>
       </header>
 
-      {/* Progress Dots */}
-      <div className="px-8 py-2 mb-4">
-        <div className="flex items-center justify-between relative">
-           <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[1px] bg-white/10 -z-10" />
-           <div className="size-5 rounded-full bg-[#ef2950] border-4 border-[#0c0c0e] flex items-center justify-center relative shadow-[0_0_10px_rgba(239,41,80,0.4)]">
-             <div className="size-2 rounded-full bg-[#ef2950]" />
-           </div>
-           <div className="size-5 rounded-full bg-[#0c0c0e] border-2 border-white/20 flex items-center justify-center relative">
-             <div className="size-1.5 rounded-full bg-transparent" />
-           </div>
-           <div className="size-5 rounded-full bg-[#0c0c0e] border-2 border-white/20 flex items-center justify-center relative">
-             <div className="size-1.5 rounded-full bg-transparent" />
-           </div>
-           <div className="size-5 rounded-full bg-[#0c0c0e] border-2 border-white/20 flex items-center justify-center relative">
-             <div className="size-1.5 rounded-full bg-transparent" />
-           </div>
-        </div>
-      </div>
-
       <div className="flex-1 overflow-y-auto w-full px-5 pb-6">
         
         {/* Cover Photo Area */}
-        <div className="relative w-full aspect-[16/10] bg-zinc-900 rounded-2xl overflow-hidden mb-6 border border-white/5 shadow-md flex items-center justify-center">
+        <div className={cn("relative mx-auto bg-zinc-900 rounded-2xl overflow-hidden mb-6 border border-white/5 shadow-md flex items-center justify-center", preview ? "h-[450px] aspect-[9/16]" : "w-full aspect-[16/10]")}>
           {preview ? (
             <>
               <video 
                 ref={previewVideoRef}
                 src={preview}
                 preload="auto" 
-                className="size-full object-cover" 
+                className="size-full object-cover bg-black" 
                 muted={isMuted} 
                 loop 
                 playsInline 
@@ -1120,6 +1122,7 @@ Generate ONLY a valid JSON object answering this shape exactly:
                 onLoadedData={(e) => {
                    console.log('Video Preview Loaded Data');
                    e.currentTarget.play().catch(err => console.log('play blocked main', err));
+                   setTimeout(captureFrame, 500);
                 }} 
                 onTimeUpdate={(e) => {
                    const v = e.currentTarget;
@@ -1211,34 +1214,54 @@ Generate ONLY a valid JSON object answering this shape exactly:
           <div className="flex flex-col bg-[#151518] p-4 rounded-2xl border border-white/5 shadow-sm gap-y-3 mb-6">
             <span className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide">Video Cover Thumbnail</span>
             <p className="text-xs text-zinc-500 leading-relaxed">
-              By default, a thumbnail is automatically captured from your video. You can optionally upload a custom JPG or PNG cover image.
+              Select a frame from your video or upload a custom image.
             </p>
-            <div className="flex items-center gap-4">
-              <div className="size-[84px] rounded-xl overflow-hidden border border-white/10 relative bg-zinc-900 shrink-0">
-                {thumbnailPreview ? (
-                  <img src={thumbnailPreview} className="size-full object-cover" alt="Thumbnail Preview" />
-                ) : (
-                  <div className="size-full flex items-center justify-center bg-zinc-900 text-zinc-650 text-xs">Generating...</div>
-                )}
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-4">
+                <div className="size-[84px] rounded-xl overflow-hidden border border-white/10 relative bg-zinc-900 shrink-0">
+                  {thumbnailPreview ? (
+                    <img src={thumbnailPreview} className="size-full object-cover" alt="Thumbnail Preview" />
+                  ) : (
+                    <div className="size-full flex items-center justify-center bg-zinc-900 text-zinc-650 text-xs">Generating...</div>
+                  )}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="px-4 py-2 bg-zinc-900 border border-zinc-800 text-[12.5px] font-semibold text-white/95 rounded-xl hover:bg-zinc-800 transition-colors cursor-pointer text-center">
+                    Upload Custom Cover
+                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleThumbnailChange} className="hidden" />
+                  </label>
+                  {thumbnailFile && (
+                    <button aria-label="button" 
+                  type="button"
+                      onClick={() => {
+                        setThumbnailFile(null);
+                        captureFrame();
+                      }}
+                      className="text-xs text-red-500 hover:text-red-400 font-sans text-left pl-1"
+                    >
+                      Reset to First Frame
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="flex flex-col gap-2">
-                <label className="px-4 py-2 bg-zinc-900 border border-zinc-800 text-[12.5px] font-semibold text-white/95 rounded-xl hover:bg-zinc-800 transition-colors cursor-pointer text-center">
-                  Upload Custom Cover
-                  <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleThumbnailChange} className="hidden" />
-                </label>
-                {thumbnailFile && (
-                  <button aria-label="button" 
-                type="button"
-                    onClick={() => {
-                      setThumbnailFile(null);
-                      captureFrame();
-                    }}
-                    className="text-xs text-red-500 hover:text-red-400 font-sans text-left pl-1"
-                  >
-                    Reset to Video Auto-Frame
-                  </button>
-                )}
-              </div>
+              
+              {filmstripFrames.length > 0 && (
+                <div className="border-t border-white/5 pt-4 mt-2">
+                  <span className="text-[12px] font-medium text-zinc-400 mb-3 block uppercase tracking-wider">Or select an auto-generated frame:</span>
+                  <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                    {filmstripFrames.map((frame, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => captureFrameAtTime((videoDuration / (filmstripFrames.length + 1)) * (idx + 1))}
+                        className="shrink-0 w-[72px] aspect-[10/16] bg-zinc-900 rounded-lg overflow-hidden ring-1 ring-white/10 hover:ring-white/40 focus:ring-purple-500 transition-all focus:outline-none"
+                      >
+                        <img src={frame} alt={`Frame ${idx + 1}`} className="w-full h-full object-cover opacity-80 hover:opacity-100 transition-opacity" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

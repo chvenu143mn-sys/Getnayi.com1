@@ -28,13 +28,6 @@
   --theme-zinc-950: #050505;
 }
 
-:root.light {
-  --theme-bg: #ffffff;
-  --theme-zinc-900: #f4f4f5;
-  --theme-zinc-800: #e4e4e7;
-  --theme-zinc-950: #ffffff;
-}
-
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {
     display: none;
