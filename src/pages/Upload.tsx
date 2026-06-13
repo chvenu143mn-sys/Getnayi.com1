@@ -1101,10 +1101,10 @@ Generate ONLY a valid JSON object answering this shape exactly:
         </button>
       </header>
 
-      <div className="flex-1 overflow-y-auto w-full px-5 pb-6">
+      <div className="flex-1 overflow-y-auto w-full px-5 pb-16">
         
         {/* Cover Photo Area */}
-        <div className={cn("relative mx-auto bg-zinc-900 rounded-2xl overflow-hidden mb-6 border border-white/5 shadow-md flex items-center justify-center", preview ? "h-[450px] aspect-[9/16]" : "w-full aspect-[16/10]")}>
+        <div className={cn("relative mx-auto bg-zinc-900 rounded-2xl overflow-hidden mb-6 border border-white/5 shadow-md flex items-center justify-center", preview ? "w-full max-w-[253px] aspect-[9/16] h-auto" : "w-full aspect-[16/10]")}>
           {preview ? (
             <>
               <video 
@@ -1574,27 +1574,27 @@ Generate ONLY a valid JSON object answering this shape exactly:
           </div>
         </div>
 
-      </div>
+        {/* Footer Action */}
+        <div className="mt-8 pb-32 pt-4 border-t border-white/5">
+           {error && <p className="text-red-400 text-xs mb-3 text-center">{error}</p>}
+           <div className="flex gap-3">
+             <button type="button" aria-label="Preview" 
+               onClick={() => setShowPreviewModal(true)}
+               disabled={!preview}
+               className="w-1/3 bg-[#151518] hover:bg-[#1a1a20] active:scale-[0.98] border border-white/10 disabled:opacity-50 text-white font-bold py-4 px-2 rounded-2xl transition-all text-[15px] shadow-sm flex items-center justify-center gap-2"
+             >
+               Preview
+             </button>
+             <button type="button" aria-label="button"  
+               onClick={handleUpload}
+               disabled={!file || !isUrlValid || !mainProductFile || !productName.trim() || !productPrice.trim() || isUploading}
+               className="flex-1 w-full bg-[#ef2950] hover:bg-[#ff3b61] disabled:opacity-50 active:scale-[0.98] text-white font-bold py-4 px-6 rounded-2xl transition-all flex items-center justify-center text-[16px] shadow-[0_4px_14px_rgba(239,41,80,0.5)] tracking-wide"
+             >
+               {isUploading ? <Loader2 className="size-5 animate-spin" /> : 'Publish Post'}
+             </button>
+           </div>
+        </div>
 
-      {/* Footer Action */}
-      <div className="px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-4 shrink-0 bg-[#0c0c0e]">
-         {error && <p className="text-red-400 text-xs mb-3 text-center">{error}</p>}
-         <div className="flex gap-3">
-           <button type="button" aria-label="Preview" 
-             onClick={() => setShowPreviewModal(true)}
-             disabled={!preview}
-             className="w-1/3 bg-[#151518] hover:bg-[#1a1a20] active:scale-[0.98] border border-white/10 disabled:opacity-50 text-white font-bold py-4 px-2 rounded-2xl transition-all text-[15px] shadow-sm flex items-center justify-center gap-2"
-           >
-             Preview
-           </button>
-           <button type="button" aria-label="button"  
-             onClick={handleUpload}
-             disabled={!file || !isUrlValid || !mainProductFile || !productName.trim() || !productPrice.trim() || isUploading}
-             className="flex-1 w-full bg-[#ef2950] hover:bg-[#ff3b61] disabled:opacity-50 active:scale-[0.98] text-white font-bold py-4 px-6 rounded-2xl transition-all flex items-center justify-center text-[16px] shadow-[0_4px_14px_rgba(239,41,80,0.5)] tracking-wide"
-           >
-             {isUploading ? <Loader2 className="size-5 animate-spin" /> : 'Publish Post'}
-           </button>
-         </div>
       </div>
 
       {/* Full-Screen Loading Overlay */}
