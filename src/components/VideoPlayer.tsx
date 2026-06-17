@@ -12,6 +12,7 @@ import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+// Import platform specific URL helper with cache-busting flag (updated: June 2026)
 import { parseVideoProduct, formatINR, extractStoreName } from '../utils/videoUtils';
 import { CommentDrawer } from './CommentDrawer';
 import { ShareDrawer } from './ShareDrawer';
@@ -26,7 +27,55 @@ const REPORT_CATEGORIES = [
   { id: 'fake_image', label: 'Fake Real-life Image', description: 'Image is not real or misleading' }
 ];
 
-// Helper functions removed
+// Helper functions for platform URL
+function isMobileDevice(): boolean {
+  if (typeof window === 'undefined') return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+function getDesktopFriendlyUrl(urlStr: string | null | undefined): string {
+  if (!urlStr) return '';
+  try {
+    if (urlStr.startsWith('intent://')) {
+      const intentUrlSplit = urlStr.split('#Intent;');
+      const urlPart = intentUrlSplit[0].substring('intent://'.length);
+      const intentParams = intentUrlSplit[1] || '';
+      let scheme = 'https';
+      const schemeMatch = intentParams.match(/scheme=([^;]+)/);
+      if (schemeMatch && schemeMatch[1]) { scheme = schemeMatch[1]; }
+      if (urlPart) { return `${scheme}://${urlPart}`; }
+    }
+    if (urlStr.match(/^[a-zA-Z0-9]+:\/\//) && !urlStr.startsWith('http')) {
+      const scheme = urlStr.split('://')[0].toLowerCase();
+      const rest = urlStr.substring(scheme.length + 3);
+      if (scheme === 'meesho') return 'https://www.meesho.com/' + rest;
+      if (scheme === 'flipkart') return 'https://www.flipkart.com/' + rest;
+      if (scheme === 'amazon' || scheme === 'amzn') return 'https://www.amazon.in/' + rest;
+      if (scheme === 'myntra') return 'https://www.myntra.com/' + rest;
+      if (scheme === 'ajio') return 'https://www.ajio.com/' + rest;
+    }
+    if (urlStr.includes('play.google.com/store') && urlStr.includes('url=')) {
+      const parsedUrl = new URL(urlStr);
+      const embeddedUrl = parsedUrl.searchParams.get('url');
+      const fallbackUrl = parsedUrl.searchParams.get('fallback_url');
+      if (embeddedUrl && embeddedUrl.startsWith('http')) return embeddedUrl;
+      if (fallbackUrl && fallbackUrl.startsWith('http')) return fallbackUrl;
+    }
+    return urlStr;
+  } catch (e) {
+    return urlStr;
+  }
+}
+
+function resolveProductUrlByPlatform(urlStr: string | null | undefined): string {
+  if (!urlStr) return '';
+  if (isMobileDevice()) {
+    return urlStr;
+  } else {
+    return getDesktopFriendlyUrl(urlStr);
+  }
+}
+
 
 interface VideoPlayerProps {
   video: Video;
@@ -1650,7 +1699,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
               {/* Action Buttons */}
               <div className="flex flex-col gap-3 shrink-0">
                 <a
-                  href={video.product_url}
+                  href={resolveProductUrlByPlatform(video.product_url)}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setShowPurchaseDisclaimer(false)}

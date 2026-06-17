@@ -2546,7 +2546,13 @@ Generate ONLY a valid JSON object answering this shape exactly:
 
       return res.json({ success: true, data: generated });
     } catch (err: any) {
-      console.error('/api/generate-metadata error details:', err.status, err.message, err);
+      console.error('/api/generate-metadata error details:', err?.message || err);
+      const isQuota = err?.status === 429 || err?.message?.includes('quota') || err?.status === 'RESOURCE_EXHAUSTED';
+      const isOverloaded = err?.status === 503 || err?.message?.includes('overloaded');
+      
+      if (isQuota || isOverloaded) {
+         return res.status(503).json({ error: 'AI limit reached. Cannot generate metadata right now.' });
+      }
       return res.status(500).json({ error: err.message || 'Error generating metadata' });
     }
   });
@@ -2592,7 +2598,13 @@ Generate ONLY a valid JSON object answering this shape exactly:
 
       return res.json({ success: true, title: response.text?.trim().replace(/^"|"$/g, '') });
     } catch (err: any) {
-      console.error('/api/generate-title-from-frames error:', err);
+      console.error('/api/generate-title-from-frames error:', err?.message || err);
+      const isQuota = err?.status === 429 || err?.message?.includes('quota') || err?.status === 'RESOURCE_EXHAUSTED';
+      const isOverloaded = err?.status === 503 || err?.message?.includes('overloaded');
+      
+      if (isQuota || isOverloaded) {
+         return res.status(503).json({ error: 'AI limit reached. Please write a title manually for now.' });
+      }
       return res.status(500).json({ error: 'Failed to generate title via AI' });
     }
   });

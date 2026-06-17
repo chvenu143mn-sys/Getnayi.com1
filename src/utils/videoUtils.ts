@@ -169,3 +169,69 @@ export function extractStoreName(urlStr: string | null | undefined): string {
     return 'Store';
   }
 }
+
+export function isMobileDevice(): boolean {
+  if (typeof window === 'undefined') return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+export function getDesktopFriendlyUrl(urlStr: string | null | undefined): string {
+  if (!urlStr) return '';
+  
+  try {
+    // 1. Android Intent URLs (intent://)
+    if (urlStr.startsWith('intent://')) {
+      const intentUrlSplit = urlStr.split('#Intent;');
+      const urlPart = intentUrlSplit[0].substring('intent://'.length);
+      const intentParams = intentUrlSplit[1] || '';
+      
+      let scheme = 'https';
+      const schemeMatch = intentParams.match(/scheme=([^;]+)/);
+      if (schemeMatch && schemeMatch[1]) {
+        scheme = schemeMatch[1];
+      }
+      
+      if (urlPart) {
+        return `${scheme}://${urlPart}`;
+      }
+    }
+    
+    // 2. Custom App Schemes (meesho://, flipkart://, etc.)
+    if (urlStr.match(/^[a-zA-Z0-9]+:\/\//) && !urlStr.startsWith('http')) {
+      const scheme = urlStr.split('://')[0].toLowerCase();
+      const rest = urlStr.substring(scheme.length + 3);
+      
+      if (scheme === 'meesho') return 'https://www.meesho.com/' + rest;
+      if (scheme === 'flipkart') return 'https://www.flipkart.com/' + rest;
+      if (scheme === 'amazon' || scheme === 'amzn') return 'https://www.amazon.in/' + rest;
+      if (scheme === 'myntra') return 'https://www.myntra.com/' + rest;
+      if (scheme === 'ajio') return 'https://www.ajio.com/' + rest;
+    }
+    
+    // 3. Play Store redirection URLs with embedded website links
+    if (urlStr.includes('play.google.com/store') && urlStr.includes('url=')) {
+      const parsedUrl = new URL(urlStr);
+      const embeddedUrl = parsedUrl.searchParams.get('url');
+      const fallbackUrl = parsedUrl.searchParams.get('fallback_url');
+      if (embeddedUrl && embeddedUrl.startsWith('http')) return embeddedUrl;
+      if (fallbackUrl && fallbackUrl.startsWith('http')) return fallbackUrl;
+    }
+    
+    // 4. known deeplink domains (like share.meesho.com shortlinks)
+    // Actually, branch links need backend to resolve 302 redirects, but here we can at least handle intent strings if they exist.
+    
+    return urlStr;
+  } catch (e) {
+    return urlStr;
+  }
+}
+
+export function resolveProductUrlByPlatform(urlStr: string | null | undefined): string {
+  // Bust cached module. Version timestamp: 2026-06-17.
+  if (!urlStr) return '';
+  if (isMobileDevice()) {
+    return urlStr; // Mobile OS handles intents, schemes, deep links natively.
+  } else {
+    return getDesktopFriendlyUrl(urlStr); // Desktop needs standard HTTP web links to avoid store fallback.
+  }
+}
