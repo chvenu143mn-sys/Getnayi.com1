@@ -655,30 +655,35 @@ function setupCronJobs() {
 
       // 2. Process each user and check their actual Stripe state
       if (premiumUsers && premiumUsers.length > 0) {
-        for (const user of premiumUsers) {
-          try {
-            const subscription = await stripe.subscriptions.retrieve(user.stripe_subscription_id as string);
-            // If subscription is naturally canceled, unpaid, or past_due to the point of cancellation
-            if (new Set(['canceled', 'unpaid', 'past_due']).has(subscription.status)) {
-               // Update local DB to revoke premium
-               await supabaseAdmin
-                 .from('profiles')
-                 .update({ is_premium: false })
-                 .eq('id', user.id);
-               console.log(`[CRON] 🚨 Revoked premium for user ${user.id} -> Sub status: ${subscription.status}`);
-               canceledCount++;
+        // Process in chunks to avoid hitting Stripe API rate limits
+        const chunkSize = 10;
+        for (let i = 0; i < premiumUsers.length; i += chunkSize) {
+          const chunk = premiumUsers.slice(i, i + chunkSize);
+          await Promise.all(chunk.map(async (user) => {
+            try {
+              const subscription = await stripe.subscriptions.retrieve(user.stripe_subscription_id as string);
+              // If subscription is naturally canceled, unpaid, or past_due to the point of cancellation
+              if (new Set(['canceled', 'unpaid', 'past_due']).has(subscription.status)) {
+                 // Update local DB to revoke premium
+                 await supabaseAdmin
+                   .from('profiles')
+                   .update({ is_premium: false })
+                   .eq('id', user.id);
+                 console.log(`[CRON] 🚨 Revoked premium for user ${user.id} -> Sub status: ${subscription.status}`);
+                 canceledCount++;
+              }
+            } catch (err: any) {
+              console.error(`❌ [CRON] Failed to verify subscription for user ${user.id}:`, err?.message);
+              // If the subscription is missing/deleted entirely from Stripe, revoke premium
+              if (err?.statusCode === 404) {
+                 await supabaseAdmin.from('profiles').update({ is_premium: false }).eq('id', user.id);
+                 console.log(`[CRON] 🚨 Revoked premium for user ${user.id} (Subscription 404 Not Found)`);
+                 canceledCount++;
+              } else {
+                 failedCount++;
+              }
             }
-          } catch (err: any) {
-            console.error(`❌ [CRON] Failed to verify subscription for user ${user.id}:`, err?.message);
-            // If the subscription is missing/deleted entirely from Stripe, revoke premium
-            if (err?.statusCode === 404) {
-               await supabaseAdmin.from('profiles').update({ is_premium: false }).eq('id', user.id);
-               console.log(`[CRON] 🚨 Revoked premium for user ${user.id} (Subscription 404 Not Found)`);
-               canceledCount++;
-            } else {
-               failedCount++;
-            }
-          }
+          }));
         }
       }
 
