@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { extractStoreName } from '../src/utils/videoUtils';
+import { extractStoreName, parseVideoProduct } from '../src/utils/videoUtils';
 
 test.describe('extractStoreName', () => {
   test('should return empty string for null or undefined', () => {
@@ -28,5 +28,15 @@ test.describe('extractStoreName', () => {
     // This triggers the try-catch block
     expect(extractStoreName('invalid-url-string')).toBe('Store');
     expect(extractStoreName('htp://')).toBe('Store');
+  });
+});
+
+test.describe('parseVideoProduct', () => {
+  test('should fallback to treating as standard text when parsing invalid JSON', () => {
+    const invalidJson = "{ invalid json }";
+    const result = parseVideoProduct(invalidJson);
+
+    expect(result.captionText).toBe(invalidJson);
+    expect(result.productName).toBe(invalidJson);
   });
 });
