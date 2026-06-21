@@ -7,6 +7,7 @@ import * as cheerio from 'cheerio';
 import validator from 'validator';
 import https from 'https';
 import http from 'http';
+import dns from 'dns';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -254,6 +255,57 @@ function resolveRedirectsNative(initialUrl: string): Promise<string> {
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 dotenv.config();
+
+// Helper to resolve and validate URL target against SSRF
+async function isSafeUrl(targetUrl: string): Promise<boolean> {
+  try {
+    const parsed = new URL(targetUrl);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+
+    const hostname = parsed.hostname.toLowerCase();
+
+    // Preliminary string-based check
+    const isIpAddressStr = validator.isIP(hostname) || /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname);
+    if (
+       hostname === 'localhost' ||
+       hostname.endsWith('.localhost') ||
+       hostname.startsWith('127.') ||
+       hostname.startsWith('169.254.') ||
+       hostname.startsWith('10.') ||
+       hostname.startsWith('0.') ||
+       isIpAddressStr ||
+       /^192\.168\./.test(hostname) ||
+       /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname) ||
+       hostname.includes('0x') ||
+       hostname.endsWith('.local')
+    ) {
+       return false;
+    }
+
+    // Resolve DNS to catch domains pointing to internal IPs (e.g. nip.io)
+    const { address } = await dns.promises.lookup(hostname);
+    if (!address) return false;
+
+    if (
+      address.startsWith('127.') ||
+      address.startsWith('10.') ||
+      address.startsWith('169.254.') ||
+      address.startsWith('0.') ||
+      /^192\.168\./.test(address) ||
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(address) ||
+      address === '::1' ||
+      address.toLowerCase().startsWith('fc00:') ||
+      address.toLowerCase().startsWith('fd00:') ||
+      address.toLowerCase().startsWith('fe80:')
+    ) {
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    return false; // Fail securely if URL parsing or DNS lookup fails
+  }
+}
 
 // Helper to fetch page HTML bypassing SSL/TLS certificate validation errors
 function fetchPageHtmlWithNoTls(targetUrl: string): Promise<string> {
@@ -2512,25 +2564,8 @@ async function startServer() {
       const targetUrl = req.query.url as string;
       if (!targetUrl) return res.status(400).send('URL required');
       
-      const parsedUrl = new URL(targetUrl);
-      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-         return res.status(400).send('Invalid protocol');
-      }
-      
-      const hostname = parsedUrl.hostname.toLowerCase();
-      const isIpAddress = validator.isIP(hostname) || /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname);
-      // Basic blocklist for internal/localhost SSRF prevention
-      if (
-         hostname === 'localhost' || 
-         hostname.endsWith('.localhost') ||
-         hostname.startsWith('127.') || 
-         hostname.startsWith('169.254.') || 
-         hostname.startsWith('10.') || 
-         hostname.startsWith('0.') ||
-         isIpAddress ||
-         /^192\.168\./.test(hostname) ||
-         /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)
-      ) {
+      const safe = await isSafeUrl(targetUrl);
+      if (!safe) {
          return res.status(403).send('Private network access forbidden');
       }
 
@@ -2551,14 +2586,14 @@ async function startServer() {
       if (!url || typeof url !== 'string' || !validator.isURL(url, { protocols: ['http', 'https'], require_protocol: true })) {
         return res.status(400).json({ error: 'Invalid URL format' });
       }
+      
+      const safe = await isSafeUrl(url);
+      if (!safe) {
+         return res.status(400).json({ error: 'Local or internal IP addresses are not allowed.' });
+      }
 
       const parsedUrl = new URL(url);
       const hostname = parsedUrl.hostname.toLowerCase();
-      
-      const isIpAddress = validator.isIP(hostname) || /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname);
-      if (hostname === 'localhost' || hostname === '127.0.0.1' || isIpAddress || hostname.endsWith('.local') || hostname.includes('0x')) {
-         return res.status(400).json({ error: 'Local or internal IP addresses are not allowed.' });
-      }
 
       let title = '';
       let favicon = `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`; // fallback
