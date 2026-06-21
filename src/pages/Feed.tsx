@@ -419,6 +419,18 @@ export default function Feed() {
         dir="ltr"
       >
         {videos.map((video, index) => {
+          const isNearActive = Math.abs(index - activeIndex) <= 2;
+          
+          if (!isNearActive) {
+            // Render a lightweight placeholder with exact height to maintain scroll positioning
+            return (
+              <div 
+                key={video.id} 
+                className="w-full h-[100dvh] snap-start relative bg-black shrink-0"
+              />
+            );
+          }
+
           return <VideoPlayer key={video.id} video={video} isActive={index === activeIndex} />;
         })}
         {hasMore && (

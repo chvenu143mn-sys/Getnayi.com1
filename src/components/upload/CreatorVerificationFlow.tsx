@@ -1,13 +1,20 @@
-import React, { useState } from 'react';
-import { Loader2, ArrowLeft, User, Building, FileText, Globe, Link as LinkIcon } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Loader2, ArrowLeft, User, Building, FileText, Globe, Link as LinkIcon, Check, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../lib/utils';
+import { toast } from 'sonner';
 
 interface CreatorVerificationFlowProps {
-  approvalStatus: 'loading' | 'unauthorized' | 'pending' | 'rejected';
+  approvalStatus: 'loading' | 'unauthorized' | 'pending' | 'rejected' | 'approved';
   setApprovalStatus: React.Dispatch<React.SetStateAction<'loading' | 'unauthorized' | 'pending' | 'rejected' | 'approved'>>;
+}
+
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
 }
 
 export function CreatorVerificationFlow({ approvalStatus, setApprovalStatus }: CreatorVerificationFlowProps) {
@@ -33,7 +40,7 @@ export function CreatorVerificationFlow({ approvalStatus, setApprovalStatus }: C
         ? `Role: Brand\n\nNotes:\n${appNotes}`
         : `Role: Creator\n\nNotes:\n${appNotes}`;
 
-      const { data, error } = await supabase
+      const { data, error: err } = await supabase
         .from('creator_applications')
         .insert({
            user_id: user.id,
@@ -45,7 +52,7 @@ export function CreatorVerificationFlow({ approvalStatus, setApprovalStatus }: C
         .select()
         .single();
         
-      if (error) throw error;
+      if (err) throw err;
       setApprovalStatus('pending');
     } catch (err: any) {
        setError(err.message || 'Failed to submit application.');
@@ -132,8 +139,8 @@ export function CreatorVerificationFlow({ approvalStatus, setApprovalStatus }: C
               if (showForm) {
                 setShowForm(false);
               } else {
-                navigate(-1);
-            }
+                navigate('/subscription');
+              }
             }} 
             className="text-white hover:text-zinc-300 transition-colors p-1"
           >
@@ -145,52 +152,54 @@ export function CreatorVerificationFlow({ approvalStatus, setApprovalStatus }: C
         </header>
 
         <div className="flex-1 flex flex-col">
-          <div className="w-full flex items-center justify-between max-w-[280px] mx-auto mt-2 mb-10 relative px-2">
-            <div className="absolute top-[18px] left-[30px] right-[30px] h-[1px] bg-zinc-800 -z-5" />
-            
-            <div className="flex flex-col items-center gap-2">
-              <div className={cn(
-                "size-[36px] rounded-full flex items-center justify-center font-bold text-[14px] transition-all duration-300",
-                (approvalStatus === 'unauthorized' || approvalStatus === 'rejected' || approvalStatus === 'pending')
-                  ? "bg-[#ef2950] text-white shadow-[0_0_15px_rgba(239,41,80,0.4)]"
-                  : "bg-zinc-900 text-zinc-500 border border-zinc-800"
-              )}>
-                1
+          {approvalStatus === 'pending' || true ? (
+            <div className="w-full flex items-center justify-between max-w-[280px] mx-auto mt-2 mb-10 relative px-2">
+              <div className="absolute top-[18px] left-[30px] right-[30px] h-[1px] bg-zinc-800 -z-5" />
+              
+              <div className="flex flex-col items-center gap-2">
+                <div className={cn(
+                  "size-[36px] rounded-full flex items-center justify-center font-bold text-[14px] transition-all duration-300",
+                  (approvalStatus === 'unauthorized' || approvalStatus === 'rejected' || approvalStatus === 'pending')
+                    ? "bg-[#ef2950] text-white shadow-[0_0_15px_rgba(239,41,80,0.4)]"
+                    : "bg-zinc-900 text-zinc-500 border border-zinc-800"
+                )}>
+                  1
+                </div>
+                <span className={cn(
+                  "text-[12px] font-medium tracking-wide",
+                  (approvalStatus === 'unauthorized' || approvalStatus === 'rejected') ? "text-white" : "text-zinc-500"
+                )}>
+                  Apply
+                </span>
               </div>
-              <span className={cn(
-                "text-[12px] font-medium tracking-wide",
-                (approvalStatus === 'unauthorized' || approvalStatus === 'rejected') ? "text-white" : "text-zinc-500"
-              )}>
-                Apply
-              </span>
-            </div>
 
-            <div className="flex flex-col items-center gap-2">
-              <div className={cn(
-                "size-[36px] rounded-full flex items-center justify-center font-bold text-[14px] transition-all duration-300",
-                approvalStatus === 'pending'
-                  ? "bg-[#ef2950] text-white shadow-[0_0_15px_rgba(239,41,80,0.4)]"
-                  : "bg-[#161618] text-zinc-500 border border-zinc-800"
-              )}>
-                2
+              <div className="flex flex-col items-center gap-2">
+                <div className={cn(
+                  "size-[36px] rounded-full flex items-center justify-center font-bold text-[14px] transition-all duration-300",
+                  approvalStatus === 'pending'
+                    ? "bg-[#ef2950] text-white shadow-[0_0_15px_rgba(239,41,80,0.4)]"
+                    : "bg-[#161618] text-zinc-500 border border-zinc-800"
+                )}>
+                  2
+                </div>
+                <span className={cn(
+                  "text-[12px] font-medium tracking-wide",
+                  approvalStatus === 'pending' ? "text-white" : "text-zinc-500"
+                )}>
+                  Review
+                </span>
               </div>
-              <span className={cn(
-                "text-[12px] font-medium tracking-wide",
-                approvalStatus === 'pending' ? "text-white" : "text-zinc-500"
-              )}>
-                Review
-              </span>
-            </div>
 
-            <div className="flex flex-col items-center gap-2">
-              <div className="size-[36px] rounded-full bg-[#161618] text-zinc-500 font-bold text-[14px] flex items-center justify-center border border-zinc-800">
-                3
+              <div className="flex flex-col items-center gap-2">
+                <div className="size-[36px] rounded-full bg-[#161618] text-zinc-500 font-bold text-[14px] flex items-center justify-center border border-zinc-800">
+                  3
+                </div>
+                <span className="text-[12px] font-medium text-zinc-500 tracking-wide">
+                  Verified
+                </span>
               </div>
-              <span className="text-[12px] font-medium text-zinc-500 tracking-wide">
-                Verified
-              </span>
             </div>
-          </div>
+          ) : null}
 
           {approvalStatus === 'pending' ? (
             <div className="flex-1 flex flex-col items-center justify-center py-6">
@@ -313,7 +322,7 @@ export function CreatorVerificationFlow({ approvalStatus, setApprovalStatus }: C
                     </button>
                   </div>
                 ) : (
-                  <form onSubmit={submitApplication} className="gap-y-5 animate-fadeIn">
+                  <form onSubmit={submitApplication} className="gap-y-5 animate-fadeIn pb-10">
                     <div className="mb-4">
                       <p className="text-xs text-zinc-500 mb-2 uppercase tracking-widest font-bold">Step 1 — Submit Profile Links</p>
                       <h2 className="text-lg font-bold text-zinc-100">

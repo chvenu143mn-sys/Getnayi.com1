@@ -22,6 +22,7 @@ import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
 import { parse } from 'tldts';
 import { GoogleGenAI } from '@google/genai';
+import Razorpay from 'razorpay';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
@@ -495,6 +496,17 @@ export function getStripe(): Stripe | null {
   return stripeClient;
 }
 
+let razorpayClient: Razorpay | null = null;
+export function getRazorpay(): Razorpay | null {
+  if (!razorpayClient && process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+    razorpayClient = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET
+    });
+  }
+  return razorpayClient;
+}
+
 function setupCronJobs() {
   // Sweeper for stuck processing videos (in case webhook fails)
   cron.schedule('*/1 * * * *', async () => {
@@ -688,7 +700,12 @@ async function startServer() {
 
   setupCronJobs();
 
-  app.use(express.json({ limit: '50mb' }));
+  app.use(express.json({ 
+    limit: '50mb',
+    verify: (req: any, res, buf) => {
+      req.rawBody = buf;
+    }
+  }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
   
   // Apply globally to standard API routes to prevent abuse (e.g. DDOS / brute forcing)
@@ -877,32 +894,67 @@ async function startServer() {
   }, 10000);
 
   // Rate limiter for engagement
-  const engagementLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1 minute
-    max: 20, // Max 20 engagement actions per minute
-    message: { error: 'Too many engagement actions. Please slow down.' }
-  });
+  const createDistributedLimiter = (prefix: string, limit: number, windowSeconds: number, errorMessage: string) => {
+    return async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+      if (!isRedisEnabled()) {
+        return next(); // Fallback to no-op if redis not equipped
+      }
+      try {
+        const ip = req.ip || 'unknown';
+        const key = `${prefix}:${ip}`;
+        const current = await redis.incr(key);
+        if (current === 1) {
+            await redis.expire(key, windowSeconds);
+        }
+        if (current > limit) {
+            return res.status(429).json({ error: errorMessage });
+        }
+        next();
+      } catch (err) {
+        // fail open if redis is down
+        next();
+      }
+    };
+  };
 
-  const signupLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 hour
-    max: 5, // 5 signups per IP per hour
-    message: { error: 'Too many signup attempts from this IP. Please try again later.' }
-  });
+  const engagementLimiter = createDistributedLimiter('rate_limit:engagement', 20, 60, 'Too many engagement actions. Please slow down.');
+  const signupLimiter = createDistributedLimiter('rate_limit:signup', 5, 3600, 'Too many signup attempts from this IP. Please try again later.');
 
   app.post('/api/auth/signup', signupLimiter, async (req, res) => {
     try {
       const { email, password, username } = req.body;
       if (!supabaseAdmin) throw new Error("Database not configured");
       
+      if (!username || username.trim().length === 0) {
+        return res.status(400).json({ error: "Username is required." });
+      }
+
+      // Check if username already exists to avoid generic 'Database error saving new user'
+      const { data: existingUser } = await supabaseAdmin
+        .from('profiles')
+        .select('id')
+        .eq('username', username.trim())
+        .maybeSingle();
+
+      if (existingUser) {
+        return res.status(400).json({ error: "That username is already taken. Please choose another one." });
+      }
+
       const { data, error } = await supabaseAdmin.auth.signUp({
         email,
         password,
         options: {
-          data: { username }
+          data: { username: username.trim() }
         }
       });
       
-      if (error) return res.status(400).json({ error: error.message });
+      if (error) {
+        // Provide a clearer error message for the specific trigger issue
+        if (error.message.includes('Database error saving new user')) {
+           return res.status(400).json({ error: "Could not create profile. This can happen if the username has special characters not allowed in our database, or is duplicate." });
+        }
+        return res.status(400).json({ error: error.message });
+      }
       res.json({ success: true, data });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -1093,9 +1145,24 @@ async function startServer() {
       if (userError || !user) {
         return res.status(401).json({ error: 'Invalid or expired auth token' });
       }
+
+      // Secure Role Check: query the profiles database table rather than relying exclusively on user_metadata
+      const { data: dbProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('is_admin, is_suspended')
+        .eq('id', user.id)
+        .single();
       
-      // Pass the user string to the next function if needed
-      (req as any).user = user;
+      const isDbAdmin = dbProfile?.is_admin === true;
+      const isDbSuspended = dbProfile?.is_suspended === true;
+      
+      // Pass the user information security properties
+      (req as any).user = {
+        ...user,
+        is_database_admin: isDbAdmin,
+        is_suspended: isDbSuspended
+      };
+      
       next();
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
@@ -1194,8 +1261,13 @@ async function startServer() {
         return res.status(403).json({ error: 'Forbidden. You do not have upload privileges.' });
       }
 
+      if (!filename || typeof filename !== 'string') {
+        return res.status(400).json({ error: 'Invalid filename' });
+      }
+      
       const crypto = await import('crypto');
-      const uniqueFilename = `${user.id}/${Date.now()}-${filename}`;
+      const safeFilename = path.basename(filename).replace(/[^a-zA-Z0-9.\-_]/g, '_');
+      const uniqueFilename = `${user.id}/${Date.now()}-${safeFilename}`;
       const expires = Math.floor(Date.now() / 1000) + 600; // 10 mins
       const secret = process.env.BUNNY_STORAGE_PASSWORD || 'secret';
       
@@ -1543,6 +1615,19 @@ async function startServer() {
     try {
       if (!supabaseAdmin) throw new Error('Database Admin client not configured');
       
+      const cacheKey = 'trending_tags_cache';
+      if (isRedisEnabled()) {
+        try {
+          const cached = await redis.get(cacheKey);
+          if (cached) return res.json(typeof cached === 'string' ? JSON.parse(cached) : cached);
+        } catch (e) { /* ignore redis error */ }
+      } else {
+        const local = searchCache.get(cacheKey);
+        if (local && Date.now() - local.timestamp < SEARCH_CACHE_TTL_MS) {
+          return res.json(local.data);
+        }
+      }
+
       const { data: videos, error } = await supabaseAdmin
         .from('videos')
         .select(`
@@ -1607,7 +1692,17 @@ async function startServer() {
         ];
       }
 
-      return res.json({ trendingTags: sortedTagsWithScores.map(t => t.tag).slice(0, 10), trendingTagScores: sortedTagsWithScores });
+      const responsePayload = { trendingTags: sortedTagsWithScores.map(t => t.tag).slice(0, 10), trendingTagScores: sortedTagsWithScores };
+
+      if (isRedisEnabled()) {
+        try {
+          await redis.set(cacheKey, JSON.stringify(responsePayload), { ex: 300 });
+        } catch (e) { /* ignore redis error */ }
+      } else {
+        searchCache.set(cacheKey, { data: responsePayload, timestamp: Date.now() });
+      }
+
+      return res.json(responsePayload);
     } catch(err: any) {
       console.error('/api/trending Error:', err);
       // Fallback tags if database is unready
@@ -1618,9 +1713,32 @@ async function startServer() {
   app.get('/api/search', rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }), async (req, res) => {
     try {
       if (!supabaseAdmin) throw new Error('Database Admin client not configured');
-      const { q, category_id, store } = req.query;
+      const { q, category_id, store, limit, cursor } = req.query;
       
-      const qStr = (typeof q === 'string') ? q.trim() : '';
+      const limitNum = limit ? parseInt(limit as string) : 20;
+      const offsetNum = cursor ? parseInt(cursor as string) : 0;
+      
+      let qStr = (typeof q === 'string') ? q.trim() : '';
+
+      let filterMaxPrice: null | number = null;
+      let filterMinPrice: null | number = null;
+      let cleanQuery = qStr;
+
+      if (qStr !== '') {
+         const lowerQ = qStr.toLowerCase();
+         const underMatch = lowerQ.match(/(?:under|below|less than|max)\s*(?:rs\.?|inr|₹|\$)?\s*(\d+)/i);
+         if (underMatch) {
+             filterMaxPrice = parseInt(underMatch[1], 10);
+             cleanQuery = cleanQuery.replace(underMatch[0], '');
+         }
+         const overMatch = cleanQuery.match(/(?:above|over|more than|min)\s*(?:rs\.?|inr|₹|\$)?\s*(\d+)/i);
+         if (overMatch) {
+             filterMinPrice = parseInt(overMatch[1], 10);
+             cleanQuery = cleanQuery.replace(overMatch[0], '');
+         }
+         cleanQuery = cleanQuery.trim();
+      }
+
       const selectedCategory = (typeof category_id === 'string' && category_id) ? category_id : null;
       const storeFilter = (typeof store === 'string' && store) ? store : null;
 
@@ -1628,131 +1746,99 @@ async function startServer() {
         return res.json({ videos: [] });
       }
 
-      let deduplicatedMap = new Map();
-
-      // If user provided a search query, use our advanced native PostgreSQL pg_trgm fuzzy search RPC
-      if (qStr !== '') {
-        const cleanSearchTerm = qStr.replace(/^#/, '').toLowerCase();
-        // Run optimized trigram similarity search directly in DB
-        const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('search_videos_v2', {
-          search_term: cleanSearchTerm,
-          p_category_id: selectedCategory
-        });
-
-        if (rpcError) {
-          console.warn("RPC search_videos_v2 failed (might not be executed in DB yet). Falling back to basic search...", rpcError);
-        }
-
-        if (rpcData && rpcData.length > 0) {
-           const videoIds = rpcData.map((v: any) => v.id);
-           
-           // Fetch full relational data for matched videos
-           const { data: matchedRecords, error: matchError } = await supabaseAdmin
-            .from('videos')
-            .select(`
-              *,
-              categories (id, name),
-              profiles!inner (id, username, avatar_url, is_brand, trust_score),
-              likes(count),
-              comments(count),
-              saved_videos(count)
-            `)
-            .in('id', videoIds);
-            
-           if (!matchError && matchedRecords) {
-              // Maintain ordering according to similarity_score
-              const orderMap = new Map<any, number>(videoIds.map((id: any, index: number) => [id, index]));
-              matchedRecords.sort((a, b) => ((orderMap.get(a.id) as number) || 0) - ((orderMap.get(b.id) as number) || 0));
-              
-              for (const video of matchedRecords) {
-                deduplicatedMap.set(video.id, video);
-              }
-           }
-        }
-      }
-
-      // If no search term provided, or fallback needed
-      if (deduplicatedMap.size === 0) {
-        let queryBuilder = supabaseAdmin
-          .from('videos')
-          .select(`
-            *,
-            categories (id, name),
-            profiles!inner (id, username, avatar_url, is_brand, trust_score),
-            likes(count),
-            comments(count),
-            saved_videos(count)
-          `)
-          .eq('status', 'active');
-
-        if (selectedCategory) {
-           queryBuilder = queryBuilder.eq('category_id', selectedCategory);
-        }
-
-        if (qStr !== '') {
-          const terms = qStr.split(/\s+/).filter(w => w.length > 2);
-          const orConditions = [`caption.ilike.%${qStr}%`];
-          for (const t of terms) {
-             orConditions.push(`caption.ilike.%${t}%`);
-          }
-          queryBuilder = queryBuilder.or(orConditions.join(','));
-        }
-
-        const { data: fallbackData } = await queryBuilder.limit(storeFilter ? 300 : 30);
-        
-        if (fallbackData) {
-          for (const video of fallbackData) {
-            deduplicatedMap.set(video.id, video);
-          }
-        }
-        
-        // Also perform username search natively in JS as a fallback safeguard
-        if (qStr !== '') {
-           let userQuery = supabaseAdmin
-             .from('videos')
-             .select(`*, categories (id, name), profiles!inner (id, username, avatar_url, is_brand, trust_score), likes(count), comments(count), saved_videos(count)`)
-             .eq('status', 'active')
-             .ilike('profiles.username', `%${qStr}%`);
-           if (selectedCategory) userQuery = userQuery.eq('category_id', selectedCategory);
-           
-           const { data: usernameData } = await userQuery.limit(30);
-           if (usernameData) {
-             const JSFiltered = usernameData.filter((v: any) => v.profiles && v.profiles.username.toLowerCase().includes(qStr.toLowerCase()));
-             for (const video of JSFiltered) {
-                deduplicatedMap.set(video.id, video);
-             }
-           }
-        }
-      }
-
-      let data = Array.from(deduplicatedMap.values());
+      const cleanSearchTerm = cleanQuery.replace(/^#/, '').toLowerCase();
       
-      // Filter by store if specified
+      const { data: v3Data, error: v3Error } = await supabaseAdmin.rpc('search_videos_v3', {
+        search_term: cleanSearchTerm,
+        p_category_id: selectedCategory,
+        p_max_price: filterMaxPrice,
+        p_min_price: filterMinPrice,
+        p_limit: limitNum,
+        p_offset: offsetNum
+      });
+
+      if (!v3Error && v3Data) {
+        // v3 already returns scores and prices
+        let data = v3Data;
+        if (storeFilter) {
+          data = data.filter((v: any) => {
+            const name = extractStoreName(v.video_url);
+            return name.toLowerCase() === storeFilter.toLowerCase();
+          });
+        }
+        
+        let nextCursor = null;
+        if (v3Data.length === limitNum) {
+          nextCursor = (offsetNum + limitNum).toString();
+        }
+        
+        // Transform response shape exactly as JS did to keep frontend intact
+        data = data.map((v: any) => ({
+            ...v,
+            categories: { id: v.category_id, name: "Category" }, 
+            profiles: { id: v.user_id, username: v.username, avatar_url: v.avatar_url, is_brand: v.is_brand, trust_score: v.trust_score },
+            likes: [{ count: v.likes_count }],
+            comments: [{ count: 0 }],
+            saved_videos: [{ count: v.saves_count }]
+        }));
+        
+        return res.json({ videos: data, nextCursor });
+      }
+
+      // If missing search_videos_v3 or no results, fallback to optimized vanilla RPC
+      const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('search_videos_v2', {
+        search_term: cleanSearchTerm,
+        p_category_id: selectedCategory
+      });
+      
+      let videoIds = [];
+      if (rpcData && rpcData.length > 0) {
+        videoIds = rpcData.map((v: any) => v.id);
+      }
+      
+      let queryBuilder = supabaseAdmin
+        .from('videos')
+        .select(`
+          *,
+          categories (id, name),
+          profiles!inner (id, username, avatar_url, is_brand, trust_score),
+          likes(count),
+          comments(count),
+          saved_videos(count)
+        `)
+        .eq('status', 'active');
+
+      if (selectedCategory) {
+         queryBuilder = queryBuilder.eq('category_id', selectedCategory);
+      }
+
+      if (videoIds.length > 0) {
+        queryBuilder = queryBuilder.in('id', videoIds);
+      } else if (cleanQuery !== '') {
+        const terms = cleanQuery.split(/\s+/).filter(w => w.length > 2);
+        const orConditions = [`caption.ilike.%${cleanQuery}%`];
+        for (const t of terms) {
+           orConditions.push(`caption.ilike.%${t}%`);
+        }
+        queryBuilder = queryBuilder.or(orConditions.join(','));
+      }
+
+      const { data: fallbackData } = await queryBuilder.limit(storeFilter ? 100 : limitNum).range(offsetNum, offsetNum + (storeFilter ? 100 : limitNum) - 1);
+      let data = fallbackData || [];
+
       if (storeFilter) {
         data = data.filter((v: any) => {
-          const name = extractStoreName(v.product_url);
-          return name.toLowerCase() === storeFilter.toLowerCase();
+           const name = extractStoreName(v.product_url);
+           return name.toLowerCase() === storeFilter.toLowerCase();
         });
       }
       
-      // Additional price filter (JS side)
-      if (qStr !== '') {
-          const underMatch = qStr.toLowerCase().match(/(?:under|below|less than)\s*(?:rs\.?|inr|₹)?\s*(\d+)/);
-          if (underMatch) {
-             const maxPrice = parseInt(underMatch[1], 10);
-             data = data.filter((v: any) => {
-                try {
-                  const p = typeof v.caption === 'string' ? JSON.parse(v.caption) : v.caption;
-                  if (p && p.product_price) {
-                     return parseInt(p.product_price, 10) <= maxPrice;
-                  }
-                  return true; 
-                } catch(e) { return true; }
-             });
-          }
+      let nextCursor = null;
+      if (data.length === (storeFilter ? 100 : limitNum)) {
+         nextCursor = (offsetNum + (storeFilter ? 100 : limitNum)).toString();
       }
 
-      return res.json({ videos: data });
+      return res.json({ videos: data, nextCursor });
     } catch (err: any) {
       console.error('Search Error:', err);
       return res.status(500).json({ error: 'Internal server error' });
@@ -2122,16 +2208,14 @@ async function startServer() {
       }
       
       // Shadowban check (Admins, testing developers with chvenu143mn@gmail.com, or user with is_admin metadata are never banned)
-      const isTestingDeveloper = user.email === 'chvenu143mn@gmail.com' || user.user_metadata?.is_admin === true;
+      const isTestingDeveloper = user.email === 'chvenu143mn@gmail.com' || user.is_database_admin === true;
       
       // If the developer is currently banned, let's automatically UNBAN them so they can test comments normally!
-      if (isTestingDeveloper && user.user_metadata?.is_banned === true) {
+      if (isTestingDeveloper && user.is_suspended === true) {
         if (supabaseAdmin) {
           try {
-            await supabaseAdmin.auth.admin.updateUserById(user.id, {
-              user_metadata: { ...user.user_metadata, is_banned: false }
-            });
-            user.user_metadata.is_banned = false; // local variable update
+            await supabaseAdmin.from('profiles').update({ is_suspended: false }).eq('id', user.id);
+            user.is_suspended = false; // local variable update
             console.log(`[Moderation] Automatically unbanned testing developer: ${user.email}`);
           } catch (unbanError) {
             console.error('Failed to auto-unban developer:', unbanError);
@@ -2139,7 +2223,7 @@ async function startServer() {
         }
       }
 
-      const isShadowbanned = user.user_metadata?.is_banned === true && !isTestingDeveloper;
+      const isShadowbanned = user.is_suspended === true && !isTestingDeveloper;
 
       // Spam Filter: regex for URLs or spam phrases
       const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.[a-zA-Z]{2,}(\/[^\s]*)?)/i;
@@ -2156,9 +2240,7 @@ async function startServer() {
             if (spamCount >= 3 && !isTestingDeveloper) {
                // Auto shadowban
                if (supabaseAdmin) {
-                 await supabaseAdmin.auth.admin.updateUserById(user.id, {
-                   user_metadata: { ...user.user_metadata, is_banned: true }
-                 });
+                 await supabaseAdmin.from('profiles').update({ is_suspended: true, can_upload: false }).eq('id', user.id);
                }
             }
          } catch (redisError) {
@@ -2195,9 +2277,7 @@ async function startServer() {
                if (count === 1) await redis.expire(rapidCountKey, 60);
 
                if (count >= 3 && supabaseAdmin && !isTestingDeveloper) {
-                  await supabaseAdmin.auth.admin.updateUserById(user.id, {
-                     user_metadata: { ...user.user_metadata, is_banned: true }
-                  });
+                  await supabaseAdmin.from('profiles').update({ is_suspended: true, can_upload: false }).eq('id', user.id);
                }
                return res.status(429).json({ error: 'Please wait before posting the identical comment.' });
             }
@@ -2255,7 +2335,7 @@ async function startServer() {
       }
 
       const isVideoOwner = video.user_id === user.id;
-      const isAdmin = user.user_metadata?.is_admin === true;
+      const isAdmin = user.is_database_admin === true;
 
       if (!isVideoOwner && !isAdmin) {
         return res.status(403).json({ error: 'Only the video creator or an admin can pin comments' });
@@ -2340,7 +2420,7 @@ async function startServer() {
         isVideoOwner = true;
       }
 
-      const isAdmin = user.user_metadata?.is_admin === true;
+      const isAdmin = user.is_database_admin === true;
 
       if (!isCommentOwner && !isVideoOwner && !isAdmin) {
         return res.status(403).json({ error: 'Not authorized to delete this comment' });
@@ -2424,222 +2504,36 @@ async function startServer() {
     }
   });
 
-  app.post('/api/scrape-url', verifyAuth, express.json(), async (req, res) => {
-    try {
-      const { product_url } = req.body;
-      if (!product_url || typeof product_url !== 'string') {
-        return res.status(400).json({ error: 'product_url is required and must be a string' });
-      }
 
-      const validator = (await import('validator')).default;
-      if (!validator.isURL(product_url, { protocols: ['http', 'https'], require_protocol: true })) {
-        return res.status(400).json({ error: 'Invalid URL format' });
-      }
-
-      const parsedUrl = new URL(product_url);
-      const hostname = parsedUrl.hostname.toLowerCase();
-      
-      const isIpAddress = validator.isIP(hostname) || /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname);
-      if (hostname === 'localhost' || hostname === '127.0.0.1' || isIpAddress || hostname.endsWith('.local') || hostname.includes('0x')) {
-         return res.status(400).json({ error: 'Local or internal IP addresses are not allowed.' });
-      }
-
-      // Fetch the product page content
-      let scrapedText = '';
-      try {
-        const html = await fetchPageHtmlWithNoTls(product_url);
-        const $ = cheerio.load(html);
-        
-        const title = $('title').text() || $('meta[property="og:title"]').attr('content') || '';
-        const description = $('meta[name="description"]').attr('content') || $('meta[property="og:description"]').attr('content') || '';
-        scrapedText = `Product Title: ${title}\nDescription: ${description}`;
-      } catch (err) {
-        console.error('Failed to scrape product page', err);
-        // We gracefully fallback to an empty string
-      }
-      
-      return res.json({ success: true, data: { scrapedText } });
-    } catch (err: any) {
-       console.error('/api/scrape-url error', err);
-       return res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Generate Metadata logic using Gemini
-  app.post('/api/generate-metadata', verifyAuth, express.json(), async (req, res) => {
-    try {
-      const { product_url, caption } = req.body;
-      if (!product_url || typeof product_url !== 'string') {
-        return res.status(400).json({ error: 'product_url is required' });
-      }
-
-      const validator = (await import('validator')).default;
-      if (!validator.isURL(product_url, { protocols: ['http', 'https'], require_protocol: true })) {
-        return res.status(400).json({ error: 'Invalid URL format' });
-      }
-
-      let scrapedText = '';
-      try {
-        const html = await fetchPageHtmlWithNoTls(product_url);
-        const $ = cheerio.load(html);
-        const title = $('title').text() || $('meta[property="og:title"]').attr('content') || '';
-        const description = $('meta[name="description"]').attr('content') || $('meta[property="og:description"]').attr('content') || '';
-        scrapedText = `Product Title: ${title}\nDescription: ${description}`;
-      } catch (err) {
-        console.error('Failed to scrape product page', err);
-      }
-
-      if (!process.env.GEMINI_API_KEY) {
-        // Fallback to client-side AI processing (e.g. Puter.js)
-        return res.json({ success: true, is_fallback: true, scrapedText });
-      }
-
-      const prompt = `Analyze this e-commerce product and generate relevant metadata.
-Product URL: "${product_url}"
-Available Context from page: "${scrapedText}"
-User Provided Caption/Review: "${caption || ''}"
-
-Based on the URL, available context, and any general knowledge you have about this URL or brand, generate a highly optimized set of metadata to categorize this content and improve search discovery. 
-
-Even if the scraped context is limited or empty, use the URL domain, URL path, and any general knowledge to provide the best possible tags. DO NOT generate error messages or complaints in the tags (like "product information missing" or "context lacking"). If you truly have no information, provide generic e-commerce tags (e.g. "shopping", "product", "review") and a generic caption.
-
-Generate ONLY a valid JSON object answering this shape exactly:
-{
-  "hashtags": ["#tag1", "#tag2"],
-  "tags": ["keyword1", "keyword2"],
-  "categories": ["category1"],
-  "suggested_caption": "Engaging text here...",
-  "product_highlights": "• Highlight 1\\n• Highlight 2\\n• Highlight 3",
-  "honest_review_notes": "Pros:\\n...\\nCons:\\n...\\nThings to know:\\n..."
-}`;
-
-      const { GoogleGenAI, Type } = await import('@google/genai');
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await generateContentWithRetry(ai, {
-        model: 'gemini-3.5-flash',
-        contents: prompt,
-        config: {
-           responseMimeType: 'application/json',
-           responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                 hashtags: { type: Type.ARRAY, items: { type: Type.STRING } },
-                 tags: { type: Type.ARRAY, items: { type: Type.STRING } },
-                 categories: { type: Type.ARRAY, items: { type: Type.STRING } },
-                 suggested_caption: { type: Type.STRING },
-                 product_highlights: { type: Type.STRING },
-                 honest_review_notes: { type: Type.STRING }
-              }
-           }
-        }
-      });
-
-      const text = response.text;
-      let generated = {};
-      if (text) {
-         try {
-            generated = JSON.parse(text);
-         } catch(e) {
-            console.error("Gemini JSON parse error", e, text);
-         }
-      }
-
-      return res.json({ success: true, data: generated });
-    } catch (err: any) {
-      console.error('/api/generate-metadata error details:', err?.message || err);
-      const isQuota = err?.status === 429 || err?.message?.includes('quota') || err?.status === 'RESOURCE_EXHAUSTED';
-      const isOverloaded = err?.status === 503 || err?.message?.includes('overloaded');
-      
-      if (isQuota || isOverloaded) {
-         return res.status(503).json({ error: 'AI limit reached. Cannot generate metadata right now.' });
-      }
-      return res.status(500).json({ error: err.message || 'Error generating metadata' });
-    }
-  });
-
-  app.post('/api/generate-title-from-frames', verifyAuth, express.json({ limit: '50mb' }), async (req, res) => {
-    try {
-      const { frames, prompt: userPrompt } = req.body;
-      if (!frames || !Array.isArray(frames) || frames.length === 0) {
-        return res.status(400).json({ error: 'Video frames are required' });
-      }
-
-      if (!process.env.GEMINI_API_KEY) {
-        return res.status(500).json({ error: 'GEMINI_API_KEY is not configured on the server.' });
-      }
-
-      const { GoogleGenAI } = await import('@google/genai');
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      
-      const parts: any[] = [];
-      const defaultPrompt = 'Analyze these frames from a product video. Generate a very short, catchy, highly relevant title (maximum 40 characters) that describes the product or action shown, suitable for a short-form video platform like TikTok. Generate ONLY the title text, nothing else, no quotes, no hashtags.';
-      
-      parts.push({ text: userPrompt ? `${defaultPrompt}\n\nAdditional Context: ${userPrompt}` : defaultPrompt });
-
-      // Limit to 4 frames to save tokens and time
-      const framesToProcess = frames.slice(0, 4);
-      
-      for (const base64DataUrl of framesToProcess) {
-        const matches = base64DataUrl.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
-        if (matches && matches.length === 3) {
-          parts.push({
-            inlineData: {
-              mimeType: matches[1],
-              data: matches[2]
-            }
-          });
-        }
-      }
-
-      const response = await generateContentWithRetry(ai, {
-        model: 'gemini-3.5-flash',
-        contents: { parts }
-      });
-
-      return res.json({ success: true, title: response.text?.trim().replace(/^"|"$/g, '') });
-    } catch (err: any) {
-      console.error('/api/generate-title-from-frames error:', err?.message || err);
-      const isQuota = err?.status === 429 || err?.message?.includes('quota') || err?.status === 'RESOURCE_EXHAUSTED';
-      const isOverloaded = err?.status === 503 || err?.message?.includes('overloaded');
-      
-      if (isQuota || isOverloaded) {
-         return res.status(503).json({ error: 'AI limit reached. Please write a title manually for now.' });
-      }
-      return res.status(500).json({ error: 'Failed to generate title via AI' });
-    }
-  });
-
-  app.post('/api/admin-auto-tag', verifyAuth, express.json(), async (req, res) => {
-    try {
-      if (!process.env.GEMINI_API_KEY) {
-        // Return a signal to use client-side puter
-        return res.json({ success: true, is_fallback: true });
-      }
-
-      const { prompt } = req.body;
-      if (!prompt) {
-        return res.status(400).json({ error: 'prompt is required' });
-      }
-
-      const { GoogleGenAI } = await import('@google/genai');
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await generateContentWithRetry(ai, {
-        model: 'gemini-3.5-flash',
-        contents: prompt
-      });
-
-      return res.json({ success: true, text: response.text });
-    } catch (err: any) {
-      console.error('/api/admin-auto-tag error:', err);
-      return res.status(500).json({ error: err.message || 'Error generating AI tag' });
-    }
-  });
 
   // Proxy image to avoid CORS
   app.get('/api/proxy-image', async (req, res) => {
     try {
       const targetUrl = req.query.url as string;
       if (!targetUrl) return res.status(400).send('URL required');
+      
+      const parsedUrl = new URL(targetUrl);
+      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+         return res.status(400).send('Invalid protocol');
+      }
+      
+      const hostname = parsedUrl.hostname.toLowerCase();
+      const isIpAddress = validator.isIP(hostname) || /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname);
+      // Basic blocklist for internal/localhost SSRF prevention
+      if (
+         hostname === 'localhost' || 
+         hostname.endsWith('.localhost') ||
+         hostname.startsWith('127.') || 
+         hostname.startsWith('169.254.') || 
+         hostname.startsWith('10.') || 
+         hostname.startsWith('0.') ||
+         isIpAddress ||
+         /^192\.168\./.test(hostname) ||
+         /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)
+      ) {
+         return res.status(403).send('Private network access forbidden');
+      }
+
       const response = await fetch(targetUrl);
       if (!response.ok) throw new Error('Failed to fetch image');
       const buffer = await response.arrayBuffer();
@@ -2771,114 +2665,36 @@ Example: {"productName": "Awesome Shirt", "productPrice": "1499"}`;
          return res.status(400).json({ error: 'Only HTTPS URLs are allowed. javascript: or other schemas are strictly forbidden.' });
       }
       
-      const cleanProductUrl = product_url.trim();
-
-      if (!validator.isURL(cleanProductUrl, { protocols: ['https'], require_protocol: true })) {
-        return res.status(400).json({ error: 'Invalid URL format. Please enter a valid product page link.' });
-      }
-
-      // Step 1: Follow redirects to secure the true destination URL
-      const resolvedUrl = await resolveRedirectsNative(cleanProductUrl);
-
-      // Step 2: Validate the resolved URL schema
-      let url;
-      try {
-        url = new URL(resolvedUrl);
-      } catch (e) {
-        return res.status(400).json({ error: 'The resolved product link is invalid.' });
-      }
-
-      if (url.protocol !== 'https:') {
-         return res.status(400).json({ error: 'Only HTTPS URLs are allowed for products.' });
-      }
-
-      const pathname = url.pathname.toLowerCase();
-      const blockedExtensions = ['.mp4', '.mov', '.avi', '.webm', '.mkv', '.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.zip', '.rar', '.mp3', '.wav'];
-      if (blockedExtensions.some(ext => pathname.endsWith(ext))) {
-         return res.status(400).json({ error: 'This must be a valid product page link, not a media file.' });
-      }
-
-      // Punycode Enforcement: converted natively via url.hostname to prevent homograph bypasses
-      const hostname = url.hostname.toLowerCase();
-      const isIpAddress = validator.isIP(hostname) || /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname);
-      if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.local') || hostname.includes('0x') || isIpAddress) {
-         return res.status(400).json({ error: 'Local or IP addresses are not allowed.' });
-      }
-
-      // Step 3: Parameter Sanitization to prevent affiliate URL stuffing / spoofing
-      const safeProductUrl = sanitizeProductUrl(url);
-
-      // Step 4: Google Safe Browsing / local blocklist comparison with final resolved + scrubbed URL
-      if (process.env.GOOGLE_SAFE_BROWSING_KEY) {
-        try {
-          const safeRes = await fetch(`https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${process.env.GOOGLE_SAFE_BROWSING_KEY}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              client: { clientId: 'getnayi', clientVersion: '1.0' },
-              threatInfo: {
-                threatTypes: ["MALWARE", "SOCIAL_ENGINEERING", "UNWANTED_SOFTWARE", "POTENTIALLY_HARMFUL_APPLICATION"],
-                platformTypes: ["ANY_PLATFORM"],
-                threatEntryTypes: ["URL"],
-                threatEntries: [{ url: safeProductUrl }]
-              }
-            })
-          });
-          const safeData = await safeRes.json();
-          if (safeData && safeData.matches && safeData.matches.length > 0) {
-            return res.status(400).json({ error: 'This URL has been flagged as potentially unsafe or malicious.' });
-          }
-        } catch (err) {
-          console.error("Safe browsing check failed", err);
-        }
-      } else {
-        const fallbackBlocklist = ['phishing.com', 'malware.net', 'scam.org'];
-        if (fallbackBlocklist.some(domain => safeProductUrl.includes(domain))) {
-          return res.status(400).json({ error: 'This URL is on our blocklist.' });
+      const urlFields = [video_url, thumbnail_url, main_product_image_url, real_life_image_url];
+      for (const field of urlFields) {
+        if (field && typeof field === 'string' && !/^https:\/\//i.test(field.trim())) {
+          return res.status(400).json({ error: 'All media URLs must strictly use HTTPS schemas. Invalid payloads rejected.' });
         }
       }
-
-      // Every uploaded post starts in a processing state
-      let status = 'processing';
       
-      const isMarketplace = isAllowedMarketplace(safeProductUrl);
-      const isProductPath = ['/p/', '/product/', '/item/', '/dp/', '/buy/', '/d/'].some(p => pathname.includes(p));
-      const looksLikeProductUrl = isMarketplace || isProductPath;
-
-      if (!looksLikeProductUrl && !force_unverified_url) {
-          return res.status(400).json({ 
-              error: 'URL_NOT_MARKETPLACE', 
-              message: 'Link doesn\'t look like an e-commerce platform.' 
-          });
-      }
-
       const user = (req as any).user;
-
       if (!supabaseAdmin) {
         return res.status(500).json({ error: 'Database Admin client not configured' });
       }
 
-      // Authorization check
-      const { data: profile } = await supabaseAdmin.from('profiles').select('can_upload, is_admin').eq('id', user.id).single();
+      // Authorization check & Upload Limits based on Plan
+      const { data: profile } = await supabaseAdmin.from('profiles').select('can_upload, is_admin, subscription_plan').eq('id', user.id).single();
       
       if (!profile?.can_upload && !profile?.is_admin) {
         return res.status(403).json({ error: 'Forbidden. You do not have upload privileges.' });
       }
 
-      // User-Based Rate Limits via Redis (3 per 12 hours)
-      if (isRedisEnabled()) {
-         try {
-            const key = `feed_upload_limit:${user.id}`;
-            const current = await redis.incr(key);
-            if (current === 1) {
-                await redis.expire(key, 12 * 3600); // 12 hours
-            }
-            if (current > 3 && !profile?.is_admin) {
-                return res.status(429).json({ error: 'You have reached the upload limit of 3 videos per 12 hours.' });
-            }
-         } catch (redisError: any) {
-            console.error('Feed upload limit Redis error (failing open):', redisError);
-         }
+      if (!profile?.is_admin) {
+        const { count } = await supabaseAdmin.from('videos').select('id', { count: 'exact', head: true }).eq('user_id', user.id);
+        const uploadedCount = count || 0;
+        const currentPlan = profile?.subscription_plan || 'free';
+        
+        if (currentPlan === 'free' && uploadedCount >= 1) {
+          return res.status(403).json({ error: 'Free plan limit reached (1 video). Please upgrade to Pro.' });
+        }
+        if (currentPlan === 'pro' && uploadedCount >= 10) {
+          return res.status(403).json({ error: 'Pro plan limit reached (10 videos). Please upgrade to Creator.' });
+        }
       }
 
       // Duplicate Hash Detection
@@ -2895,14 +2711,17 @@ Example: {"productName": "Awesome Shirt", "productPrice": "1499"}`;
          return res.status(409).json({ error: 'Duplicate upload detected. This video was already uploaded recently.' });
       }
 
-      // Admin insertion to allow status field (which might not be accessible if RLS blocks users setting status manually)
+      // Fast insert with processing status and raw URL
+      let status = 'processing';
+      const cleanProductUrl = product_url.trim();
+
       const { data, error } = await supabaseAdmin.from('videos').insert({
         user_id: user.id,
         video_url,
         ...(thumbnail_url ? { thumbnail_url } : {}),
         ...(main_product_image_url ? { main_product_image_url } : {}),
         caption,
-        product_url: safeProductUrl,
+        product_url: cleanProductUrl,
         ...(real_life_image_url ? { real_life_image_url, is_verified_real } : {}),
         ...(category_id ? { category_id } : {}),
         ...(tags && Array.isArray(tags) ? { tags } : {}),
@@ -2910,34 +2729,67 @@ Example: {"productName": "Awesome Shirt", "productPrice": "1499"}`;
       }).select().single();
 
       if (error) {
-         // Gracefully handle if 'status' column doesn't exist yet via checking error message
-         if (error.message.includes('column "status" of relation "videos" does not exist')) {
-             const fallback = await supabaseAdmin.from('videos').insert({
-                user_id: user.id,
-                video_url,
-                ...(thumbnail_url ? { thumbnail_url } : {}),
-                ...(main_product_image_url ? { main_product_image_url } : {}),
-                caption,
-                product_url: safeProductUrl,
-                ...(real_life_image_url ? { real_life_image_url, is_verified_real } : {}),
-                ...(category_id ? { category_id } : {}),
-                ...(tags && Array.isArray(tags) ? { tags } : {})
-             }).select().single();
-             
-             if (fallback.error) return res.status(400).json({ error: fallback.error.message });
-             
-             // Run AI analysis asynchronously
-             analyzeVideoMetadata(supabaseAdmin, fallback.data.id, fallback.data.caption, fallback.data.product_url).catch(console.error);
-             
-             return res.json({ success: true, data: fallback.data, status: 'active (status column missing fallback)' });
-         }
          return res.status(400).json({ error: error.message });
       }
 
-      // Run AI analysis asynchronously
-      analyzeVideoMetadata(supabaseAdmin, data.id, data.caption, data.product_url).catch(console.error);
+      res.json({ success: true, data, status: 'processing' });
 
-      return res.json({ success: true, data, status });
+      // Run ALL heavy validation and AI analysis asynchronously
+      (async () => {
+         try {
+            // Step 1: Follow redirects
+            const resolvedUrl = await resolveRedirectsNative(cleanProductUrl);
+            const url = new URL(resolvedUrl);
+
+            if (url.protocol !== 'https:') throw new Error('Only HTTPS URLs are allowed');
+            
+            const pathname = url.pathname.toLowerCase();
+            const blockedExtensions = ['.mp4', '.mov', '.avi', '.webm', '.mkv', '.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.zip', '.rar', '.mp3', '.wav'];
+            if (blockedExtensions.some(ext => pathname.endsWith(ext))) throw new Error('Must be a valid product page link');
+
+            const hostname = url.hostname.toLowerCase();
+            const isIpAddress = validator.isIP(hostname) || /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname);
+            if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.local') || hostname.includes('0x') || isIpAddress) {
+               throw new Error('Local/IP addresses not allowed');
+            }
+
+            const safeProductUrl = sanitizeProductUrl(url);
+
+            if (process.env.GOOGLE_SAFE_BROWSING_KEY) {
+              const safeRes = await fetch(`https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${process.env.GOOGLE_SAFE_BROWSING_KEY}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  client: { clientId: 'getnayi', clientVersion: '1.0' },
+                  threatInfo: {
+                    threatTypes: ["MALWARE", "SOCIAL_ENGINEERING", "UNWANTED_SOFTWARE", "POTENTIALLY_HARMFUL_APPLICATION"],
+                    platformTypes: ["ANY_PLATFORM"],
+                    threatEntryTypes: ["URL"],
+                    threatEntries: [{ url: safeProductUrl }]
+                  }
+                })
+              });
+              const safeData = await safeRes.json();
+              if (safeData && safeData.matches && safeData.matches.length > 0) {
+                 throw new Error('URL flagged as malicious');
+              }
+            }
+
+            const isMarketplace = isAllowedMarketplace(safeProductUrl);
+            const isProductPath = ['/p/', '/product/', '/item/', '/dp/', '/buy/', '/d/'].some(p => pathname.includes(p));
+            if (!isMarketplace && !isProductPath && !force_unverified_url) {
+               throw new Error('Link doesn\'t look like an e-commerce platform');
+            }
+
+            // Validation passed! Update URL and run AI analysis
+            await supabaseAdmin.from('videos').update({ product_url: safeProductUrl }).eq('id', data.id);
+            await analyzeVideoMetadata(supabaseAdmin, data.id, caption, safeProductUrl);
+         } catch (e: any) {
+            console.error('Background processing failed for video', data.id, e.message);
+            await supabaseAdmin.from('videos').update({ status: 'rejected' }).eq('id', data.id);
+         }
+      })();
+      return;
     } catch (err: any) {
       console.error('Video Upload API Error:', err);
       return res.status(400).json({ error: err.message });
@@ -2962,8 +2814,7 @@ Example: {"productName": "Awesome Shirt", "productPrice": "1499"}`;
         return res.status(404).json({ error: 'Video not found' });
       }
 
-      const { data: profile } = await supabaseAdmin.from('profiles').select('is_admin').eq('id', user.id).single();
-      const isAdmin = profile?.is_admin === true;
+      const isAdmin = user.is_database_admin === true;
 
       if (video.user_id !== user.id && !isAdmin) {
         return res.status(403).json({ error: 'Not authorized to edit this video' });
@@ -2972,7 +2823,13 @@ Example: {"productName": "Awesome Shirt", "productPrice": "1499"}`;
       const patch: any = {};
       if (caption !== undefined) patch.caption = caption;
       if (tags !== undefined && Array.isArray(tags)) patch.tags = tags;
-      if (req.body.product_url !== undefined) patch.product_url = req.body.product_url;
+      
+      if (req.body.product_url !== undefined) {
+         if (!/^https:\/\//i.test(req.body.product_url.trim())) {
+            return res.status(400).json({ error: 'product_url must securely use https' });
+         }
+         patch.product_url = req.body.product_url;
+      }
       if (req.body.category_id !== undefined) patch.category_id = req.body.category_id;
 
       if (Object.keys(patch).length === 0) {
@@ -3940,6 +3797,165 @@ Example: {"productName": "Awesome Shirt", "productPrice": "1499"}`;
     } catch(err) {
       console.error("Error in short link handler:", err);
       next(err);
+    }
+  });
+
+  // Razorpay APIs
+  app.post('/api/subscription/create', verifyAuth, async (req, res) => {
+    try {
+      const razorpay = getRazorpay();
+      if (!razorpay) return res.status(500).json({ error: 'Razorpay not configured' });
+      
+      const user = (req as any).user;
+      const { plan_id } = req.body; // e.g., 'plan_XYZ'
+      
+      if (!plan_id) return res.status(400).json({ error: 'Plan ID required' });
+
+      let amountInPaise = 0;
+      if (plan_id === 'plan_pro_yearly' || plan_id === process.env.VITE_RAZORPAY_PRO_YEARLY_PLAN_ID || plan_id === process.env.VITE_RAZORPAY_PRO_PLAN_ID) {
+        amountInPaise = 5988 * 100; // 5988 INR
+      } else if (plan_id === 'plan_pro_monthly' || plan_id === process.env.VITE_RAZORPAY_PRO_MONTHLY_PLAN_ID) {
+        amountInPaise = 599 * 100; // 599 INR
+      } else if (plan_id === 'plan_creator_yearly' || plan_id === process.env.VITE_RAZORPAY_CREATOR_YEARLY_PLAN_ID || plan_id === process.env.VITE_RAZORPAY_CREATOR_PLAN_ID) {
+        amountInPaise = 17988 * 100; // 17988 INR
+      } else if (plan_id === 'plan_creator_monthly' || plan_id === process.env.VITE_RAZORPAY_CREATOR_MONTHLY_PLAN_ID) {
+        amountInPaise = 1699 * 100; // 1699 INR
+      } else {
+        return res.status(400).json({ error: 'Invalid plan ID' });
+      }
+
+      // Create order in Razorpay
+      const order = await razorpay.orders.create({
+        amount: amountInPaise,
+        currency: 'INR',
+        receipt: `rcpt_${Date.now()}`,
+        notes: {
+          user_id: user.id,
+          plan_id: plan_id
+        }
+      });
+      
+      return res.json({ order_id: order.id, amount: order.amount, currency: order.currency });
+    } catch (err: any) {
+      console.error('Razorpay create err:', err);
+      const errorMessage = err.error?.description || err.message || 'Error creating order.';
+      return res.status(400).json({ error: errorMessage });
+    }
+  });
+
+  app.post('/api/subscription/verify', verifyAuth, async (req, res) => {
+    try {
+      const razorpay = getRazorpay();
+      if (!razorpay) return res.status(500).json({ error: 'Razorpay not configured' });
+      const user = (req as any).user;
+      const { razorpay_payment_id, razorpay_order_id, razorpay_signature, plan_id } = req.body;
+      
+      const body = razorpay_order_id + '|' + razorpay_payment_id;
+      const expectedSignature = crypto
+        .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
+        .update(body.toString())
+        .digest('hex');
+        
+      if (expectedSignature === razorpay_signature) {
+        // Double check payment status from Razorpay API
+        const payment = await razorpay.payments.fetch(razorpay_payment_id);
+        
+        if (payment.status === 'captured' || payment.status === 'authorized') {
+          // Success
+          const plan = plan_id?.includes('creator') || plan_id === process.env.VITE_RAZORPAY_CREATOR_PLAN_ID ? 'creator' : 'pro';
+
+          const reqSupabase = getRequestSupabaseClient(req);
+          const { error: dbError } = await reqSupabase.from('profiles').update({
+            subscription_plan: plan,
+            razorpay_subscription_id: razorpay_order_id,
+            subscription_status: 'active'
+          }).eq('id', user.id);
+          
+          if (dbError) {
+             console.error('Failed to update subscription in DB:', dbError);
+             return res.status(500).json({ error: 'Failed to update subscription in database' });
+          }
+
+          return res.json({ success: true });
+        } else {
+          return res.status(400).json({ error: `Payment not captured. Status: ${payment.status}` });
+        }
+      } else {
+        return res.status(400).json({ error: 'Signature mismatch' });
+      }
+    } catch (err: any) {
+      console.error('Razorpay verify err:', err);
+      return res.status(500).json({ error: 'Internal error' });
+    }
+  });
+
+  app.post('/api/subscription/webhook', async (req, res) => {
+    try {
+      const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+      if (!secret) return res.status(200).send('No webhook secret'); // ignore
+      
+      const signature = req.headers['x-razorpay-signature'] as string;
+      if (!signature) return res.status(400).send('No signature');
+      
+      // Rely on the verified rawBody if available, otherwise convert body or toString
+      let payloadString: string;
+      if ((req as any).rawBody && Buffer.isBuffer((req as any).rawBody)) {
+        payloadString = (req as any).rawBody.toString('utf8');
+      } else if (Buffer.isBuffer(req.body)) {
+        payloadString = req.body.toString('utf8');
+      } else if (typeof req.body === 'string') {
+        payloadString = req.body;
+      } else {
+        payloadString = JSON.stringify(req.body);
+      }
+      
+      const expectedSignature = crypto
+        .createHmac('sha256', secret)
+        .update(payloadString)
+        .digest('hex');
+        
+      if (expectedSignature !== signature) {
+        return res.status(400).send('Invalid signature');
+      }
+      
+      const parsedBody = JSON.parse(payloadString);
+      const event = parsedBody.event;
+      
+      if (event === 'order.paid' || event === 'payment.captured') {
+        let orderEntity = parsedBody.payload.order?.entity;
+        let paymentEntity = parsedBody.payload.payment?.entity;
+        let notes = orderEntity?.notes || paymentEntity?.notes;
+        
+        if (notes && notes.user_id) {
+          const plan = notes.plan_id?.includes('creator') || notes.plan_id === process.env.VITE_RAZORPAY_CREATOR_PLAN_ID ? 'creator' : 'pro';
+          const orderId = orderEntity?.id || paymentEntity?.order_id;
+          
+          if (supabaseAdmin) {
+            const { error: dbError } = await supabaseAdmin.from('profiles').update({ 
+              subscription_plan: plan,
+              subscription_status: 'active',
+              razorpay_subscription_id: orderId // Storing order ID
+            }).eq('id', notes.user_id);
+            
+            if (dbError) {
+               console.error('Webhook: Failed to update subscription in DB:', dbError);
+            }
+          }
+        }
+      } else if (event === 'payment.failed') {
+        let paymentEntity = parsedBody.payload.payment?.entity;
+        let notes = paymentEntity?.notes;
+        if (notes && notes.user_id) {
+           console.log(`Payment failed for user ${notes.user_id}`);
+           // We could log this or update a payment_history table if we had one.
+           // Leaving it as a logged event for now, as failure means no active subscription.
+        }
+      }
+      
+      return res.status(200).json({ status: 'ok' });
+    } catch (err: any) {
+      console.error('Webhook error:', err);
+      return res.status(500).send('Webhook Error');
     }
   });
 

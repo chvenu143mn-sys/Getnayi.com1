@@ -4,6 +4,7 @@ import { HelmetProvider } from 'react-helmet-async';
 import { MotionConfig } from 'motion/react';
 import App from './App.tsx';
 import './index.css';
+import { supabase } from './lib/supabase';
 
 // Intercept completely harmless Supabase refresh token errors that trigger test failures
 const originalConsoleError = console.error;

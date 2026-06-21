@@ -3,7 +3,7 @@ import DOMPurify from 'dompurify';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { UploadCloud, Loader2, Link as LinkIcon, Edit3, Volume2, VolumeX, CheckCircle, RefreshCw, Trash2, ArrowLeft, Image as ImageIcon, Camera, X, BadgeCheck, FileText, Globe, ShieldCheck, AlertCircle, Search, PlusCircle, Tag, ChevronRight, User, Building, Sparkles, ShoppingBag, Plus, Heart, Bookmark } from 'lucide-react';
+import { UploadCloud, Loader2, Zap, Link as LinkIcon, Edit3, Volume2, VolumeX, CheckCircle, RefreshCw, Trash2, ArrowLeft, Image as ImageIcon, Camera, X, BadgeCheck, FileText, Globe, ShieldCheck, AlertCircle, Search, PlusCircle, Tag, ChevronRight, User, Building, Sparkles, ShoppingBag, Plus, Heart, Bookmark } from 'lucide-react';
 import { cn } from '../lib/utils';
 import * as tus from 'tus-js-client';
 import { Profile, CreatorApplication } from '../types';
@@ -13,15 +13,27 @@ import { motion, AnimatePresence } from 'motion/react';
 import { extractStoreName } from '../utils/videoUtils';
 import { CreatorVerificationFlow } from '../components/upload/CreatorVerificationFlow';
 import { UploadSuccessState } from '../components/upload/UploadSuccessState';
-
 import { UploadAccordion } from '../components/upload/UploadAccordion';
+import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
+import { toast } from 'sonner';
 
 export default function Upload() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { plan: subscriptionPlan, status: subscriptionStatus, loading: subscriptionLoading } = useSubscriptionStatus();
 
   const previewVideoRef = useRef<HTMLVideoElement>(null);
   const previewModalVideoRef = useRef<HTMLVideoElement>(null);
+
+  const [uploadedCount, setUploadedCount] = useState<number>(0);
+  
+  useEffect(() => {
+    if (user) {
+      supabase.from('videos').select('id', { count: 'exact', head: true }).eq('user_id', user.id).then(({ count }) => {
+        setUploadedCount(count || 0);
+      });
+    }
+  }, [user]);
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [application, setApplication] = useState<CreatorApplication | null>(null);
@@ -90,8 +102,6 @@ export default function Upload() {
   
   const [hashtags, setHashtags] = useState<string>('');
   const [tags, setTags] = useState<string>('');
-  const [isExtractingMetadata, setIsExtractingMetadata] = useState(false);
-  const [isGeneratingTitle, setIsGeneratingTitle] = useState(false);
   
   const [isMuted, setIsMuted] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -102,6 +112,7 @@ export default function Upload() {
   const [showLinkWarning, setShowLinkWarning] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [requiresUpgrade, setRequiresUpgrade] = useState(false);
 
   const [videoDuration, setVideoDuration] = useState(0);
   const [trimStart, setTrimStart] = useState(0);
@@ -414,193 +425,9 @@ export default function Upload() {
     fetchStatus();
   }, [user]);
 
-  const handleExtractMetadata = async () => {
-    if (!productUrl) {
-      alert("Please enter a product URL first to extract metadata.");
-      return;
-    }
-    setIsExtractingMetadata(true);
-    try {
-      const sessionData = await supabase.auth.getSession();
-      const token = sessionData.data.session?.access_token;
-      
-      const res = await fetch('/api/generate-metadata', {
-        method: 'POST',
-        headers: {
-           'Content-Type': 'application/json',
-           'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ product_url: productUrl, caption })
-      });
-      let resData;
-      try {
-        resData = await res.json();
-      } catch (e) {
-        throw new Error(`Server returned an invalid response (${res.status}). It might be offline or deploying.`);
-      }
-      if (!res.ok) {
-        throw new Error(resData.error || "Metadata generation failed.");
-      }
-      
-      let generated;
-      
-      if (resData.is_fallback) {
-         const scrapedText = resData.scrapedText || '';
-         const prompt = `Analyze this e-commerce product and generate relevant metadata.
-Product URL: "${productUrl}"
-Available Context from page: "${scrapedText}"
-User Provided Caption/Review: "${caption || ''}"
-
-Based on the URL, available context, and any general knowledge you have about this URL or brand, generate a highly optimized set of metadata to categorize this content and improve search discovery. 
-
-Even if the scraped context is limited or empty, use the URL domain, URL path, and any general knowledge to provide the best possible tags. DO NOT generate error messages or complaints in the tags (like "product information missing" or "context lacking"). If you truly have no information, provide generic e-commerce tags (e.g. "shopping", "product", "review") and a generic caption.
-
-Generate ONLY a valid JSON object answering this shape exactly:
-{
-  "hashtags": ["#tag1", "#tag2"],
-  "tags": ["keyword1", "keyword2"],
-  "categories": ["category1"],
-  "suggested_caption": "Engaging text here...",
-  "product_highlights": "• Highlight 1\\n• Highlight 2\\n• Highlight 3",
-  "honest_review_notes": "Pros:\\n...\\nCons:\\n...\\nThings to know:\\n..."
-}`;
-         // @ts-ignore
-         if (typeof window.puter === 'undefined' || !window.puter.ai) {
-             throw new Error("Puter.js is not loaded. Please wait a moment or reload the page.");
-         }
-         // @ts-ignore
-         const puterRes = await window.puter.ai.chat(prompt);
-         
-         let textContent = puterRes?.message?.content || puterRes?.text || puterRes || '';
-         if (typeof textContent !== 'string') textContent = JSON.stringify(textContent);
-         
-         let jsonStr = textContent.replace(/```json/gi, '').replace(/```/gi, '').trim();
-         const firstBrace = jsonStr.indexOf('{');
-         const lastBrace = jsonStr.lastIndexOf('}');
-         if (firstBrace !== -1 && lastBrace !== -1) {
-             jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
-         }
-         try {
-             generated = JSON.parse(jsonStr);
-         } catch (e) {
-             throw new Error("AI returned invalid JSON format.");
-         }
-      } else {
-         generated = resData.data || resData;
-      }
-
-      if (generated) {
-        if (generated.hashtags) {
-           setHashtags(Array.isArray(generated.hashtags) ? generated.hashtags.join(' ') : generated.hashtags);
-        }
-        if (generated.tags) {
-           setTags(Array.isArray(generated.tags) ? generated.tags.join(', ') : generated.tags);
-        }
-        if (generated.suggested_caption) {
-           setCaption(prev => prev || generated.suggested_caption);
-        }
-        if (generated.product_highlights) {
-           setProductUses(prev => prev || generated.product_highlights);
-           setExpandedSection('structured');
-        }
-        if (generated.honest_review_notes) {
-           setThingsToKnow(prev => prev || generated.honest_review_notes);
-           setExpandedSection('structured');
-        }
-        if (generated.categories && Array.isArray(generated.categories) && generated.categories.length > 0) {
-           const aiCat = generated.categories[0].toLowerCase();
-           const match = categories.find(c => c.name.toLowerCase().includes(aiCat) || aiCat.includes(c.name.toLowerCase()));
-           if (match) {
-             setCategoryId(match.id);
-           }
-        }
-      }
-    } catch (err: any) {
-      console.error(err);
-      alert(err.message || "Could not generate AI metadata. Please try again.");
-    } finally {
-      setIsExtractingMetadata(false);
-    }
-  };
-
-  const handleAITitleSuggest = async () => {
-    if (filmstripFrames.length === 0) {
-      alert("Please upload a video first so AI can analyze the frames.");
-      return;
-    }
-    setIsGeneratingTitle(true);
-    try {
-      const sessionData = await supabase.auth.getSession();
-      const token = sessionData.data.session?.access_token;
-      
-      const res = await fetch('/api/generate-title-from-frames', {
-        method: 'POST',
-        headers: {
-           'Content-Type': 'application/json',
-           'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ frames: filmstripFrames, prompt: productName || '' })
-      });
-      let resData;
-      try {
-        resData = await res.json();
-      } catch (e) {
-        throw new Error(`Server returned an invalid response (${res.status}).`);
-      }
-      if (!res.ok) {
-        throw new Error(resData.error || "Title generation failed.");
-      }
-      
-      if (resData.title) {
-        setCaption(resData.title);
-      }
-    } catch (err: any) {
-      console.error(err);
-      alert(err.message || "Could not generate AI Title. Please try again.");
-    } finally {
-      setIsGeneratingTitle(false);
-    }
-  };
-
-  // Handle tag input typing to trigger AI suggestions
+  // Handle tag input typing
   const handleTagsInputChange = (val: string) => {
     setManualTags(val);
-    if (!hasAutoGeneratedTags && val.trim().length > 1) {
-      setHasAutoGeneratedTags(true);
-      handleSuggestTags();
-    }
-  };
-
-  const handleSuggestTags = async () => {
-    if (!productUrl && !caption) return;
-    setIsExtractingMetadata(true);
-    try {
-      const sessionData = await supabase.auth.getSession();
-      const token = sessionData.data.session?.access_token;
-      
-      const res = await fetch('/api/generate-metadata', {
-        method: 'POST',
-        headers: {
-           'Content-Type': 'application/json',
-           'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ product_url: productUrl || 'General Review', caption })
-      });
-      let resData = await res.json();
-      
-      let generated = typeof resData.data === 'string' ? JSON.parse(resData.data) : (resData.data || resData);
-      
-      if (generated) {
-         const fetchedHashtags = Array.isArray(generated.hashtags) ? generated.hashtags : [];
-         const fetchedTags = Array.isArray(generated.tags) ? generated.tags : [];
-         setAiSuggestedTags([...fetchedHashtags, ...fetchedTags]);
-      }
-    } catch (err: any) {
-      console.error(err);
-      alert("Could not generate AI tags. Please try again.");
-    } finally {
-      setIsExtractingMetadata(false);
-    }
   };
 
   const handleAddSuggestedTag = (tag: string) => {
@@ -613,6 +440,17 @@ Generate ONLY a valid JSON object answering this shape exactly:
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (subscriptionPlan === 'free' && uploadedCount >= 1) {
+      toast.info("Free plan limit reached (1 video). Upgrade to Pro to upload more videos.");
+      navigate('/subscription');
+      return;
+    }
+    if (subscriptionPlan === 'pro' && uploadedCount >= 10) {
+      toast.info("Pro plan limit reached (10 videos). Upgrade to Creator plan for unlimited videos.");
+      navigate('/subscription');
+      return;
+    }
+
     const selected = e.target.files?.[0];
     if (selected) {
       const errs: string[] = [];
@@ -946,40 +784,9 @@ Generate ONLY a valid JSON object answering this shape exactly:
         submitProductUrl = 'https://' + submitProductUrl;
       }
 
-      // Auto-Generate Search Metadata & Discovery Signals using AI
-      let aiTags: string[] = [];
-      let aiProductUses = '';
-      let aiReviewNotes = '';
-      try {
-        const metadataRes = await fetch('/api/generate-metadata', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${sessionData.data.session?.access_token}`
-          },
-          body: JSON.stringify({ product_url: submitProductUrl, caption })
-        });
-        if (metadataRes.ok) {
-           const resData = await metadataRes.json();
-           const generated = typeof resData.data === 'string' ? JSON.parse(resData.data) : (resData.data || resData);
-           if (generated) {
-              const fetchedHashtags = Array.isArray(generated.hashtags) ? generated.hashtags : [];
-              const fetchedTags = Array.isArray(generated.tags) ? generated.tags : [];
-              aiTags = [...fetchedHashtags, ...fetchedTags];
-              if (generated.product_highlights) aiProductUses = generated.product_highlights;
-              if (generated.honest_review_notes) aiReviewNotes = generated.honest_review_notes;
-           }
-        }
-      } catch (err) {
-        console.warn('Failed to auto-generate metadata in background:', err);
-      }
-
-      setUploadStatusText('Verifying Product Link & Running Safety Checks...');
-      setProgress(85);
-
       // Combine and filter tags
       const userTagsList = manualTags.split(',').map(t => t.trim().replace(/^#/, '').toLowerCase()).filter(Boolean);
-      const combinedTags = [...new Set([...aiTags.map(t => t.replace(/^#/, '').toLowerCase()), ...userTagsList])];
+      const combinedTags = [...new Set(userTagsList)];
 
       // Insert into DB using backend for strict URL validation
       const insertResponse = await fetch('/api/videos', {
@@ -997,8 +804,8 @@ Generate ONLY a valid JSON object answering this shape exactly:
             captionText: DOMPurify.sanitize(caption.trim()),
             product_name: DOMPurify.sanitize(productName.trim()),
             product_price: productPrice ? parseFloat(productPrice.replace(/[^\d.]/g, '')) : null,
-            product_uses: DOMPurify.sanitize(aiProductUses),
-            things_know: DOMPurify.sanitize(aiReviewNotes),
+            product_uses: DOMPurify.sanitize(productUses),
+            things_know: DOMPurify.sanitize(thingsToKnow),
             coupon_code: DOMPurify.sanitize(couponCode.trim().toUpperCase()),
             coupon_discount_value: DOMPurify.sanitize(couponDiscountValue.trim()),
             coupon_discount_type: couponDiscountType,
@@ -1024,6 +831,10 @@ Generate ONLY a valid JSON object answering this shape exactly:
       }
       
       if (!insertResponse.ok) {
+        if (insertData.requires_upgrade) {
+            setRequiresUpgrade(true);
+            throw new Error(insertData.error || 'Upgrade required to upload more videos.');
+        }
         throw new Error(insertData.error || 'Failed to publish video');
       }
 
@@ -1079,7 +890,23 @@ Generate ONLY a valid JSON object answering this shape exactly:
     return <GuestGate type="upload" />;
   }
 
-  if (approvalStatus === 'loading' || approvalStatus !== 'approved') {
+  const queryParams = new URLSearchParams(window.location.search);
+  const isOnboarding = queryParams.get('onboarding') === 'true';
+
+  if (approvalStatus === 'loading') {
+    return (
+      <div className="flex-1 flex items-center justify-center p-8 bg-[#0c0c0e]">
+        <Loader2 className="w-8 h-8 animate-spin text-[#ef2950]" />
+      </div>
+    );
+  }
+
+  if (approvalStatus !== 'approved' && !isOnboarding) {
+    navigate('/subscription');
+    return null;
+  }
+
+  if (approvalStatus !== 'approved' && isOnboarding) {
     return <CreatorVerificationFlow approvalStatus={approvalStatus} setApprovalStatus={setApprovalStatus} />;
   }
 
@@ -1103,6 +930,20 @@ Generate ONLY a valid JSON object answering this shape exactly:
 
       <div className="flex-1 overflow-y-auto w-full px-5 pb-16">
         
+        {/* Upgrade Banner for Free Users */}
+        <div className="mb-6 rounded-xl bg-gradient-to-r from-zinc-900 to-[#1c1c1e] border border-[#ef2950]/30 p-3 flex items-center justify-between shadow-lg cursor-pointer" onClick={() => navigate('/subscription')}>
+          <div className="flex items-center gap-3">
+            <div className="size-8 rounded-full bg-[#ef2950]/20 text-[#ef2950] flex items-center justify-center shrink-0">
+              <Zap className="size-4" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-white leading-tight">Remove Upload Limits</p>
+              <p className="text-[11px] text-zinc-400 font-medium">Upgrade to Pro for unlimited uploads</p>
+            </div>
+          </div>
+          <ChevronRight className="size-4 text-zinc-500" />
+        </div>
+
         {/* Cover Photo Area */}
         <div className={cn("relative mx-auto bg-zinc-900 rounded-2xl overflow-hidden mb-6 border border-white/5 shadow-md flex items-center justify-center", preview ? "w-full max-w-[253px] aspect-[9/16] h-auto" : "w-full aspect-[16/10]")}>
           {preview ? (
@@ -1275,24 +1116,12 @@ Generate ONLY a valid JSON object answering this shape exactly:
             <div className="flex flex-col">
               <div className="flex justify-between items-end mb-2">
                 <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide pl-1">Video Title *</label>
-                <button
-                  type="button"
-                  onClick={handleAITitleSuggest}
-                  disabled={isGeneratingTitle || filmstripFrames.length === 0}
-                  className="text-[12px] flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-300 rounded-lg hover:from-purple-500/30 hover:to-blue-500/30 transition-colors disabled:opacity-50 font-medium border border-purple-500/20"
-                >
-                  {isGeneratingTitle ? (
-                    <><Loader2 className="size-3.5 animate-spin" /> Analyzing frames...</>
-                  ) : (
-                    <><Sparkles className="size-3.5" /> AI Suggest Title</>
-                  )}
-                </button>
               </div>
               <textarea 
                 required
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
-                placeholder="Give your video a catchy title, or use AI..."
+                placeholder="Give your video a catchy title..."
                 className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3.5 text-[15px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm min-h-[70px]"
               />
               
@@ -1326,18 +1155,6 @@ Generate ONLY a valid JSON object answering this shape exactly:
             <div className="flex flex-col">
               <div className="flex justify-between items-end mb-2">
                 <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide pl-1">Tags & Hashtags (Optional)</label>
-                <button
-                  type="button"
-                  onClick={handleSuggestTags}
-                  disabled={isExtractingMetadata || (!productUrl && !caption)}
-                  className="text-[12px] flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-300 rounded-lg hover:from-emerald-500/30 hover:to-teal-500/30 transition-colors disabled:opacity-50 font-medium border border-emerald-500/20"
-                >
-                  {isExtractingMetadata ? (
-                    <><Loader2 className="size-3.5 animate-spin" /> Analyzing...</>
-                  ) : (
-                    <><Sparkles className="size-3.5" /> Suggest Tags</>
-                  )}
-                </button>
               </div>
               <input
                 type="text"
@@ -1347,22 +1164,6 @@ Generate ONLY a valid JSON object answering this shape exactly:
                 className="w-full bg-[#151518] text-white/90 placeholder-zinc-600 rounded-xl px-4 py-3.5 text-[15px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm"
               />
               <p className="text-[12px] text-zinc-500 mt-1 pl-1">Separate tags with commas.</p>
-              
-              {aiSuggestedTags.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <span className="text-[11px] uppercase tracking-wider text-emerald-400 font-bold w-full pl-1">AI Suggestions:</span>
-                  {aiSuggestedTags.map((tag, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleAddSuggestedTag(tag)}
-                      className="text-[12px] px-3 py-1 bg-emerald-500/10 text-emerald-200 border border-emerald-500/20 rounded-full hover:bg-emerald-500/20 transition-colors"
-                    >
-                      {tag}
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* Category */}
@@ -1576,7 +1377,21 @@ Generate ONLY a valid JSON object answering this shape exactly:
 
         {/* Footer Action */}
         <div className="mt-8 pb-32 pt-4 border-t border-white/5">
-           {error && <p className="text-red-400 text-xs mb-3 text-center">{error}</p>}
+           {error && (
+             <div className="text-center mb-3">
+               <p className="text-red-400 text-xs mb-2">{error}</p>
+               {requiresUpgrade && (
+                 <button 
+                   onClick={() => navigate('/subscription')}
+                   className="bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold py-2 px-6 rounded-full transition-colors flex items-center justify-center gap-2 mx-auto"
+                   type="button"
+                 >
+                   <Zap className="size-3" />
+                   Upgrade to Pro
+                 </button>
+               )}
+             </div>
+           )}
            <div className="flex gap-3">
              <button type="button" aria-label="Preview" 
                onClick={() => setShowPreviewModal(true)}

@@ -15,6 +15,8 @@ import Admin from './pages/Admin';
 import Explore from './pages/Explore';
 import Trending from './pages/Trending';
 import Notifications from './pages/Notifications';
+import Subscription from './pages/Subscription';
+import SubscriptionSettings from './pages/SubscriptionSettings';
 import Saved from './pages/Saved';
 import Collection from './pages/Collection';
 import SharedCollection from './pages/SharedCollection';
@@ -27,6 +29,7 @@ import UpdatePasswordPage from './pages/UpdatePassword';
 import Interests from './pages/Interests';
 import { isSupabaseConfigured } from './lib/supabase';
 import { Database } from 'lucide-react';
+import { Toaster } from 'sonner';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -132,7 +135,8 @@ function AppContent() {
       return <Navigate to="/interests" replace />;
     }
     if (hasOnboarded && (location.pathname === '/interests' || location.pathname === '/auth')) {
-      return <Navigate to="/" replace />;
+      const returnTo = location.state?.returnTo || '/';
+      return <Navigate to={returnTo} replace />;
     }
   }
 
@@ -141,7 +145,7 @@ function AppContent() {
       <SEO />
       <PWAInstallPrompt />
       <Routes>
-        <Route path="/auth" element={!user ? <MainLayout><AuthPage /></MainLayout> : <Navigate to="/" replace />} />
+        <Route path="/auth" element={!user ? <MainLayout><AuthPage /></MainLayout> : <Navigate to={location.state?.returnTo || "/"} replace />} />
         <Route path="/update-password" element={<UpdatePasswordPage />} />
       <Route path="/interests" element={<ProtectedRoute><MainLayout><Interests /></MainLayout></ProtectedRoute>} />
       <Route path="/" element={<FeedLayout><Feed /></FeedLayout>} />
@@ -157,6 +161,8 @@ function AppContent() {
 
       <Route path="/creator-verification" element={<ProtectedRoute><MainLayout><CreatorVerification /></MainLayout></ProtectedRoute>} />
       <Route path="/creator-dashboard" element={<ProtectedRoute><MainLayout><CreatorDashboard /></MainLayout></ProtectedRoute>} />
+      <Route path="/subscription" element={<MainLayout><Subscription /></MainLayout>} />
+      <Route path="/settings/subscription" element={<ProtectedRoute><MainLayout><SubscriptionSettings /></MainLayout></ProtectedRoute>} />
       <Route path="/notifications" element={<ProtectedRoute><MainLayout><Notifications /></MainLayout></ProtectedRoute>} />
       <Route 
         path="/upload" 
@@ -187,6 +193,7 @@ function AppContent() {
         </MainLayout>
       } />
     </Routes>
+    <Toaster theme="dark" position="top-center" />
     </>
   );
 }

@@ -23,6 +23,7 @@ import AdminAuditLogs from '../components/admin/AdminAuditLogs';
 import AdminSearchInfra from '../components/admin/AdminSearchInfra';
 import AdminModeration from '../components/admin/AdminModeration';
 import AdminCategories from '../components/admin/AdminCategories';
+import AdminSubscriptions from '../components/admin/AdminSubscriptions';
 import { parseVideoProduct } from '../utils/videoUtils';
 
 const handleViewVideo = (video: any) => {
@@ -40,6 +41,7 @@ const COLORS = ['#F97316', '#3B82F6', '#10B981', '#EF4444', '#8B5CF6'];
 const SIDEBAR_ITEMS = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
     { id: 'videos', label: 'Videos', icon: PlaySquare },
+    { id: 'subscriptions', label: 'Subscriptions', icon: Briefcase },
     { id: 'flagged', label: 'Flagged Videos', icon: ShieldAlert },
     { id: 'reports', label: 'Reports', icon: FileText },
     { id: 'creators', label: 'Creators', icon: Users },
@@ -63,7 +65,7 @@ async function fetchWithAdminAuth(url: string, options: RequestInit = {}) {
   return fetch(url, { credentials: 'include', ...options, headers });
 }
 
-type Tab = 'dashboard' | 'videos' | 'flagged' | 'reports' | 'creators' | 'verification' | 'links' | 'spam' | 'analytics' | 'settings' | 'categories' | 'audit_logs' | 'search_infra';
+type Tab = 'dashboard' | 'videos' | 'flagged' | 'reports' | 'creators' | 'verification' | 'links' | 'spam' | 'analytics' | 'settings' | 'categories' | 'audit_logs' | 'search_infra' | 'subscriptions';
 
 interface AdminReport {
   id: string;
@@ -789,6 +791,10 @@ export default function Admin() {
             />
           )}
 
+          {activeTab === 'subscriptions' && (
+             <AdminSubscriptions />
+          )}
+
           {activeTab === 'videos' && (
             <AdminVideos
               videos={videos}
@@ -1116,7 +1122,7 @@ export default function Admin() {
              </div>
           )}
 
-          {(activeTab as any) === 'verification_old_hidden' && (
+          {activeTab === 'verification' && (
              <div className="gap-y-6 animate-in fade-in duration-500">
                <div className="bg-[#161619] border border-[#F97316]/20 rounded-2xl overflow-hidden shadow-[0_0_20px_rgba(249,115,22,0.05)]">
                  <div className="p-5 border-b border-white/5">
@@ -1155,8 +1161,8 @@ export default function Admin() {
                                    </span>
                                 </td>
                                 <td className="py-4 px-5 text-right flex justify-end gap-2">
-                                   <button type="button" aria-label="button"  className="size-8 rounded-lg border border-white/10 bg-[#0c0c0e]/20 flex items-center justify-center hover:bg-white/10"><Eye className="size-4 text-zinc-400"/></button>
-                                   <button type="button" aria-label="button"  className="size-8 rounded-lg border border-white/10 bg-[#0c0c0e]/20 flex items-center justify-center hover:bg-white/10"><CheckCircle className="size-4 text-zinc-400"/></button>
+                                   <button type="button" aria-label="button" title="Approve" onClick={() => handleUpdateAppStatus(app.id, app.user_id, 'approved')} className="size-8 rounded-lg border border-white/10 bg-[#0c0c0e]/20 flex items-center justify-center hover:bg-[#10B981]/20 hover:text-[#10B981] hover:border-[#10B981]/50 transition-colors"><CheckCircle className="size-4 text-zinc-400 hover:text-[#10B981]"/></button>
+                                   <button type="button" aria-label="button" title="Reject" onClick={() => handleUpdateAppStatus(app.id, app.user_id, 'rejected')} className="size-8 rounded-lg border border-white/10 bg-[#0c0c0e]/20 flex items-center justify-center hover:bg-[#EF4444]/20 hover:text-[#EF4444] hover:border-[#EF4444]/50 transition-colors"><XCircle className="size-4 text-zinc-400 hover:text-[#EF4444]"/></button>
                                 </td>
                              </tr>
                           ))}

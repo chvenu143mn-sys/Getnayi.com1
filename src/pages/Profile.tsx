@@ -689,6 +689,13 @@ export default function ProfilePage() {
             <TrendingUp className="size-[18px] text-[#ef2950] group-hover:scale-110 transition-transform" />
             <span className="text-[12px] text-zinc-300">Creator Dashboard</span>
           </button>
+          <button type="button" aria-label="button"  
+            onClick={() => navigate('/settings/subscription')}
+            className="flex-1 bg-gradient-to-br from-[#ef2950]/10 to-transparent hover:bg-white/10 active:scale-[0.98] text-white font-medium py-3 rounded-[12px] transition-all border border-[#ef2950]/30 flex flex-col items-center justify-center gap-y-1 tracking-wide group"
+          >
+            <Shield className="size-[18px] text-[#ef2950] group-hover:scale-110 transition-transform" />
+            <span className="text-[12px] text-[#ef2950] font-semibold">Upgrade / Plan</span>
+          </button>
           
           {profile?.is_admin && (
              <button type="button" aria-label="button"  

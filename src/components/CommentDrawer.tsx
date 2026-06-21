@@ -210,6 +210,12 @@ export function CommentDrawer({
           parentId = parsed.parent_id;
           replyToUsername = parsed.reply_to_username;
           text = parsed.text || '';
+          
+          if (replyToUsername) {
+            // Strip any leading occurrences of @username 
+            const regex = new RegExp(`^(@${replyToUsername}\\s*)+`, 'i');
+            text = text.replace(regex, '');
+          }
         }
       }
     } catch (e) {
@@ -414,6 +420,10 @@ export function CommentDrawer({
           const mentionsPrefix = selectedMentions.map(m => `@${m.username}`).join(' ') + ' ';
           text = mentionsPrefix + text;
         }
+
+        // Clean up redundant @username if typed accidentally by the user or autocomplete
+        const regex = new RegExp(`^(@${username}\\s*)+`, 'i');
+        text = text.replace(regex, '');
 
         finalContent = JSON.stringify({
           parent_id: replyParent.id,
