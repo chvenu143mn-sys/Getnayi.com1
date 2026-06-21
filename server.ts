@@ -1348,7 +1348,14 @@ async function startServer() {
         .update(`${filename}:${expires}`)
         .digest('hex');
         
-      if (signature !== expectedSig) {
+      if (typeof signature !== 'string') {
+        return res.status(403).json({ error: 'Invalid signature' });
+      }
+
+      const sigBuffer = Buffer.from(signature, 'utf8');
+      const expectedSigBuffer = Buffer.from(expectedSig, 'utf8');
+
+      if (sigBuffer.length !== expectedSigBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedSigBuffer)) {
         return res.status(403).json({ error: 'Invalid signature' });
       }
 
@@ -3891,7 +3898,14 @@ Example: {"productName": "Awesome Shirt", "productPrice": "1499"}`;
         .update(body.toString())
         .digest('hex');
         
-      if (expectedSignature === razorpay_signature) {
+      if (typeof razorpay_signature !== 'string') {
+        return res.status(400).json({ error: 'Invalid signature format' });
+      }
+
+      const sigBuffer = Buffer.from(razorpay_signature, 'utf8');
+      const expectedSigBuffer = Buffer.from(expectedSignature, 'utf8');
+
+      if (sigBuffer.length === expectedSigBuffer.length && crypto.timingSafeEqual(sigBuffer, expectedSigBuffer)) {
         // Double check payment status from Razorpay API
         const payment = await razorpay.payments.fetch(razorpay_payment_id);
         
@@ -3949,7 +3963,14 @@ Example: {"productName": "Awesome Shirt", "productPrice": "1499"}`;
         .update(payloadString)
         .digest('hex');
         
-      if (expectedSignature !== signature) {
+      if (typeof signature !== 'string') {
+        return res.status(400).send('Invalid signature format');
+      }
+
+      const sigBuffer = Buffer.from(signature, 'utf8');
+      const expectedSigBuffer = Buffer.from(expectedSignature, 'utf8');
+
+      if (sigBuffer.length !== expectedSigBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedSigBuffer)) {
         return res.status(400).send('Invalid signature');
       }
       
