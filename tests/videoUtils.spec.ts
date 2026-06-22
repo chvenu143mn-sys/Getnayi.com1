@@ -1,41 +1,5 @@
 import { test, expect } from '@playwright/test';
- add-formatinr-tests-15901015203612992100
-import { extractStoreName, formatINR } from '../src/utils/videoUtils';
-
-test.describe('formatINR', () => {
-  test('should return empty string for null or undefined', () => {
-    expect(formatINR(null)).toBe('');
-    expect(formatINR(undefined)).toBe('');
-  });
-
-  test('should format valid numbers correctly as INR', () => {
-    // Note: Node environment's Intl formatter usually formats zero as "₹0"
-    // However, exact currency symbol representation can vary (e.g. ₹ vs Rs.)
-    // But since it's hardcoded to 'en-IN' and 'INR', it should generally use '₹'
-
-    // We can test exact output or replace non-breaking spaces
-    // The exact string often contains non-breaking spaces or regular spaces: '₹100' or '₹ 100'
-    const zeroFormatted = formatINR(0);
-    expect(zeroFormatted).toMatch(/₹\s*0/);
-
-    const hundredFormatted = formatINR(100);
-    expect(hundredFormatted).toMatch(/₹\s*100/);
-
-    const largeFormatted = formatINR(100000);
-    expect(largeFormatted).toMatch(/₹\s*1,00,000/);
-  });
-});
-
- test-get-desktop-friendly-url-10707062041127835585
-import { extractStoreName, getDesktopFriendlyUrl } from '../src/utils/videoUtils';
-
- testing-videoutils-parsevideoproduct-4977186561800272510
-import { extractStoreName, parseVideoProduct, ParsedProduct } from '../src/utils/videoUtils';
-
-import { extractStoreName } from '../src/utils/videoUtils';
- main
- main
- main
+import { extractStoreName, parseVideoProduct } from '../src/utils/videoUtils';
 
 test.describe('extractStoreName', () => {
   test('should return empty string for null or undefined', () => {
@@ -66,6 +30,18 @@ test.describe('extractStoreName', () => {
     expect(extractStoreName('htp://')).toBe('Store');
   });
 });
+ testing-parse-video-product-6764139141148712902
+
+test.describe('parseVideoProduct', () => {
+  test('should fallback to treating as standard text when parsing invalid JSON', () => {
+    const invalidJson = "{ invalid json }";
+    const result = parseVideoProduct(invalidJson);
+
+    expect(result.captionText).toBe(invalidJson);
+    expect(result.productName).toBe(invalidJson);
+  });
+});
+
  test-get-desktop-friendly-url-10707062041127835585
 
 test.describe('getDesktopFriendlyUrl', () => {
@@ -114,7 +90,7 @@ test.describe('getDesktopFriendlyUrl', () => {
     expect(getDesktopFriendlyUrl('play.google.com/store?url=something_invalid')).toBe('play.google.com/store?url=something_invalid');
   });
 });
-=======
+
  testing-videoutils-parsevideoproduct-4977186561800272510
 
 test.describe('videoUtils - parseVideoProduct', () => {
@@ -239,5 +215,6 @@ test.describe('videoUtils - parseVideoProduct', () => {
   });
 });
 
+ main
  main
  main
