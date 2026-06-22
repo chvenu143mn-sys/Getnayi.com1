@@ -594,13 +594,13 @@ function setupCronJobs() {
     const apiKey = process.env.BUNNY_LIBRARY_API_KEY;
     if (!libraryId || !apiKey) return;
 
-    for (const v of stuckVideos) {
+    await Promise.all(stuckVideos.map(async (v) => {
       try {
         const urlObj = new URL(v.video_url);
         const segments = urlObj.pathname.split('/').filter(Boolean);
         const guid = segments[0]; // assuming /guid/playlist.m3u8
         
-        if (!guid) continue;
+        if (!guid) return;
         
         const response = await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos/${guid}`, {
           headers: { 'AccessKey': apiKey }
@@ -628,7 +628,7 @@ function setupCronJobs() {
       } catch (err: any) {
         console.error(`[CRON] Error checking video ${v.id}`, err);
       }
-    }
+    }));
   });
 
   // Nightly CRON job to proactively synchronize Stripe subscriptions
