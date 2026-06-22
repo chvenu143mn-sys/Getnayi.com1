@@ -1,0 +1,3270 @@
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+// server.ts
+var server_exports = {};
+__export(server_exports, {
+  getRazorpay: () => getRazorpay,
+  getStripe: () => getStripe
+});
+module.exports = __toCommonJS(server_exports);
+var import_express = __toESM(require("express"), 1);
+var import_path = __toESM(require("path"), 1);
+var import_stream = require("stream");
+var import_vite = require("vite");
+var import_supabase_js = require("@supabase/supabase-js");
+var cheerio = __toESM(require("cheerio"), 1);
+var import_validator = __toESM(require("validator"), 1);
+var import_https = __toESM(require("https"), 1);
+var import_http = __toESM(require("http"), 1);
+var import_dns = __toESM(require("dns"), 1);
+var import_dotenv = __toESM(require("dotenv"), 1);
+var import_helmet = __toESM(require("helmet"), 1);
+var import_cors = __toESM(require("cors"), 1);
+var import_multer = __toESM(require("multer"), 1);
+var import_node_cron = __toESM(require("node-cron"), 1);
+var import_stripe = __toESM(require("stripe"), 1);
+var import_fluent_ffmpeg = __toESM(require("fluent-ffmpeg"), 1);
+var import_ffmpeg = __toESM(require("@ffmpeg-installer/ffmpeg"), 1);
+var import_fs = __toESM(require("fs"), 1);
+var import_os = __toESM(require("os"), 1);
+var import_cookie_parser = __toESM(require("cookie-parser"), 1);
+var import_crypto = __toESM(require("crypto"), 1);
+var import_express_rate_limit = __toESM(require("express-rate-limit"), 1);
+var import_tldts = require("tldts");
+var import_genai = require("@google/genai");
+var import_razorpay = __toESM(require("razorpay"), 1);
+var import_express_rate_limit2 = __toESM(require("express-rate-limit"), 1);
+var import_redis = require("@upstash/redis");
+var ai = new import_genai.GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+var generateContentWithRetry = async (aiInstance, params, retries = 3) => {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await aiInstance.models.generateContent(params);
+    } catch (err) {
+      const isRetryable = err?.status === "UNAVAILABLE" || err?.status === 503 || err?.status === 429 || err?.message?.includes("high demand") || err?.message?.includes("temporarily overloaded") || (err?.error?.code === 503 || err?.error?.code === 429) || err?.error?.status === "UNAVAILABLE";
+      if (isRetryable && i < retries) {
+        console.warn(`Gemini API overloaded/rate-limited (Attempt ${i + 1}/${retries}). Retrying in ${1e3 * (i + 1)}ms...`);
+        await new Promise((res) => setTimeout(res, 1e3 * (i + 1)));
+        continue;
+      }
+      throw err;
+    }
+  }
+};
+var analyzeVideoMetadata = async (supabaseAdminClient, videoId, caption, productContext) => {
+  if (!supabaseAdminClient || !process.env.GEMINI_API_KEY) return;
+  try {
+    const { data: currentVideo } = await supabaseAdminClient.from("videos").select("tags, search_aliases").eq("id", videoId).single();
+    const existingTags = currentVideo?.tags || [];
+    const prompt = `Analyze this e-commerce video context and generate relevant search tags, categories, hashtags, and semantic synonyms for indexing in a database.
+Caption: "${caption || ""}"
+Product URL/Info: "${productContext || ""}"
+
+Return ONLY a valid JSON object with this exact structure, no markdown formatting:
+{
+  "tags": ["keyword1", "keyword2", "#hashtag1"],
+  "search_aliases": "comma separated string of synonyms and related concepts that people might search for"
+}`;
+    const response = await generateContentWithRetry(ai, {
+      model: "gemini-3.5-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json"
+      }
+    });
+    const text = response.text;
+    if (text) {
+      const parsed = JSON.parse(text);
+      const newTags = Array.isArray(parsed.tags) ? parsed.tags : [];
+      const mergedTags = Array.from(/* @__PURE__ */ new Set([...existingTags, ...newTags])).slice(0, 15);
+      await supabaseAdminClient.from("videos").update({
+        tags: mergedTags,
+        search_aliases: parsed.search_aliases || ""
+      }).eq("id", videoId);
+      console.log(`[AI Analysis] Successfully tagged video ${videoId}`);
+    }
+  } catch (err) {
+    console.error(`[AI Analysis Error] on video ${videoId}:`, err.message);
+  }
+};
+function isAllowedMarketplace(targetUrl) {
+  try {
+    const parsed = (0, import_tldts.parse)(targetUrl);
+    if (!parsed.domainWithoutSuffix) {
+      return false;
+    }
+    const brand = parsed.domainWithoutSuffix.toLowerCase();
+    const knownMarketplaces = [
+      "amazon",
+      "amzn",
+      "flipkart",
+      "myntra",
+      "shopify",
+      "ajio",
+      "meesho",
+      "nykaa",
+      "tatacliq",
+      "snapdeal",
+      "ebay",
+      "etsy",
+      "aliexpress",
+      "zara",
+      "hm",
+      "nike",
+      "adidas",
+      "puma",
+      "macys",
+      "walmart",
+      "target",
+      "bestbuy",
+      "apple",
+      "samsung",
+      "croma",
+      "reliancedigital"
+    ];
+    if (knownMarketplaces.includes(brand)) {
+      return true;
+    }
+    if (parsed.hostname && parsed.hostname.toLowerCase() === "a.co") {
+      return true;
+    }
+    if (parsed.hostname) {
+      const host = parsed.hostname.toLowerCase();
+      if (host.endsWith(".myshopify.com") || host === "myshopify.com" || host.endsWith(".shopify.com") || host === "shopify.com") {
+        return true;
+      }
+    }
+    return false;
+  } catch (e) {
+    return false;
+  }
+}
+function sanitizeProductUrl(urlObj) {
+  const cleanUrl = new URL(urlObj.toString());
+  const trackingParams = [
+    "utm_source",
+    "utm_medium",
+    "utm_campaign",
+    "utm_term",
+    "utm_content",
+    "fbclid",
+    "gclid",
+    "aff_id",
+    "affiliate_id",
+    "ref",
+    "affiliate",
+    "tracking_id",
+    "tag",
+    "click_id",
+    "subid",
+    "sprefix",
+    "sr",
+    "qid"
+  ];
+  trackingParams.forEach((param) => {
+    cleanUrl.searchParams.delete(param);
+  });
+  return cleanUrl.toString();
+}
+function resolveRedirectsNative(initialUrl) {
+  return new Promise((resolve) => {
+    const visited = /* @__PURE__ */ new Set();
+    async function step(currentUrl, depth) {
+      if (depth > 10 || visited.has(currentUrl)) {
+        resolve(currentUrl);
+        return;
+      }
+      visited.add(currentUrl);
+      try {
+        const parsed = new URL(currentUrl);
+        const client = parsed.protocol === "https:" ? import_https.default : import_http.default;
+        const safeInfo = await isSafeUrl(currentUrl);
+        if (!safeInfo.isSafe) {
+          resolve(currentUrl);
+          return;
+        }
+        const req = client.request(currentUrl, {
+          lookup: (hostname, options, callback) => {
+            callback(null, [{ address: safeInfo.ip, family: 4 }]);
+          },
+          method: "HEAD",
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "*/*"
+          },
+          rejectUnauthorized: false,
+          // Bypasses SSL certificate issues for link resolution safely
+          timeout: 4e3
+        }, (res) => {
+          res.resume();
+          const statusCode = res.statusCode || 200;
+          if (statusCode >= 300 && statusCode < 400 && res.headers.location) {
+            try {
+              const nextUrl = new URL(res.headers.location, currentUrl).toString();
+              step(nextUrl, depth + 1);
+            } catch (e) {
+              resolve(currentUrl);
+            }
+          } else {
+            resolve(currentUrl);
+          }
+        });
+        req.on("error", () => {
+          fallbackToGet(currentUrl, depth);
+        });
+        req.on("timeout", () => {
+          req.destroy();
+          resolve(currentUrl);
+        });
+        req.end();
+      } catch (e) {
+        resolve(currentUrl);
+      }
+    }
+    async function fallbackToGet(currentUrl, depth) {
+      try {
+        const parsed = new URL(currentUrl);
+        const client = parsed.protocol === "https:" ? import_https.default : import_http.default;
+        const safeInfo = await isSafeUrl(currentUrl);
+        if (!safeInfo.isSafe) {
+          resolve(currentUrl);
+          return;
+        }
+        const req = client.request(currentUrl, {
+          lookup: (hostname, options, callback) => {
+            callback(null, [{ address: safeInfo.ip, family: 4 }]);
+          },
+          method: "GET",
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "*/*"
+          },
+          rejectUnauthorized: false,
+          timeout: 4e3
+        }, (res) => {
+          res.resume();
+          const statusCode = res.statusCode || 200;
+          if (statusCode >= 300 && statusCode < 400 && res.headers.location) {
+            try {
+              const nextUrl = new URL(res.headers.location, currentUrl).toString();
+              step(nextUrl, depth + 1);
+            } catch (e) {
+              resolve(currentUrl);
+            }
+          } else {
+            resolve(currentUrl);
+          }
+        });
+        req.on("error", () => {
+          resolve(currentUrl);
+        });
+        req.on("timeout", () => {
+          req.destroy();
+          resolve(currentUrl);
+        });
+        req.end();
+      } catch (e) {
+        resolve(currentUrl);
+      }
+    }
+    step(initialUrl, 0);
+  });
+}
+import_fluent_ffmpeg.default.setFfmpegPath(import_ffmpeg.default.path);
+import_dotenv.default.config();
+async function isSafeUrl(targetUrl) {
+  try {
+    const parsed = new URL(targetUrl);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return { isSafe: false };
+    const hostname = parsed.hostname.toLowerCase();
+    const isIpAddressStr = import_validator.default.isIP(hostname) || /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname);
+    if (hostname === "localhost" || hostname.endsWith(".localhost") || hostname.startsWith("127.") || hostname.startsWith("169.254.") || hostname.startsWith("10.") || hostname.startsWith("0.") || isIpAddressStr || /^192\.168\./.test(hostname) || /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname) || hostname.includes("0x") || hostname.endsWith(".local")) {
+      return { isSafe: false };
+    }
+    const { address } = await import_dns.default.promises.lookup(hostname);
+    if (!address) return { isSafe: false };
+    if (address.startsWith("127.") || address.startsWith("10.") || address.startsWith("169.254.") || address.startsWith("0.") || /^192\.168\./.test(address) || /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(address) || address === "::1" || address.toLowerCase().startsWith("fc00:") || address.toLowerCase().startsWith("fd00:") || address.toLowerCase().startsWith("fe80:")) {
+      return { isSafe: false };
+    }
+    return { isSafe: true, ip: address };
+  } catch (err) {
+    return { isSafe: false };
+  }
+}
+function fetchPageHtmlWithNoTls(targetUrl) {
+  return new Promise((resolve, reject) => {
+    try {
+      const parsed = new URL(targetUrl);
+      const options = {
+        method: "GET",
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.9"
+        },
+        rejectUnauthorized: false,
+        // This ignores SSL certificate validation errors (e.g. ERR_TLS_CERT_ALTNAME_INVALID)
+        timeout: 4e3
+      };
+      const client = parsed.protocol === "https:" ? import_https.default : import_http.default;
+      const req = client.request(targetUrl, options, (res) => {
+        const statusCode = res.statusCode || 0;
+        if (statusCode >= 400 && statusCode < 600) {
+          reject(new Error(`Server responded with status code ${statusCode}`));
+          return;
+        }
+        let data = "";
+        res.on("data", (chunk) => {
+          data += chunk;
+          if (data.length > 2 * 1024 * 1024) {
+            res.destroy();
+            reject(new Error("Response too large"));
+          }
+        });
+        res.on("end", () => {
+          resolve(data);
+        });
+      });
+      req.on("error", (err) => {
+        reject(err);
+      });
+      req.on("timeout", () => {
+        req.destroy();
+        reject(new Error("Request timeout"));
+      });
+      req.end();
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+var standardApiLimiter = (0, import_express_rate_limit2.default)({
+  windowMs: 15 * 60 * 1e3,
+  // 15 minutes
+  max: 300,
+  // Limit each IP to 300 requests per `window` (here, per 15 minutes)
+  standardHeaders: true,
+  // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false,
+  // Disable the `X-RateLimit-*` headers
+  message: { error: "Too many requests, please try again later." },
+  keyGenerator: (req, res) => {
+    return (0, import_express_rate_limit2.ipKeyGenerator)(req.ip || "unknown");
+  }
+});
+var redis = new import_redis.Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL || "https://placeholder.upstash.io",
+  token: process.env.UPSTASH_REDIS_REST_TOKEN || "placeholder_token"
+});
+var isRedisDisabledDueToError = false;
+function isRedisEnabled() {
+  if (isRedisDisabledDueToError) return false;
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return false;
+  if (url.includes("placeholder") || token.includes("placeholder")) return false;
+  return true;
+}
+function handleRedisError(err, contextDescription) {
+  const errMsg = err?.message || String(err);
+  if (errMsg.includes("WRONGPASS") || errMsg.includes("unauthorized") || errMsg.includes("Unauthorized") || errMsg.includes("unauthorized_client")) {
+    if (!isRedisDisabledDueToError) {
+      isRedisDisabledDueToError = true;
+      console.warn(`[Redis] Authentication error detected in ${contextDescription}: WRONGPASS or Invalid Token. Disabling Upstash Redis integration gracefully to prevent log spam.`);
+    }
+  } else {
+    console.error(`[Redis] Error in ${contextDescription}:`, err);
+  }
+}
+var supabaseAdmin = process.env.VITE_SUPABASE_URL ? (0, import_supabase_js.createClient)(
+  process.env.VITE_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || "placeholder-anon-key",
+  { auth: { persistSession: false } }
+) : null;
+function getRequestSupabaseClient(req) {
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY && supabaseAdmin) {
+    return supabaseAdmin;
+  }
+  const token = req.headers.authorization?.split(" ")[1];
+  if (token && process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY) {
+    try {
+      return (0, import_supabase_js.createClient)(
+        process.env.VITE_SUPABASE_URL,
+        process.env.VITE_SUPABASE_ANON_KEY,
+        {
+          auth: { persistSession: false },
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        }
+      );
+    } catch (e) {
+      console.error("Failed to initialize request-specific Supabase client:", e);
+    }
+  }
+  return supabaseAdmin || (0, import_supabase_js.createClient)(
+    process.env.VITE_SUPABASE_URL || "",
+    process.env.VITE_SUPABASE_ANON_KEY || "",
+    { auth: { persistSession: false } }
+  );
+}
+function extractStoreName(urlStr) {
+  if (!urlStr) return "";
+  try {
+    const url = new URL(urlStr);
+    const hostname = url.hostname.toLowerCase();
+    let cleanHostname = hostname.replace(/^www\./, "");
+    if (cleanHostname.endsWith(".myshopify.com")) {
+      const shopPrefix = cleanHostname.replace(/\.myshopify\.com$/, "");
+      return shopPrefix.charAt(0).toUpperCase() + shopPrefix.slice(1);
+    }
+    const mappings = {
+      "amazon": "Amazon",
+      "amzn": "Amazon",
+      "flipkart": "Flipkart",
+      "myntra": "Myntra",
+      "shopify": "Shopify",
+      "ajio": "Ajio",
+      "meesho": "Meesho",
+      "nykaa": "Nykaa",
+      "tatacliq": "Tata CLiQ",
+      "snapdeal": "Snapdeal",
+      "ebay": "eBay",
+      "etsy": "Etsy",
+      "aliexpress": "AliExpress",
+      "zara": "Zara",
+      "hm": "H&M",
+      "nike": "Nike",
+      "adidas": "Adidas",
+      "puma": "Puma",
+      "macys": "Macy's",
+      "walmart": "Walmart",
+      "target": "Target",
+      "bestbuy": "Best Buy",
+      "apple": "Apple",
+      "samsung": "Samsung"
+    };
+    const parts = cleanHostname.split(".");
+    for (const part of parts) {
+      if (mappings[part]) {
+        return mappings[part];
+      }
+    }
+    const candidate = parts[0];
+    if (candidate && candidate !== "co" && candidate !== "com" && candidate !== "org" && candidate !== "net") {
+      return candidate.charAt(0).toUpperCase() + candidate.slice(1);
+    }
+    return "Store";
+  } catch (e) {
+    return "Store";
+  }
+}
+var rateLimitMiddleware = async (req, res, next) => {
+  if (!isRedisEnabled()) {
+    return next();
+  }
+  const ip = req.ip || "unknown";
+  const key = `rate_limit:${ip}`;
+  const limit = 100;
+  const windowSeconds = 60;
+  try {
+    const pipeline = redis.pipeline();
+    pipeline.incr(key);
+    pipeline.expire(key, windowSeconds);
+    const results = await pipeline.exec();
+    const currentCount = results[0];
+    res.setHeader("X-RateLimit-Limit", limit);
+    res.setHeader("X-RateLimit-Remaining", Math.max(0, limit - currentCount));
+    if (currentCount > limit) {
+      return res.status(429).json({ error: "Too many requests, please try again later." });
+    }
+    next();
+  } catch (err) {
+    handleRedisError(err, "rateLimitMiddleware");
+    next();
+  }
+};
+var stripeClient = null;
+function getStripe() {
+  if (!stripeClient && process.env.STRIPE_SECRET_KEY) {
+    stripeClient = new import_stripe.default(process.env.STRIPE_SECRET_KEY, { apiVersion: "2023-10-16" });
+  }
+  return stripeClient;
+}
+var razorpayClient = null;
+function getRazorpay() {
+  if (!razorpayClient && process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+    razorpayClient = new import_razorpay.default({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET
+    });
+  }
+  return razorpayClient;
+}
+function setupCronJobs() {
+  import_node_cron.default.schedule("*/1 * * * *", async () => {
+    console.log("\u{1F9F9} [CRON] Sweeping stuck processing videos...");
+    if (!supabaseAdmin) return;
+    const { data: stuckVideos, error } = await supabaseAdmin.from("videos").select("id, video_url, created_at, status, product_url").eq("status", "processing").limit(20);
+    if (error) {
+      console.error("\u274C [CRON] Error finding stuck videos:", error);
+      return;
+    }
+    if (!stuckVideos || stuckVideos.length === 0) return;
+    console.log(`[CRON] Found ${stuckVideos.length} stuck videos. Validating with BunnyCDN...`);
+    const libraryId = process.env.BUNNY_LIBRARY_ID;
+    const apiKey = process.env.BUNNY_LIBRARY_API_KEY;
+    if (!libraryId || !apiKey) return;
+    for (const v of stuckVideos) {
+      try {
+        const urlObj = new URL(v.video_url);
+        const segments = urlObj.pathname.split("/").filter(Boolean);
+        const guid = segments[0];
+        if (!guid) continue;
+        const response = await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos/${guid}`, {
+          headers: { "AccessKey": apiKey }
+        });
+        if (response.ok) {
+          const checkInfo = await response.json();
+          if (checkInfo.status === 4 || checkInfo.status === 3) {
+            let nextStatus = "active";
+            if (v.product_url && !isAllowedMarketplace(v.product_url)) {
+              nextStatus = "pending_review";
+            }
+            console.log(`[CRON] Activating stuck video ${v.id} (Bunny GUID: ${guid}) to ${nextStatus}`);
+            await supabaseAdmin.from("videos").update({
+              status: nextStatus
+            }).eq("id", v.id);
+          } else if (checkInfo.status === 5 || checkInfo.status === 6) {
+            console.log(`[CRON] Rejecting stuck video ${v.id} (Bunny GUID: ${guid})`);
+            await supabaseAdmin.from("videos").update({
+              status: "rejected"
+            }).eq("id", v.id);
+          }
+        }
+      } catch (err) {
+        console.error(`[CRON] Error checking video ${v.id}`, err);
+      }
+    }
+  });
+  import_node_cron.default.schedule("0 0 * * *", async () => {
+    console.log("\u{1F504} [CRON] Starting nightly Stripe subscription reconciliation...");
+    if (!supabaseAdmin) {
+      console.log("\u274C [CRON] Supabase Admin not initialized. Skipping.");
+      return;
+    }
+    const stripe = getStripe();
+    if (!stripe) {
+      console.log("\u274C [CRON] STRIPE_SECRET_KEY not provided. Skipping subscription reconciliation.");
+      return;
+    }
+    try {
+      const { data: premiumUsers, error } = await supabaseAdmin.from("profiles").select("id, stripe_subscription_id").eq("is_premium", true).not("stripe_subscription_id", "is", null);
+      if (error) {
+        console.error("\u274C [CRON] Error fetching premium users:", error);
+        return;
+      }
+      console.log(`[CRON] Found ${premiumUsers?.length || 0} premium users to verify.`);
+      let canceledCount = 0;
+      let failedCount = 0;
+      if (premiumUsers && premiumUsers.length > 0) {
+        for (const user of premiumUsers) {
+          try {
+            const subscription = await stripe.subscriptions.retrieve(user.stripe_subscription_id);
+            if ((/* @__PURE__ */ new Set(["canceled", "unpaid", "past_due"])).has(subscription.status)) {
+              await supabaseAdmin.from("profiles").update({ is_premium: false }).eq("id", user.id);
+              console.log(`[CRON] \u{1F6A8} Revoked premium for user ${user.id} -> Sub status: ${subscription.status}`);
+              canceledCount++;
+            }
+          } catch (err) {
+            console.error(`\u274C [CRON] Failed to verify subscription for user ${user.id}:`, err?.message);
+            if (err?.statusCode === 404) {
+              await supabaseAdmin.from("profiles").update({ is_premium: false }).eq("id", user.id);
+              console.log(`[CRON] \u{1F6A8} Revoked premium for user ${user.id} (Subscription 404 Not Found)`);
+              canceledCount++;
+            } else {
+              failedCount++;
+            }
+          }
+        }
+      }
+      console.log(`\u2705 [CRON] Reconciliation complete. Revoked: ${canceledCount}, API Errors: ${failedCount}.`);
+    } catch (e) {
+      console.error("\u274C [CRON] Unhandled error during reconciliation:", e);
+    }
+  });
+}
+async function startServer() {
+  const app = (0, import_express.default)();
+  app.set("trust proxy", "loopback, linklocal, uniquelocal");
+  app.use((0, import_cookie_parser.default)(process.env.COOKIE_SECRET || import_crypto.default.randomBytes(32).toString("hex")));
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3e3;
+  const apmLog = (req, res, next) => {
+    const start = process.hrtime();
+    res.on("finish", () => {
+      const diff = process.hrtime(start);
+      const timeMs = diff[0] * 1e3 + diff[1] * 1e-6;
+      const logEntry = {
+        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+        method: req.method,
+        url: req.originalUrl,
+        status: res.statusCode,
+        responseTimeMs: timeMs.toFixed(3),
+        ip: req.ip || "unknown",
+        userAgent: req.headers["user-agent"],
+        env: process.env.NODE_ENV,
+        service: "getnayi-backend"
+      };
+      if (req.originalUrl.startsWith("/api/")) {
+        console.log(JSON.stringify(logEntry));
+      }
+    });
+    next();
+  };
+  app.use(apmLog);
+  app.use((0, import_helmet.default)({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+  app.use(import_helmet.default.hsts({ maxAge: 31536e3, includeSubDomains: true, preload: true }));
+  app.use(import_helmet.default.frameguard({ action: "deny" }));
+  app.use(import_helmet.default.noSniff());
+  app.disable("x-powered-by");
+  app.use((req, res, next) => {
+    res.setHeader("Server", "Hidden");
+    res.removeHeader("X-Powered-By");
+    next();
+  });
+  app.use((0, import_cors.default)({
+    origin: (origin, callback) => {
+      if (!origin || origin === "null") {
+        callback(null, true);
+      } else {
+        callback(null, origin);
+      }
+    },
+    credentials: true
+  }));
+  setupCronJobs();
+  app.use(import_express.default.json({
+    limit: "50mb",
+    verify: (req, res, buf) => {
+      req.rawBody = buf;
+    }
+  }));
+  app.use(import_express.default.urlencoded({ extended: true, limit: "50mb" }));
+  app.use("/api", (req, res, next) => {
+    if (req.path.startsWith("/stream")) return next();
+    standardApiLimiter(req, res, next);
+  });
+  app.use("/api", (req, res, next) => {
+    if (req.path.startsWith("/stream")) return next();
+    rateLimitMiddleware(req, res, next);
+  });
+  const couponRateLimiter = (0, import_express_rate_limit2.default)({
+    windowMs: 60 * 60 * 1e3,
+    // 1 hour
+    max: 5,
+    // Limit each IP or User to 5 failures per window
+    skipSuccessfulRequests: true,
+    // Only count failures towards the rate limit
+    keyGenerator: (req, res) => {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        try {
+          const token = authHeader.split(" ")[1];
+          const payloadBase64 = token.split(".")[1];
+          const payloadJson = Buffer.from(payloadBase64, "base64").toString();
+          const payload = JSON.parse(payloadJson);
+          if (payload.sub) return `coupon_limit:${payload.sub}`;
+        } catch (e) {
+        }
+      }
+      return (0, import_express_rate_limit2.ipKeyGenerator)(req.ip || "unknown");
+    },
+    message: { error: "Too many failed coupon attempts from this IP, please try again after an hour." }
+  });
+  app.post("/api/coupons/apply", couponRateLimiter, async (req, res) => {
+    try {
+      const { couponCode } = req.body;
+      if (!couponCode) return res.status(400).json({ error: "Coupon code required" });
+      if (couponCode === "MOCK_SUCCESS") {
+        return res.json({ success: true, discount: 10 });
+      }
+      return res.status(400).json({ error: "Invalid coupon code." });
+    } catch (e) {
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  });
+  app.post("/api/videos/:videoId/view", async (req, res) => {
+    try {
+      const { videoId } = req.params;
+      let userId = null;
+      if (req.headers.authorization && supabaseAdmin) {
+        const tokenStr = req.headers.authorization.split(" ")[1];
+        if (tokenStr) {
+          const { data: { user } } = await supabaseAdmin.auth.getUser(tokenStr);
+          if (user) {
+            userId = user.id;
+          }
+        }
+      }
+      let sessionToken = req.signedCookies?.viewer_session;
+      if (!sessionToken) {
+        sessionToken = import_crypto.default.randomUUID();
+        const isSecure = req.secure || req.headers["x-forwarded-proto"] === "https";
+        res.cookie("viewer_session", sessionToken, {
+          httpOnly: true,
+          secure: isSecure,
+          signed: true,
+          maxAge: 365 * 24 * 60 * 60 * 1e3
+          // 1 year
+        });
+      }
+      const token = userId || sessionToken;
+      if (!isRedisEnabled()) {
+        if (supabaseAdmin) {
+          const { error } = await supabaseAdmin.rpc("increment_video_views", {
+            video_id_param: videoId,
+            session_token_param: token
+          });
+          if (error) {
+            console.error("[Views Fallback] DB execution failed:", error.message);
+            return res.status(500).json({ error: error.message });
+          }
+          const { data, error: fetchErr } = await supabaseAdmin.from("videos").select("views").eq("id", videoId).single();
+          const currentViews = !fetchErr && data ? data.views : null;
+          if (userId) {
+            adjustInterestScore(userId, videoId, "view").catch((e) => console.error("View score adjust error:", e));
+          }
+          return res.json({
+            success: true,
+            buffered: false,
+            newly_viewed: true,
+            views: currentViews
+          });
+        }
+        return res.json({ success: true, buffered: false });
+      }
+      const viewCheckKey = `view_checked:${videoId}:${token}`;
+      const alreadyViewed = await redis.get(viewCheckKey);
+      if (alreadyViewed) {
+        const currentCachedViews = await redis.get(`video_view_cache:${videoId}`);
+        return res.json({
+          success: true,
+          buffered: true,
+          newly_viewed: false,
+          views: currentCachedViews ? Number(currentCachedViews) : null
+        });
+      }
+      const [, , updatedViewsCount] = await Promise.all([
+        redis.set(viewCheckKey, "1", { ex: 86400 }),
+        redis.lpush("video_views_queue", JSON.stringify({ videoId, token })),
+        redis.incr(`video_view_cache:${videoId}`)
+      ]);
+      if (userId) {
+        adjustInterestScore(userId, videoId, "view").catch((e) => console.error("View score adjust error:", e));
+      }
+      res.json({
+        success: true,
+        buffered: true,
+        newly_viewed: true,
+        views: updatedViewsCount
+      });
+    } catch (err) {
+      handleRedisError(err, "viewBufferingRoute");
+      res.json({ success: true, buffered: false });
+    }
+  });
+  setInterval(async () => {
+    if (!isRedisEnabled() || !supabaseAdmin) return;
+    try {
+      const promises = [];
+      const MAX_BATCH = 100;
+      let count = 0;
+      while (count < MAX_BATCH) {
+        const item = await redis.rpop("video_views_queue");
+        if (!item) break;
+        const payload = typeof item === "string" ? JSON.parse(item) : item;
+        if (payload.videoId && payload.token) {
+          promises.push(supabaseAdmin.rpc("increment_video_views", {
+            video_id_param: payload.videoId,
+            session_token_param: payload.token
+          }));
+        }
+        count++;
+      }
+      if (promises.length > 0) {
+        await Promise.allSettled(promises);
+        console.log(`[Worker] Successfully flushed ${promises.length} views from queue.`);
+      }
+    } catch (e) {
+      handleRedisError(e, "backgroundViewFlushWorker");
+    }
+  }, 1e4);
+  const createDistributedLimiter = (prefix, limit, windowSeconds, errorMessage) => {
+    return async (req, res, next) => {
+      if (!isRedisEnabled()) {
+        return next();
+      }
+      try {
+        const ip = req.ip || "unknown";
+        const key = `${prefix}:${ip}`;
+        const current = await redis.incr(key);
+        if (current === 1) {
+          await redis.expire(key, windowSeconds);
+        }
+        if (current > limit) {
+          return res.status(429).json({ error: errorMessage });
+        }
+        next();
+      } catch (err) {
+        next();
+      }
+    };
+  };
+  const engagementLimiter = createDistributedLimiter("rate_limit:engagement", 20, 60, "Too many engagement actions. Please slow down.");
+  const signupLimiter = createDistributedLimiter("rate_limit:signup", 5, 3600, "Too many signup attempts from this IP. Please try again later.");
+  app.post("/api/auth/signup", signupLimiter, async (req, res) => {
+    try {
+      const { email, password, username } = req.body;
+      if (!supabaseAdmin) throw new Error("Database not configured");
+      if (!username || username.trim().length === 0) {
+        return res.status(400).json({ error: "Username is required." });
+      }
+      const { data: existingUser } = await supabaseAdmin.from("profiles").select("id").eq("username", username.trim()).maybeSingle();
+      if (existingUser) {
+        return res.status(400).json({ error: "That username is already taken. Please choose another one." });
+      }
+      const { data, error } = await supabaseAdmin.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { username: username.trim() }
+        }
+      });
+      if (error) {
+        if (error.message.includes("Database error saving new user")) {
+          return res.status(400).json({ error: "Could not create profile. This can happen if the username has special characters not allowed in our database, or is duplicate." });
+        }
+        return res.status(400).json({ error: error.message });
+      }
+      res.json({ success: true, data });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+  async function adjustCreatorTrustScore(videoId, actionText) {
+    if (!supabaseAdmin) return;
+    try {
+      let increment = 0;
+      switch (actionText) {
+        case "save":
+          increment = 0.5;
+          break;
+        case "share":
+          increment = 0.5;
+          break;
+        case "product_click":
+          increment = 1;
+          break;
+      }
+      if (increment === 0) return;
+      const { data: video, error: videoError } = await supabaseAdmin.from("videos").select("user_id").eq("id", videoId).single();
+      if (videoError || !video?.user_id) return;
+      const creatorId = video.user_id;
+      const { error } = await supabaseAdmin.rpc("adjust_creator_trust_score", {
+        p_creator_id: creatorId,
+        p_increment: increment
+      });
+      if (error) {
+        console.error(`Error adjusting trust score for creator ${creatorId}:`, error);
+      }
+    } catch (err) {
+      console.error("Failed to adjust creator trust score:", err);
+    }
+  }
+  ;
+  async function adjustInterestScore(userId, videoId, actionText) {
+    if (!supabaseAdmin) return;
+    try {
+      const { data: video, error: videoError } = await supabaseAdmin.from("videos").select("category_id").eq("id", videoId).single();
+      if (videoError || !video?.category_id) return;
+      const categoryId = video.category_id;
+      let increment = 0;
+      switch (actionText) {
+        case "view":
+          increment = 5;
+          break;
+        case "like":
+          increment = 10;
+          break;
+        case "comment":
+          increment = 15;
+          break;
+        case "save":
+          increment = 20;
+          break;
+        case "share":
+          increment = 20;
+          break;
+        case "product_click":
+          increment = 20;
+          break;
+        case "report":
+          increment = -50;
+          break;
+      }
+      if (increment === 0) return;
+      const { error } = await supabaseAdmin.rpc("increment_interest_score", {
+        p_user_id: userId,
+        p_category_id: categoryId,
+        p_increment: increment
+      });
+      if (error) {
+        console.error(`Error incrementing score for user ${userId}, category ${categoryId}:`, error);
+        const { data: current } = await supabaseAdmin.from("user_interests").select("score").eq("user_id", userId).eq("category_id", categoryId).single();
+        const score = current ? Number(current.score) + increment : 50 + increment;
+        await supabaseAdmin.from("user_interests").upsert(
+          { user_id: userId, category_id: categoryId, score: Math.min(score, 1e3) },
+          // Cap at 1000 to prevent infinite growth
+          { onConflict: "user_id,category_id" }
+        );
+      }
+    } catch (err) {
+      console.error("Failed to adjust interest score:", err);
+    }
+  }
+  ;
+  app.post("/api/user/interests", verifyAuth, import_express.default.json(), async (req, res) => {
+    try {
+      if (!supabaseAdmin) throw new Error("Database not configured");
+      const user = req.user;
+      const { categoryIds } = req.body;
+      if (!Array.isArray(categoryIds)) {
+        return res.status(400).json({ error: "categoryIds must be an array" });
+      }
+      const { data: allCats } = await supabaseAdmin.from("categories").select("id");
+      const allCategoryIds = (allCats || []).map((c) => c.id);
+      const isAllCategories = categoryIds.length === allCategoryIds.length;
+      const rows = categoryIds.map((catId) => ({
+        user_id: user.id,
+        category_id: catId,
+        score: isAllCategories ? 50 : 100
+        // Initial score rules
+      }));
+      if (rows.length > 0) {
+        await supabaseAdmin.from("user_interests").upsert(rows, { onConflict: "user_id,category_id" });
+      }
+      res.json({ success: true, count: rows.length });
+    } catch (err) {
+      console.error("Error setting interests:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+  app.post("/api/engagement/:action", verifyAuth, engagementLimiter, async (req, res) => {
+    try {
+      const { action } = req.params;
+      const { videoId, targetUserId } = req.body;
+      const user = req.user;
+      if (!supabaseAdmin) throw new Error("Database not configured");
+      switch (action) {
+        case "like":
+          await supabaseAdmin.from("likes").insert({ video_id: videoId, user_id: user.id });
+          break;
+        case "unlike":
+          await supabaseAdmin.from("likes").delete().eq("video_id", videoId).eq("user_id", user.id);
+          break;
+        case "save":
+          await supabaseAdmin.from("saved_videos").insert({ video_id: videoId, user_id: user.id });
+          break;
+        case "unsave":
+          await supabaseAdmin.from("saved_videos").delete().eq("video_id", videoId).eq("user_id", user.id);
+          break;
+        case "follow":
+          await supabaseAdmin.from("follows").insert({ following_id: targetUserId, follower_id: user.id });
+          break;
+        case "unfollow":
+          await supabaseAdmin.from("follows").delete().eq("following_id", targetUserId).eq("follower_id", user.id);
+          break;
+        case "report":
+          await supabaseAdmin.from("reports").insert({
+            video_id: videoId,
+            user_id: user.id,
+            reason: req.body.reason || "Spam or malicious"
+          });
+          break;
+        default:
+          return res.status(400).json({ error: "Invalid engagement action" });
+      }
+      if (videoId && ["like", "save", "comment", "report"].includes(action)) {
+        adjustInterestScore(user.id, videoId, action).catch((e) => console.error("Score adjust error:", e));
+        adjustCreatorTrustScore(videoId, action).catch((e) => console.error("Trust score adjust error:", e));
+      }
+      res.json({ success: true, action });
+    } catch (err) {
+      console.error(`Engagement action failed (${req.params.action}):`, err);
+      res.json({ success: true, error: err.message });
+    }
+  });
+  async function verifyAuth(req, res, next) {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader) {
+        return res.status(401).json({ error: "No authorization header provided" });
+      }
+      const token = authHeader.split(" ")[1];
+      if (!token) {
+        return res.status(401).json({ error: "Auth token must be Bearer token" });
+      }
+      if (!supabaseAdmin) {
+        throw new Error("Supabase admin client not initialized on server");
+      }
+      const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+      if (userError || !user) {
+        return res.status(401).json({ error: "Invalid or expired auth token" });
+      }
+      const { data: dbProfile } = await supabaseAdmin.from("profiles").select("is_admin, is_suspended").eq("id", user.id).single();
+      const isDbAdmin = dbProfile?.is_admin === true;
+      const isDbSuspended = dbProfile?.is_suspended === true;
+      req.user = {
+        ...user,
+        is_database_admin: isDbAdmin,
+        is_suspended: isDbSuspended
+      };
+      next();
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+  ;
+  const uploadVideo = (0, import_multer.default)({ limits: { fileSize: 50 * 1024 * 1024 } });
+  app.post("/api/bunny/upload-video-proxy", verifyAuth, uploadVideo.single("video"), async (req, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ error: "No video file" });
+      const libraryId = process.env.BUNNY_LIBRARY_ID;
+      const apiKey = process.env.BUNNY_LIBRARY_API_KEY;
+      let deliveryHostname = process.env.BUNNY_DELIVERY_HOSTNAME;
+      const sandboxDomain = process.env.SANDBOX_DOMAIN || "https://usercontent-getnayi.com";
+      deliveryHostname = sandboxDomain.replace(/^https?:\/\//, "");
+      if (!libraryId || !apiKey || !deliveryHostname) {
+        return res.status(500).json({ error: "Bunny configuration is missing" });
+      }
+      const createResponse = await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos`, {
+        method: "POST",
+        headers: {
+          "AccessKey": apiKey,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ title: req.body?.title || "Proxy Upload Video" })
+      });
+      if (!createResponse.ok) throw new Error("Failed to create video object in Bunny Stream");
+      const videoData = await createResponse.json();
+      const videoId = videoData.guid;
+      const ext = req.file.originalname ? import_path.default.extname(req.file.originalname).toLowerCase() || ".mp4" : ".mp4";
+      const tempInputFile = import_path.default.join(import_os.default.tmpdir(), `input-${Date.now()}-${videoId}${ext}`);
+      const tempOutputFile = import_path.default.join(import_os.default.tmpdir(), `output-${Date.now()}-${videoId}${ext}`);
+      let processedBuffer = req.file.buffer;
+      let usedFfmpeg = false;
+      try {
+        await import_fs.default.promises.writeFile(tempInputFile, req.file.buffer);
+        await new Promise((resolve, reject) => {
+          const proc = (0, import_fluent_ffmpeg.default)(tempInputFile).outputOptions(["-map_metadata -1", "-c:v copy", "-c:a copy"]).save(tempOutputFile).on("end", () => resolve()).on("error", (err) => reject(new Error("Failed to strip video metadata: " + err.message)));
+          setTimeout(() => {
+            try {
+              proc.kill("SIGKILL");
+            } catch (e) {
+            }
+            reject(new Error("FFmpeg metadata extraction timed out"));
+          }, 4e3);
+        });
+        processedBuffer = await import_fs.default.promises.readFile(tempOutputFile);
+        usedFfmpeg = true;
+      } catch (ffmpegErr) {
+        console.warn(`[UPLOAD PROXY] FFmpeg overhead processing bypassed or timed out under load: ${ffmpegErr.message}. Falling back safely to direct buffer transfer to guarantee runtime availability.`, ffmpegErr);
+        processedBuffer = req.file.buffer;
+      } finally {
+        import_fs.default.unlink(tempInputFile, () => {
+        });
+        import_fs.default.unlink(tempOutputFile, () => {
+        });
+      }
+      const uploadResponse = await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos/${videoId}`, {
+        method: "PUT",
+        headers: { "AccessKey": apiKey },
+        body: processedBuffer
+      });
+      if (!uploadResponse.ok) throw new Error("Failed to upload video data to Bunny");
+      res.json({ success: true, videoId, deliveryHostname });
+    } catch (error) {
+      console.error("Proxy Video Upload Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  app.post("/api/bunny/presign-image", verifyAuth, async (req, res) => {
+    try {
+      const { filename } = req.body;
+      const user = req.user;
+      const { data: profile } = await supabaseAdmin.from("profiles").select("can_upload, is_admin").eq("id", user.id).single();
+      if (!profile?.can_upload && !profile?.is_admin) {
+        return res.status(403).json({ error: "Forbidden. You do not have upload privileges." });
+      }
+      if (!filename || typeof filename !== "string") {
+        return res.status(400).json({ error: "Invalid filename" });
+      }
+      const crypto2 = await import("crypto");
+      const safeFilename = import_path.default.basename(filename).replace(/[^a-zA-Z0-9.\-_]/g, "_");
+      const uniqueFilename = `${user.id}/${Date.now()}-${safeFilename}`;
+      const expires = Math.floor(Date.now() / 1e3) + 600;
+      const secret = process.env.BUNNY_STORAGE_PASSWORD || "secret";
+      const signature = crypto2.createHmac("sha256", secret).update(`${uniqueFilename}:${expires}`).digest("hex");
+      const presignedUrl = `/api/bunny/direct-put?filename=${encodeURIComponent(uniqueFilename)}&expires=${expires}&signature=${signature}`;
+      res.json({ presignedUrl, filename: uniqueFilename });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+  app.put("/api/bunny/direct-put", async (req, res) => {
+    try {
+      const { filename, expires, signature } = req.query;
+      if (Math.floor(Date.now() / 1e3) > Number(expires)) {
+        return res.status(401).json({ error: "Presigned URL expired" });
+      }
+      const crypto2 = await import("crypto");
+      const secret = process.env.BUNNY_STORAGE_PASSWORD || "secret";
+      const expectedSig = crypto2.createHmac("sha256", secret).update(`${filename}:${expires}`).digest("hex");
+      if (signature !== expectedSig) {
+        return res.status(403).json({ error: "Invalid signature" });
+      }
+      let zoneName = process.env.BUNNY_STORAGE_ZONE_NAME || "";
+      let hostname = process.env.BUNNY_STORAGE_HOSTNAME || "storage.bunnycdn.com";
+      if (zoneName.includes("/")) zoneName = zoneName.split("/").filter(Boolean).pop() || zoneName;
+      if (hostname.includes("://")) hostname = new URL(hostname).hostname;
+      const pullZone = process.env.BUNNY_STORAGE_PULL_ZONE;
+      const bunnyUrl = `https://${hostname}/${zoneName}/${filename}`;
+      const fetchResponse = await fetch(bunnyUrl, {
+        method: "PUT",
+        headers: { "AccessKey": secret, "Content-Length": req.headers["content-length"], "Content-Type": "application/octet-stream" },
+        body: req,
+        // Stream the raw binary directly
+        duplex: "half"
+      });
+      if (!fetchResponse.ok) {
+        throw new Error(await fetchResponse.text());
+      }
+      res.json({ url: `https://${pullZone}/${filename}` });
+    } catch (e) {
+      console.error("Direct PUT Error:", e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+  app.post("/api/bunny/upload-image", verifyAuth, async (req, res) => {
+    try {
+      const user = req.user;
+      if (!supabaseAdmin) {
+        return res.status(500).json({ error: "Database Admin client not configured" });
+      }
+      const { data: profile } = await supabaseAdmin.from("profiles").select("can_upload, is_admin").eq("id", user.id).single();
+      if (!profile?.can_upload && !profile?.is_admin) {
+        return res.status(403).json({ error: "Forbidden. You do not have upload privileges." });
+      }
+      let zoneName = process.env.BUNNY_STORAGE_ZONE_NAME || "";
+      const password = process.env.BUNNY_STORAGE_PASSWORD;
+      const pullZone = process.env.BUNNY_STORAGE_PULL_ZONE;
+      let hostname = process.env.BUNNY_STORAGE_HOSTNAME || "storage.bunnycdn.com";
+      if (zoneName.includes("/")) zoneName = zoneName.split("/").filter(Boolean).pop() || zoneName;
+      if (hostname.includes("://")) hostname = new URL(hostname).hostname;
+      if (!zoneName || !password || !pullZone) {
+        return res.status(500).json({ error: "Bunny edge storage configuration is missing" });
+      }
+      const { imageBase64, filename } = req.body;
+      if (!imageBase64 || !filename) {
+        return res.status(400).json({ error: "Image data and filename are required" });
+      }
+      const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+      const buffer = Buffer.from(base64Data, "base64");
+      if (buffer.length > 2 * 1024 * 1024) {
+        return res.status(413).json({ error: "Image size exceeds maximum allowed size (2MB)." });
+      }
+      let sharp = null;
+      try {
+        sharp = require("sharp");
+      } catch (e) {
+      }
+      let finalBuffer = buffer;
+      if (sharp) {
+        finalBuffer = await sharp(buffer).webp().toBuffer();
+      }
+      const uniqueFilename = `${Date.now()}-${Math.random().toString(36).substring(7)}.webp`;
+      let pz = pullZone.endsWith("/") ? pullZone.slice(0, -1) : pullZone;
+      if (!pz.startsWith("http")) pz = `https://${pz}`;
+      const sandboxDomain = process.env.SANDBOX_DOMAIN || "https://usercontent-getnayi.com";
+      pz = sandboxDomain;
+      const regions = [hostname, "storage.bunnycdn.com", "ny.storage.bunnycdn.com", "la.storage.bunnycdn.com", "sg.storage.bunnycdn.com", "syd.storage.bunnycdn.com", "uk.storage.bunnycdn.com", "br.storage.bunnycdn.com", "jh.storage.bunnycdn.com"];
+      const uniqueRegions = [...new Set(regions)];
+      let lastError = null;
+      let success = false;
+      for (const regionHost of uniqueRegions) {
+        const url = `https://${regionHost}/${zoneName}/avatars/${uniqueFilename}`;
+        const response = await fetch(url, {
+          method: "PUT",
+          headers: { "AccessKey": password, "Content-Type": "application/octet-stream" },
+          body: finalBuffer
+        });
+        if (response.ok) {
+          success = true;
+          break;
+        } else {
+          lastError = { status: response.status, text: await response.text() };
+        }
+      }
+      if (!success) {
+        throw new Error(`Failed to upload to Bunny Storage: ${JSON.stringify(lastError)}`);
+      }
+      const publicUrl = `${pz}/avatars/${uniqueFilename}`;
+      res.json({ success: true, url: publicUrl });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  app.post("/api/bunny/create", verifyAuth, async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (isRedisEnabled()) {
+        try {
+          const user2 = req.user;
+          const authMatch = user2?.id || req.ip || "unknown";
+          if (authMatch) {
+            const key = `upload_limit:${authMatch}`;
+            const current = await redis.incr(key);
+            if (current === 1) {
+              await redis.expire(key, 3600);
+            }
+            if (current > 5) {
+              return res.status(429).json({ error: "You have reached the upload limit of 5 videos per hour. Please try again later." });
+            }
+          }
+        } catch (redisError) {
+          handleRedisError(redisError, "uploadRateLimit");
+        }
+      }
+      const user = req.user;
+      if (!supabaseAdmin) {
+        return res.status(500).json({ error: "Database Admin client not configured" });
+      }
+      const { data: profile } = await supabaseAdmin.from("profiles").select("can_upload, is_admin").eq("id", user.id).single();
+      if (!profile?.can_upload && !profile?.is_admin) {
+        return res.status(403).json({ error: "Forbidden. You do not have upload privileges." });
+      }
+      const libraryId = process.env.BUNNY_LIBRARY_ID;
+      const apiKey = process.env.BUNNY_LIBRARY_API_KEY;
+      let deliveryHostname = process.env.BUNNY_DELIVERY_HOSTNAME;
+      const sandboxDomain = process.env.SANDBOX_DOMAIN || "https://usercontent-getnayi.com";
+      deliveryHostname = sandboxDomain.replace(/^https?:\/\//, "");
+      if (!libraryId || !apiKey || !deliveryHostname) {
+        return res.status(500).json({ error: "Bunny configuration is missing" });
+      }
+      const createResponse = await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos`, {
+        method: "POST",
+        headers: {
+          "AccessKey": apiKey,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ title: req.body?.title || "Uploaded Video" })
+      });
+      if (!createResponse.ok) {
+        throw new Error("Failed to create video object in Bunny Stream");
+      }
+      const videoData = await createResponse.json();
+      const videoId = videoData.guid;
+      const expirationTime = Math.floor(Date.now() / 1e3) + 3600;
+      const crypto2 = await import("crypto");
+      const signature = crypto2.createHash("sha256").update(libraryId + apiKey + expirationTime + videoId).digest("hex");
+      res.json({
+        success: true,
+        videoId,
+        libraryId,
+        deliveryHostname,
+        expirationTime,
+        signature
+      });
+    } catch (error) {
+      console.error("Create Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  app.post("/api/webhooks/bunny", import_express.default.json(), async (req, res) => {
+    try {
+      if (!supabaseAdmin) {
+        return res.status(500).json({ error: "DB not configured" });
+      }
+      const { VideoGuid, Status } = req.body;
+      if (VideoGuid && Status === 3) {
+        const videoUrlLike = `%${VideoGuid}%`;
+        const { data: videosToUpdate, error: fetchError } = await supabaseAdmin.from("videos").select("id, status, product_url").like("video_url", videoUrlLike).eq("status", "processing");
+        if (fetchError) {
+          console.error("[Webhook] Failed to fetch video status:", fetchError);
+          return res.status(500).json({ error: "Failed to fetch database" });
+        }
+        if (videosToUpdate && videosToUpdate.length > 0) {
+          for (const video of videosToUpdate) {
+            let nextStatus = "active";
+            if (video.product_url && !isAllowedMarketplace(video.product_url)) {
+              nextStatus = "pending_review";
+            }
+            const { error } = await supabaseAdmin.from("videos").update({
+              status: nextStatus
+            }).eq("id", video.id);
+            if (error) {
+              console.error("[Webhook] Failed to update video status:", error);
+              await supabaseAdmin.from("webhook_dead_letter_queue").insert({
+                payload: req.body,
+                error_message: "Failed to update video record: " + JSON.stringify(error)
+              });
+            } else {
+              console.log(`[Webhook] Successfully processed video: ${VideoGuid} to ${nextStatus}`);
+            }
+          }
+        }
+      }
+      return res.status(200).send("OK");
+    } catch (err) {
+      console.error("[Webhook] Bunny Webhook Error:", err);
+      if (supabaseAdmin) {
+        const { error: dlqError } = await supabaseAdmin.from("webhook_dead_letter_queue").insert({
+          payload: req.body || {},
+          error_message: "Unhandled Exception: " + (err?.message || String(err))
+        });
+        if (dlqError) console.error("[Webhook] Failed to log to DLQ", dlqError);
+      }
+      return res.status(500).send("Webhook Error");
+    }
+  });
+  app.delete("/api/bunny/delete/:videoId", verifyAuth, async (req, res) => {
+    try {
+      const libraryId = process.env.BUNNY_LIBRARY_ID;
+      const apiKey = process.env.BUNNY_LIBRARY_API_KEY;
+      const videoId = req.params.videoId;
+      const user = req.user;
+      if (!libraryId || !apiKey) {
+        return res.status(500).json({ error: "Bunny configuration is missing" });
+      }
+      if (!supabaseAdmin) {
+        return res.status(500).json({ error: "Database not configured" });
+      }
+      const { data: videoData } = await supabaseAdmin.from("videos").select("user_id").ilike("video_url", `%${videoId}%`).maybeSingle();
+      if (videoData) {
+        const { data: profile } = await supabaseAdmin.from("profiles").select("is_admin").eq("id", user.id).single();
+        if (videoData.user_id !== user.id && !profile?.is_admin) {
+          return res.status(403).json({ error: "Forbidden. You do not own this video." });
+        }
+      }
+      const response = await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos/${videoId}`, {
+        method: "DELETE",
+        headers: {
+          "AccessKey": apiKey,
+          "Accept": "application/json"
+        }
+      });
+      if (!response.ok) {
+        throw new Error("Failed to delete video");
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  const searchCache = /* @__PURE__ */ new Map();
+  const SEARCH_CACHE_TTL_MS = 1e3 * 60 * 5;
+  app.get("/api/trending", (0, import_express_rate_limit.default)({ windowMs: 15 * 60 * 1e3, max: 100 }), async (req, res) => {
+    try {
+      if (!supabaseAdmin) throw new Error("Database Admin client not configured");
+      const cacheKey = "trending_tags_cache";
+      if (isRedisEnabled()) {
+        try {
+          const cached = await redis.get(cacheKey);
+          if (cached) return res.json(typeof cached === "string" ? JSON.parse(cached) : cached);
+        } catch (e) {
+        }
+      } else {
+        const local = searchCache.get(cacheKey);
+        if (local && Date.now() - local.timestamp < SEARCH_CACHE_TTL_MS) {
+          return res.json(local.data);
+        }
+      }
+      const { data: videos, error } = await supabaseAdmin.from("videos").select(`
+          tags,
+          created_at,
+          views,
+          categories (
+            name
+          )
+        `).eq("status", "active").order("created_at", { ascending: false }).limit(200);
+      if (error) {
+        console.error("Trending tags fetch error:", error);
+        return res.json({ trendingTags: ["Skincare", "Fashion", "Tech"] });
+      }
+      const tagScores = {};
+      const now = Date.now();
+      (videos || []).forEach((v) => {
+        const ageHours = (now - new Date(v.created_at).getTime()) / (1e3 * 60 * 60);
+        const recencyMultiplier = Math.max(1, 10 - ageHours * (9 / 72));
+        const views = v.views || 0;
+        const score = (views + 1) * recencyMultiplier;
+        if (v.tags && Array.isArray(v.tags)) {
+          v.tags.forEach((tag) => {
+            const cleanTag = tag.trim();
+            if (!cleanTag) return;
+            if (!tagScores[cleanTag]) tagScores[cleanTag] = 0;
+            tagScores[cleanTag] += score;
+          });
+        }
+        if (v.categories && v.categories.name) {
+          const catName = v.categories.name.trim();
+          if (catName) {
+            if (!tagScores[catName]) tagScores[catName] = 0;
+            tagScores[catName] += score;
+          }
+        }
+      });
+      let sortedTagsWithScores = Object.entries(tagScores).sort((a, b) => b[1] - a[1]).slice(0, 30).map((entry) => ({ tag: entry[0], score: entry[1] }));
+      if (sortedTagsWithScores.length === 0) {
+        sortedTagsWithScores = [
+          { tag: "Skincare", score: 100 },
+          { tag: "Fashion", score: 90 },
+          { tag: "Tech", score: 80 },
+          { tag: "Beauty", score: 70 },
+          { tag: "Home", score: 60 },
+          { tag: "Fitness", score: 50 }
+        ];
+      }
+      const responsePayload = { trendingTags: sortedTagsWithScores.map((t) => t.tag).slice(0, 10), trendingTagScores: sortedTagsWithScores };
+      if (isRedisEnabled()) {
+        try {
+          await redis.set(cacheKey, JSON.stringify(responsePayload), { ex: 300 });
+        } catch (e) {
+        }
+      } else {
+        searchCache.set(cacheKey, { data: responsePayload, timestamp: Date.now() });
+      }
+      return res.json(responsePayload);
+    } catch (err) {
+      console.error("/api/trending Error:", err);
+      return res.json({ trendingTags: ["Skincare", "Fashion", "Tech", "Beauty", "Home", "Fitness"] });
+    }
+  });
+  app.get("/api/search", (0, import_express_rate_limit.default)({ windowMs: 15 * 60 * 1e3, max: 100 }), async (req, res) => {
+    try {
+      if (!supabaseAdmin) throw new Error("Database Admin client not configured");
+      const { q, category_id, store, limit, cursor } = req.query;
+      const limitNum = limit ? parseInt(limit) : 20;
+      const offsetNum = cursor ? parseInt(cursor) : 0;
+      let qStr = typeof q === "string" ? q.trim() : "";
+      let filterMaxPrice = null;
+      let filterMinPrice = null;
+      let cleanQuery = qStr;
+      if (qStr !== "") {
+        const lowerQ = qStr.toLowerCase();
+        const underMatch = lowerQ.match(/(?:under|below|less than|max)\s*(?:rs\.?|inr|₹|\$)?\s*(\d+)/i);
+        if (underMatch) {
+          filterMaxPrice = parseInt(underMatch[1], 10);
+          cleanQuery = cleanQuery.replace(underMatch[0], "");
+        }
+        const overMatch = cleanQuery.match(/(?:above|over|more than|min)\s*(?:rs\.?|inr|₹|\$)?\s*(\d+)/i);
+        if (overMatch) {
+          filterMinPrice = parseInt(overMatch[1], 10);
+          cleanQuery = cleanQuery.replace(overMatch[0], "");
+        }
+        cleanQuery = cleanQuery.trim();
+      }
+      const selectedCategory = typeof category_id === "string" && category_id ? category_id : null;
+      const storeFilter = typeof store === "string" && store ? store : null;
+      if (qStr === "" && !selectedCategory && !storeFilter) {
+        return res.json({ videos: [] });
+      }
+      const cleanSearchTerm = cleanQuery.replace(/^#/, "").toLowerCase();
+      const { data: v3Data, error: v3Error } = await supabaseAdmin.rpc("search_videos_v3", {
+        search_term: cleanSearchTerm,
+        p_category_id: selectedCategory,
+        p_max_price: filterMaxPrice,
+        p_min_price: filterMinPrice,
+        p_limit: limitNum,
+        p_offset: offsetNum
+      });
+      if (!v3Error && v3Data) {
+        let data2 = v3Data;
+        if (storeFilter) {
+          data2 = data2.filter((v) => {
+            const name = extractStoreName(v.video_url);
+            return name.toLowerCase() === storeFilter.toLowerCase();
+          });
+        }
+        let nextCursor2 = null;
+        if (v3Data.length === limitNum) {
+          nextCursor2 = (offsetNum + limitNum).toString();
+        }
+        data2 = data2.map((v) => ({
+          ...v,
+          categories: { id: v.category_id, name: "Category" },
+          profiles: { id: v.user_id, username: v.username, avatar_url: v.avatar_url, is_brand: v.is_brand, trust_score: v.trust_score },
+          likes: [{ count: v.likes_count }],
+          comments: [{ count: 0 }],
+          saved_videos: [{ count: v.saves_count }]
+        }));
+        return res.json({ videos: data2, nextCursor: nextCursor2 });
+      }
+      const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc("search_videos_v2", {
+        search_term: cleanSearchTerm,
+        p_category_id: selectedCategory
+      });
+      let videoIds = [];
+      if (rpcData && rpcData.length > 0) {
+        videoIds = rpcData.map((v) => v.id);
+      }
+      let queryBuilder = supabaseAdmin.from("videos").select(`
+          *,
+          categories (id, name),
+          profiles!inner (id, username, avatar_url, is_brand, trust_score),
+          likes(count),
+          comments(count),
+          saved_videos(count)
+        `).eq("status", "active");
+      if (selectedCategory) {
+        queryBuilder = queryBuilder.eq("category_id", selectedCategory);
+      }
+      if (videoIds.length > 0) {
+        queryBuilder = queryBuilder.in("id", videoIds);
+      } else if (cleanQuery !== "") {
+        const terms = cleanQuery.split(/\s+/).filter((w) => w.length > 2);
+        const orConditions = [`caption.ilike.%${cleanQuery}%`];
+        for (const t of terms) {
+          orConditions.push(`caption.ilike.%${t}%`);
+        }
+        queryBuilder = queryBuilder.or(orConditions.join(","));
+      }
+      const { data: fallbackData } = await queryBuilder.limit(storeFilter ? 100 : limitNum).range(offsetNum, offsetNum + (storeFilter ? 100 : limitNum) - 1);
+      let data = fallbackData || [];
+      if (storeFilter) {
+        data = data.filter((v) => {
+          const name = extractStoreName(v.product_url);
+          return name.toLowerCase() === storeFilter.toLowerCase();
+        });
+      }
+      let nextCursor = null;
+      if (data.length === (storeFilter ? 100 : limitNum)) {
+        nextCursor = (offsetNum + (storeFilter ? 100 : limitNum)).toString();
+      }
+      return res.json({ videos: data, nextCursor });
+    } catch (err) {
+      console.error("Search Error:", err);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  });
+  app.get("/api/videos/:id", async (req, res) => {
+    try {
+      if (!supabaseAdmin) throw new Error("DB not initialized");
+      const { id } = req.params;
+      const { data, error } = await supabaseAdmin.from("videos").select(`
+          *,
+          categories (id, name),
+          profiles (
+            id,
+            username,
+            avatar_url,
+            is_brand
+          )
+        `).eq("id", id).maybeSingle();
+      if (error) throw error;
+      if (!data) return res.status(404).json({ error: "Video not found" });
+      return res.json({ data });
+    } catch (err) {
+      console.error("Fetch video err:", err);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+  app.get("/api/feed", async (req, res) => {
+    try {
+      const { tab, categoryId, store, tag, cursor, limit = 10 } = req.query;
+      const limitNum = parseInt(limit) || 10;
+      let userId = null;
+      let userInterests = [];
+      let userInterestScores = /* @__PURE__ */ new Map();
+      if (req.headers.authorization && supabaseAdmin) {
+        const token = req.headers.authorization.split(" ")[1];
+        if (token && token !== "null") {
+          const { data: { user } } = await supabaseAdmin.auth.getUser(token);
+          if (user) {
+            userId = user.id;
+            const { data: dbInterests } = await supabaseAdmin.from("user_interests").select("category_id, score").eq("user_id", user.id).order("score", { ascending: false }).limit(10);
+            if (dbInterests && dbInterests.length > 0) {
+              userInterests = dbInterests.map((i) => i.category_id);
+              dbInterests.forEach((i) => userInterestScores.set(i.category_id, i.score));
+            } else {
+              userInterests = user.user_metadata?.interests || [];
+              userInterests.forEach((catId) => userInterestScores.set(catId, 50));
+            }
+          }
+        }
+      }
+      const DB_HAS_TRUST_SCORE = process.env.DISABLE_TRUST_SCORE !== "true";
+      let selectQuery = `*, categories (id, name), profiles (id, username, avatar_url, is_brand, trust_score), likes(count), comments(count), saved_videos(count)`;
+      let rawVideos = [];
+      let finalNextCursor = null;
+      if (categoryId || store || tag) {
+        let query = supabaseAdmin.from("videos").select(selectQuery).eq("status", "active").order("created_at", { ascending: false });
+        if (categoryId) query = query.eq("category_id", categoryId);
+        if (tag) query = query.contains("tags", [tag]);
+        let { data, error } = await query;
+        if (error && error.message.includes("trust_score")) {
+          selectQuery = `*, categories (id, name), profiles (id, username, avatar_url, is_brand), likes(count), comments(count), saved_videos(count)`;
+          let retryQuery = supabaseAdmin.from("videos").select(selectQuery).eq("status", "active").order("created_at", { ascending: false });
+          if (categoryId) retryQuery = retryQuery.eq("category_id", categoryId);
+          if (tag) retryQuery = retryQuery.contains("tags", [tag]);
+          const retryRes = await retryQuery;
+          data = retryRes.data;
+          error = retryRes.error;
+        }
+        if (error) throw error;
+        let filtered = data || [];
+        if (store) {
+          filtered = filtered.filter((v) => extractStoreName(v.product_url).toLowerCase() === store.toLowerCase());
+        }
+        const offset = cursor ? parseInt(cursor) : 0;
+        rawVideos = filtered.slice(offset, offset + limitNum);
+        finalNextCursor = offset + limitNum < filtered.length ? (offset + limitNum).toString() : null;
+      } else if (tab === "trending") {
+        const cacheKey = `feed:trending:${categoryId || "all"}`;
+        let trendingVideos = [];
+        let cached = null;
+        try {
+          if (isRedisEnabled()) {
+            cached = await redis.get(cacheKey);
+          }
+        } catch (cacheError) {
+          handleRedisError(cacheError, "getTrendingFeedCache");
+        }
+        if (cached) {
+          trendingVideos = typeof cached === "string" ? JSON.parse(cached) : cached;
+        } else {
+          const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1e3).toISOString();
+          let query = supabaseAdmin.from("videos").select(selectQuery).eq("status", "active").gte("created_at", sevenDaysAgo).limit(300);
+          if (categoryId) query = query.eq("category_id", categoryId);
+          let { data, error } = await query;
+          if (error && error.message.includes("trust_score")) {
+            console.warn("Falling back feed trending query without trust_score...");
+            selectQuery = `*, categories (id, name), profiles (id, username, avatar_url, is_brand), likes(count), comments(count), saved_videos(count)`;
+            let retryQuery = supabaseAdmin.from("videos").select(selectQuery).eq("status", "active").gte("created_at", sevenDaysAgo).limit(300);
+            if (categoryId) retryQuery = retryQuery.eq("category_id", categoryId);
+            const retryRes = await retryQuery;
+            data = retryRes.data;
+            error = retryRes.error;
+          }
+          if (error) throw error;
+          let scoredVideos = (data || []).map((v) => {
+            const likesCount = v.likes && v.likes.length > 0 && v.likes[0].count !== void 0 ? v.likes[0].count : v.likes?.length || 0;
+            const commentsCount = v.comments && v.comments.length > 0 && v.comments[0].count !== void 0 ? v.comments[0].count : v.comments?.length || 0;
+            const viewsCount = v.views || 0;
+            const trustScore = v.profiles?.trust_score ?? 50;
+            const trustMultiplier = Math.max(0.1, trustScore / 50);
+            const engagementScore = likesCount * 3 + commentsCount * 5 + viewsCount * 0.1;
+            const ageInHours = (Date.now() - new Date(v.created_at).getTime()) / (1e3 * 60 * 60);
+            const gravity = 1.8;
+            const finalScore = engagementScore * trustMultiplier / Math.pow(ageInHours + 2, gravity);
+            return {
+              ...v,
+              _ranking_score: finalScore
+            };
+          });
+          scoredVideos.sort((a, b) => b._ranking_score - a._ranking_score);
+          trendingVideos = scoredVideos;
+          try {
+            if (isRedisEnabled()) {
+              await redis.set(cacheKey, JSON.stringify(trendingVideos), { ex: 300 });
+            }
+          } catch (cacheError) {
+            handleRedisError(cacheError, "setTrendingFeedCache");
+          }
+        }
+        const offset = cursor ? parseInt(cursor) : 0;
+        rawVideos = trendingVideos.slice(offset, offset + limitNum);
+        finalNextCursor = offset + limitNum < trendingVideos.length ? (offset + limitNum).toString() : null;
+      } else {
+        const candidatePoolSize = 250;
+        const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1e3).toISOString();
+        let query = supabaseAdmin.from("videos").select(selectQuery).eq("status", "active").gte("created_at", fourteenDaysAgo).limit(candidatePoolSize);
+        if (categoryId) {
+          query = query.eq("category_id", categoryId);
+        } else if (userInterests.length > 0) {
+          query = query.or(`category_id.in.(${userInterests.join(",")}),category_id.is.null`);
+        }
+        let { data, error } = await query;
+        if (error && error.message.includes("trust_score")) {
+          console.warn("Falling back feed latest query without trust_score...");
+          selectQuery = `*, categories (id, name), profiles (id, username, avatar_url, is_brand), likes(count), comments(count), saved_videos(count)`;
+          let retryQuery = supabaseAdmin.from("videos").select(selectQuery).eq("status", "active").gte("created_at", fourteenDaysAgo).limit(candidatePoolSize);
+          if (categoryId) retryQuery = retryQuery.eq("category_id", categoryId);
+          else if (userInterests.length > 0) retryQuery = retryQuery.or(`category_id.in.(${userInterests.join(",")}),category_id.is.null`);
+          const retryRes = await retryQuery;
+          data = retryRes.data;
+          error = retryRes.error;
+        }
+        if (error) throw error;
+        let candidateVideos = data || [];
+        let scoredVideos = candidateVideos.map((v) => {
+          const likesCount = v.likes && v.likes.length > 0 && v.likes[0].count !== void 0 ? v.likes[0].count : v.likes?.length || 0;
+          const commentsCount = v.comments && v.comments.length > 0 && v.comments[0].count !== void 0 ? v.comments[0].count : v.comments?.length || 0;
+          const viewsCount = v.views || 0;
+          const trustScore = v.profiles?.trust_score ?? 50;
+          const trustMultiplier = Math.max(0.1, trustScore / 50);
+          let interestScore = userInterestScores.get(v.category_id);
+          if (interestScore === void 0) interestScore = 50;
+          const interestMultiplier = Math.max(0.1, interestScore / 50);
+          const engagementScore = 1 + likesCount * 3 + commentsCount * 5 + viewsCount * 0.1;
+          const ageInHours = Math.max(0.1, (Date.now() - new Date(v.created_at).getTime()) / (1e3 * 60 * 60));
+          const gravity = 1.35;
+          const finalScore = engagementScore * trustMultiplier * interestMultiplier / Math.pow(ageInHours + 2, gravity);
+          return {
+            ...v,
+            _ranking_score: finalScore
+          };
+        });
+        scoredVideos.sort((a, b) => b._ranking_score - a._ranking_score);
+        const offset = cursor ? parseInt(cursor) : 0;
+        rawVideos = scoredVideos.slice(offset, offset + limitNum);
+        finalNextCursor = offset + limitNum < scoredVideos.length ? (offset + limitNum).toString() : null;
+      }
+      let userLikes = /* @__PURE__ */ new Set();
+      let userSaves = /* @__PURE__ */ new Set();
+      let userFollows = /* @__PURE__ */ new Set();
+      if (rawVideos.length > 0 && userId) {
+        const videoIds = rawVideos.map((v) => v.id);
+        const authorIds = Array.from(new Set(rawVideos.map((v) => v.user_id)));
+        const [likesRes, savesRes, followsRes] = await Promise.all([
+          supabaseAdmin.from("likes").select("video_id").eq("user_id", userId).in("video_id", videoIds),
+          supabaseAdmin.from("saved_videos").select("video_id").eq("user_id", userId).in("video_id", videoIds),
+          supabaseAdmin.from("follows").select("following_id").eq("follower_id", userId).in("following_id", authorIds)
+        ]);
+        if (likesRes.data) likesRes.data.forEach((l) => userLikes.add(l.video_id));
+        if (savesRes.data) savesRes.data.forEach((s) => userSaves.add(s.video_id));
+        if (followsRes.data) followsRes.data.forEach((f) => userFollows.add(f.following_id));
+      }
+      const enrichedVideos = rawVideos.map((v) => {
+        const likesList = v.likes || [];
+        const commentsList = v.comments || [];
+        const savesList = v.saved_videos || [];
+        const likesCount = likesList.length > 0 && likesList[0].count !== void 0 ? likesList[0].count : likesList.length > 0 ? likesList.length : 0;
+        const commentsCount = commentsList.length > 0 && commentsList[0].count !== void 0 ? commentsList[0].count : commentsList.length > 0 ? commentsList.length : 0;
+        const savesCount = savesList.length > 0 && savesList[0].count !== void 0 ? savesList[0].count : savesList.length > 0 ? savesList.length : 0;
+        return {
+          ...v,
+          metrics: {
+            likes: likesCount,
+            comments: commentsCount,
+            saves: savesCount,
+            views: v.views || 0
+          },
+          user_state: {
+            is_liked: userLikes.has(v.id),
+            is_saved: userSaves.has(v.id),
+            is_followed: userFollows.has(v.user_id)
+          }
+        };
+      });
+      return res.json({ data: enrichedVideos, nextCursor: finalNextCursor });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  });
+  app.get("/api/comments", async (req, res) => {
+    try {
+      const { video_id, cursor, limit = 20 } = req.query;
+      const limitNum = parseInt(limit) || 20;
+      let query = supabaseAdmin.from("comments").select("*, profiles(username, avatar_url, is_brand)").eq("video_id", video_id).order("is_pinned", { ascending: false }).order("created_at", { ascending: false }).limit(limitNum);
+      if (cursor) query = query.lt("created_at", cursor);
+      let { data, error } = await query;
+      if (error) {
+        if (error.code === "42703" || error.message && error.message.includes("is_pinned")) {
+          console.warn("is_pinned column not present in comments table, falling back to standard sorting...");
+          let fallbackQuery = supabaseAdmin.from("comments").select("*, profiles(username, avatar_url, is_brand)").eq("video_id", video_id).order("created_at", { ascending: false }).limit(limitNum);
+          if (cursor) fallbackQuery = fallbackQuery.lt("created_at", cursor);
+          const fallbackRes = await fallbackQuery;
+          if (fallbackRes.error) throw fallbackRes.error;
+          data = fallbackRes.data;
+        } else {
+          throw error;
+        }
+      }
+      const nextCursor = data && data.length === limitNum ? data[data.length - 1].created_at : null;
+      return res.json({ data: data || [], nextCursor });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  });
+  app.post("/api/comments", verifyAuth, async (req, res) => {
+    try {
+      const { video_id, content } = req.body;
+      const user = req.user;
+      if (!content || !content.trim()) {
+        return res.status(400).json({ error: "Comment cannot be empty" });
+      }
+      const isTestingDeveloper = user.email === "chvenu143mn@gmail.com" || user.is_database_admin === true;
+      if (isTestingDeveloper && user.is_suspended === true) {
+        if (supabaseAdmin) {
+          try {
+            await supabaseAdmin.from("profiles").update({ is_suspended: false }).eq("id", user.id);
+            user.is_suspended = false;
+            console.log(`[Moderation] Automatically unbanned testing developer: ${user.email}`);
+          } catch (unbanError) {
+            console.error("Failed to auto-unban developer:", unbanError);
+          }
+        }
+      }
+      const isShadowbanned = user.is_suspended === true && !isTestingDeveloper;
+      const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.[a-zA-Z]{2,}(\/[^\s]*)?)/i;
+      const spamPhrases = ["free crypto", "click my bio", "link in bio", "subscribe", "followers", "cash app"];
+      const isSpam = urlRegex.test(content) || spamPhrases.some((phrase) => content.toLowerCase().includes(phrase));
+      if (isSpam && isRedisEnabled()) {
+        try {
+          const spamKey = `spam:comments:${user.id}`;
+          const spamCount = await redis.incr(spamKey);
+          if (spamCount === 1) await redis.expire(spamKey, 3600);
+          if (spamCount >= 3 && !isTestingDeveloper) {
+            if (supabaseAdmin) {
+              await supabaseAdmin.from("profiles").update({ is_suspended: true, can_upload: false }).eq("id", user.id);
+            }
+          }
+        } catch (redisError) {
+          handleRedisError(redisError, "spamTracking");
+        }
+        return res.status(403).json({ error: "Comment blocked due to spam policy" });
+      }
+      if (isShadowbanned) {
+        const mockComment = {
+          id: "temp-" + Date.now().toString(),
+          video_id,
+          user_id: user.id,
+          content,
+          created_at: (/* @__PURE__ */ new Date()).toISOString(),
+          profiles: {
+            username: user.user_metadata?.username || "user",
+            avatar_url: user.user_metadata?.avatar_url,
+            is_brand: user.user_metadata?.is_brand || false
+          }
+        };
+        return res.json({ success: true, comment: mockComment });
+      }
+      if (isRedisEnabled()) {
+        try {
+          const recentKey = `recent_comment:${user.id}:${Buffer.from(content).toString("base64")}`;
+          const hasRecent = await redis.get(recentKey);
+          if (hasRecent) {
+            const rapidCountKey = `rapid_spam:${user.id}`;
+            const count = await redis.incr(rapidCountKey);
+            if (count === 1) await redis.expire(rapidCountKey, 60);
+            if (count >= 3 && supabaseAdmin && !isTestingDeveloper) {
+              await supabaseAdmin.from("profiles").update({ is_suspended: true, can_upload: false }).eq("id", user.id);
+            }
+            return res.status(429).json({ error: "Please wait before posting the identical comment." });
+          }
+          await redis.set(recentKey, "1", { ex: 5 });
+        } catch (redisError) {
+          handleRedisError(redisError, "rapidIdenticalCommentRateLimit");
+        }
+      }
+      if (!supabaseAdmin) {
+        return res.status(500).json({ error: "DB not configured" });
+      }
+      const { data, error } = await supabaseAdmin.from("comments").insert({
+        video_id,
+        user_id: user.id,
+        content
+      }).select("*, profiles(username, avatar_url, is_brand)").single();
+      if (error) throw error;
+      res.json({ success: true, comment: data });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+  app.put("/api/comments/:commentId/pin", verifyAuth, async (req, res) => {
+    try {
+      const { commentId } = req.params;
+      const user = req.user;
+      if (!supabaseAdmin) {
+        return res.status(500).json({ error: "DB not configured" });
+      }
+      const { data: comment, error: fetchCommentErr } = await supabaseAdmin.from("comments").select("*").eq("id", commentId).single();
+      if (fetchCommentErr || !comment) {
+        return res.status(404).json({ error: "Comment not found" });
+      }
+      const { data: video, error: fetchVideoErr } = await supabaseAdmin.from("videos").select("user_id").eq("id", comment.video_id).single();
+      if (fetchVideoErr || !video) {
+        return res.status(404).json({ error: "Associated video not found" });
+      }
+      const isVideoOwner = video.user_id === user.id;
+      const isAdmin = user.is_database_admin === true;
+      if (!isVideoOwner && !isAdmin) {
+        return res.status(403).json({ error: "Only the video creator or an admin can pin comments" });
+      }
+      const currentPinnedStatus = comment.is_pinned === true;
+      if (currentPinnedStatus) {
+        const { error: unpinErr } = await supabaseAdmin.from("comments").update({ is_pinned: false }).eq("id", commentId);
+        if (unpinErr) {
+          if (unpinErr.code === "42703" || unpinErr.message && unpinErr.message.includes("is_pinned")) {
+            return res.status(400).json({ error: "Database column is_pinned missing. Please execute database.sql" });
+          }
+          throw unpinErr;
+        }
+        return res.json({ success: true, is_pinned: false, message: "Comment unpinned successfully" });
+      } else {
+        await supabaseAdmin.from("comments").update({ is_pinned: false }).eq("video_id", comment.video_id);
+        const { error: pinErr } = await supabaseAdmin.from("comments").update({ is_pinned: true }).eq("id", commentId);
+        if (pinErr) {
+          if (pinErr.code === "42703" || pinErr.message && pinErr.message.includes("is_pinned")) {
+            return res.status(400).json({ error: "Database column is_pinned missing. Please execute database.sql" });
+          }
+          throw pinErr;
+        }
+        return res.json({ success: true, is_pinned: true, message: "Comment pinned successfully" });
+      }
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  });
+  app.delete("/api/comments/:commentId", verifyAuth, async (req, res) => {
+    try {
+      const { commentId } = req.params;
+      const user = req.user;
+      if (commentId && commentId.startsWith("temp-")) {
+        return res.json({ success: true, message: "Comment deleted successfully" });
+      }
+      if (!supabaseAdmin) {
+        return res.status(500).json({ error: "DB not configured" });
+      }
+      const { data: comment, error: fetchError } = await supabaseAdmin.from("comments").select("*").eq("id", commentId).single();
+      if (fetchError || !comment) {
+        return res.status(404).json({ error: "Comment not found" });
+      }
+      const isCommentOwner = comment.user_id === user.id;
+      let isVideoOwner = false;
+      const { data: videoData } = await supabaseAdmin.from("videos").select("user_id").eq("id", comment.video_id).single();
+      if (videoData && videoData.user_id === user.id) {
+        isVideoOwner = true;
+      }
+      const isAdmin = user.is_database_admin === true;
+      if (!isCommentOwner && !isVideoOwner && !isAdmin) {
+        return res.status(403).json({ error: "Not authorized to delete this comment" });
+      }
+      const { error: repliesDeleteError } = await supabaseAdmin.from("comments").delete().like("content", `%"parent_id":"${commentId}"%`);
+      if (repliesDeleteError) {
+        console.error("Failed to clean up comment replies:", repliesDeleteError);
+      }
+      const { error: deleteError } = await supabaseAdmin.from("comments").delete().eq("id", commentId);
+      if (deleteError) throw deleteError;
+      return res.json({ success: true, message: "Comment deleted successfully" });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  });
+  app.get("/api/followers", async (req, res) => {
+    try {
+      const { user_id, cursor, limit = 20 } = req.query;
+      const limitNum = parseInt(limit) || 20;
+      let query = supabaseAdmin.from("follows").select("*, profiles!follower_id(id, username, avatar_url, is_brand)").eq("following_id", user_id).order("created_at", { ascending: false }).limit(limitNum);
+      if (cursor) query = query.lt("created_at", cursor);
+      const { data, error } = await query;
+      if (error) throw error;
+      const nextCursor = data && data.length === limitNum ? data[data.length - 1].created_at : null;
+      return res.json({ data: data || [], nextCursor });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  });
+  app.patch("/api/profiles/me", verifyAuth, async (req, res) => {
+    try {
+      const user = req.user;
+      const updates = req.body;
+      if (!supabaseAdmin) {
+        return res.status(500).json({ error: "Database not configured" });
+      }
+      const allowedFields = /* @__PURE__ */ new Set(["bio", "instagram", "tiktok", "avatar_url"]);
+      const sanitizedUpdates = {};
+      for (const key of Object.keys(updates)) {
+        if (allowedFields.has(key)) {
+          sanitizedUpdates[key] = updates[key];
+        }
+      }
+      if (Object.keys(sanitizedUpdates).length === 0) {
+        return res.status(400).json({ error: "No valid fields provided for update" });
+      }
+      const { data, error } = await supabaseAdmin.from("profiles").update(sanitizedUpdates).eq("id", user.id).select().single();
+      if (error) throw error;
+      return res.json({ success: true, data });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+  function safeFetch(targetUrl, maxRedirects = 5) {
+    return new Promise(async (resolve, reject) => {
+      let currentUrl = targetUrl;
+      let redirects = 0;
+      async function step() {
+        if (redirects > maxRedirects) {
+          return reject(new Error("Too many redirects"));
+        }
+        const safeInfo = await isSafeUrl(currentUrl);
+        if (!safeInfo.isSafe) {
+          return reject(new Error("Private network access forbidden"));
+        }
+        const parsed = new URL(currentUrl);
+        const client = parsed.protocol === "https:" ? import_https.default : import_http.default;
+        const req = client.request(currentUrl, {
+          lookup: (hostname, options, callback) => {
+            callback(null, [{ address: safeInfo.ip, family: 4 }]);
+          },
+          method: "GET",
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
+          },
+          timeout: 1e4
+        }, (res) => {
+          const statusCode = res.statusCode || 200;
+          if (statusCode >= 300 && statusCode < 400 && res.headers.location) {
+            try {
+              const nextUrl = new URL(res.headers.location, currentUrl).toString();
+              currentUrl = nextUrl;
+              redirects++;
+              res.resume();
+              return step();
+            } catch (e) {
+              return reject(new Error("Invalid redirect URL"));
+            }
+          }
+          if (statusCode >= 400) {
+            res.resume();
+            return reject(new Error(`HTTP error ${statusCode}`));
+          }
+          const chunks = [];
+          let length = 0;
+          const maxBuffer = 10 * 1024 * 1024;
+          res.on("data", (chunk) => {
+            chunks.push(chunk);
+            length += chunk.length;
+            if (length > maxBuffer) {
+              res.destroy();
+              reject(new Error("Response too large"));
+            }
+          });
+          res.on("end", () => {
+            resolve({
+              buffer: Buffer.concat(chunks),
+              contentType: res.headers["content-type"] || "application/octet-stream"
+            });
+          });
+        });
+        req.on("error", reject);
+        req.on("timeout", () => {
+          req.destroy();
+          reject(new Error("Request timeout"));
+        });
+        req.end();
+      }
+      step();
+    });
+  }
+  app.get("/api/proxy-image", async (req, res) => {
+    try {
+      const targetUrl = req.query.url;
+      if (!targetUrl) return res.status(400).send("URL required");
+      const { buffer, contentType } = await safeFetch(targetUrl);
+      res.set("Content-Type", contentType);
+      return res.send(buffer);
+    } catch (err) {
+      return res.status(500).send("Proxy error");
+    }
+  });
+  app.post("/api/link-preview", async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url || typeof url !== "string" || !import_validator.default.isURL(url, { protocols: ["http", "https"], require_protocol: true })) {
+        return res.status(400).json({ error: "Invalid URL format" });
+      }
+      const safeInfo = await isSafeUrl(url);
+      if (!safeInfo.isSafe) {
+        return res.status(400).json({ error: "Local or internal IP addresses are not allowed." });
+      }
+      const parsedUrl = new URL(url);
+      const hostname = parsedUrl.hostname.toLowerCase();
+      let title = "";
+      let favicon = `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`;
+      let aiExtracted = { productName: "", productPrice: "" };
+      let possibleImage = "";
+      try {
+        let html = "";
+        try {
+          html = await fetchPageHtmlWithNoTls(url);
+        } catch (fetchErr) {
+        }
+        if (html) {
+          const $ = cheerio.load(html);
+          title = $('meta[property="og:title"]').attr("content") || $("title").text() || "";
+          let ogImage = $('meta[property="og:image"]').attr("content") || "";
+          if (ogImage) {
+            try {
+              ogImage = new URL(ogImage, url).toString();
+            } catch (e) {
+              ogImage = "";
+            }
+          }
+          possibleImage = ogImage || $("img").first().attr("src") || "";
+          if (possibleImage && !possibleImage.startsWith("http")) {
+            try {
+              possibleImage = new URL(possibleImage, url).toString();
+            } catch (e) {
+            }
+          }
+          const iconHref = $('link[rel="icon"]').attr("href") || $('link[rel="shortcut icon"]').attr("href") || $('link[rel="apple-touch-icon"]').attr("href");
+          if (iconHref) {
+            try {
+              favicon = new URL(iconHref, url).toString();
+            } catch (e) {
+            }
+          }
+          if (process.env.GEMINI_API_KEY) {
+            const description = $('meta[name="description"]').attr("content") || $('meta[property="og:description"]').attr("content") || "";
+            const bodyText = $("body").text().replace(/\s+/g, " ").slice(0, 3e3);
+            try {
+              const { GoogleGenAI: GoogleGenAI2 } = await import("@google/genai");
+              const ai2 = new GoogleGenAI2({ apiKey: process.env.GEMINI_API_KEY });
+              const prompt = `Extract the product name and price from this e-commerce page snippet.
+Title: ${title}
+Description: ${description}
+Body Snippet: ${bodyText}
+
+Respond ONLY with a valid JSON object containing "productName" and "productPrice" (as a number or simple price string, e.g. "1499"). If you cannot extract them, leave them blank. Do not include markdown codeblocks or quotes.
+Example: {"productName": "Awesome Shirt", "productPrice": "1499"}`;
+              const aiResponse = await generateContentWithRetry(ai2, {
+                model: "gemini-3.5-flash",
+                contents: prompt
+              });
+              const textResp = aiResponse.text.replace(/```json/gi, "").replace(/```/g, "").trim();
+              const parsed = JSON.parse(textResp);
+              if (parsed.productName) aiExtracted.productName = parsed.productName;
+              if (parsed.productPrice) aiExtracted.productPrice = parsed.productPrice;
+            } catch (aiErr) {
+              console.error("[link-preview] AI extraction failed:", aiErr);
+            }
+          }
+        }
+      } catch (err) {
+      }
+      return res.json({
+        title: title.trim() || hostname,
+        favicon,
+        domain: hostname,
+        productName: aiExtracted.productName,
+        productPrice: aiExtracted.productPrice,
+        productImage: possibleImage
+      });
+    } catch (err) {
+      console.error("Link preview error:", err);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+  app.post("/api/videos", verifyAuth, async (req, res) => {
+    try {
+      const {
+        video_url,
+        thumbnail_url,
+        main_product_image_url,
+        caption,
+        product_url,
+        real_life_image_url,
+        is_verified_real,
+        force_unverified_url,
+        category_id,
+        tags
+      } = req.body;
+      if (!product_url) {
+        return res.status(400).json({ error: "Product URL is required" });
+      }
+      if (!/^https:\/\//i.test(product_url.trim())) {
+        return res.status(400).json({ error: "Only HTTPS URLs are allowed. javascript: or other schemas are strictly forbidden." });
+      }
+      const urlFields = [video_url, thumbnail_url, main_product_image_url, real_life_image_url];
+      for (const field of urlFields) {
+        if (field && typeof field === "string" && !/^https:\/\//i.test(field.trim())) {
+          return res.status(400).json({ error: "All media URLs must strictly use HTTPS schemas. Invalid payloads rejected." });
+        }
+      }
+      const user = req.user;
+      if (!supabaseAdmin) {
+        return res.status(500).json({ error: "Database Admin client not configured" });
+      }
+      const { data: profile } = await supabaseAdmin.from("profiles").select("can_upload, is_admin, subscription_plan").eq("id", user.id).single();
+      if (!profile?.can_upload && !profile?.is_admin) {
+        return res.status(403).json({ error: "Forbidden. You do not have upload privileges." });
+      }
+      if (!profile?.is_admin) {
+        const { count } = await supabaseAdmin.from("videos").select("id", { count: "exact", head: true }).eq("user_id", user.id);
+        const uploadedCount = count || 0;
+        const currentPlan = profile?.subscription_plan || "free";
+        if (currentPlan === "free" && uploadedCount >= 1) {
+          return res.status(403).json({ error: "Free plan limit reached (1 video). Please upgrade to Pro." });
+        }
+        if (currentPlan === "pro" && uploadedCount >= 10) {
+          return res.status(403).json({ error: "Pro plan limit reached (10 videos). Please upgrade to Creator." });
+        }
+      }
+      const seventyTwoHoursAgo = new Date(Date.now() - 72 * 60 * 60 * 1e3).toISOString();
+      const { data: duplicates } = await supabaseAdmin.from("videos").select("id").eq("user_id", user.id).eq("video_url", video_url).gte("created_at", seventyTwoHoursAgo).limit(1);
+      if (duplicates && duplicates.length > 0) {
+        return res.status(409).json({ error: "Duplicate upload detected. This video was already uploaded recently." });
+      }
+      let status = "processing";
+      const cleanProductUrl = product_url.trim();
+      const { data, error } = await supabaseAdmin.from("videos").insert({
+        user_id: user.id,
+        video_url,
+        ...thumbnail_url ? { thumbnail_url } : {},
+        ...main_product_image_url ? { main_product_image_url } : {},
+        caption,
+        product_url: cleanProductUrl,
+        ...real_life_image_url ? { real_life_image_url, is_verified_real } : {},
+        ...category_id ? { category_id } : {},
+        ...tags && Array.isArray(tags) ? { tags } : {},
+        status
+      }).select().single();
+      if (error) {
+        return res.status(400).json({ error: error.message });
+      }
+      res.json({ success: true, data, status: "processing" });
+      (async () => {
+        try {
+          const resolvedUrl = await resolveRedirectsNative(cleanProductUrl);
+          const url = new URL(resolvedUrl);
+          if (url.protocol !== "https:") throw new Error("Only HTTPS URLs are allowed");
+          const pathname = url.pathname.toLowerCase();
+          const blockedExtensions = [".mp4", ".mov", ".avi", ".webm", ".mkv", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".pdf", ".zip", ".rar", ".mp3", ".wav"];
+          if (blockedExtensions.some((ext) => pathname.endsWith(ext))) throw new Error("Must be a valid product page link");
+          const hostname = url.hostname.toLowerCase();
+          const safeInfo = await isSafeUrl(url.toString());
+          if (!safeInfo.isSafe) {
+            throw new Error("Local/IP addresses not allowed");
+          }
+          const safeProductUrl = sanitizeProductUrl(url);
+          if (process.env.GOOGLE_SAFE_BROWSING_KEY) {
+            const safeRes = await fetch(`https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${process.env.GOOGLE_SAFE_BROWSING_KEY}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                client: { clientId: "getnayi", clientVersion: "1.0" },
+                threatInfo: {
+                  threatTypes: ["MALWARE", "SOCIAL_ENGINEERING", "UNWANTED_SOFTWARE", "POTENTIALLY_HARMFUL_APPLICATION"],
+                  platformTypes: ["ANY_PLATFORM"],
+                  threatEntryTypes: ["URL"],
+                  threatEntries: [{ url: safeProductUrl }]
+                }
+              })
+            });
+            const safeData = await safeRes.json();
+            if (safeData && safeData.matches && safeData.matches.length > 0) {
+              throw new Error("URL flagged as malicious");
+            }
+          }
+          const isMarketplace = isAllowedMarketplace(safeProductUrl);
+          const isProductPath = ["/p/", "/product/", "/item/", "/dp/", "/buy/", "/d/"].some((p) => pathname.includes(p));
+          if (!isMarketplace && !isProductPath && !force_unverified_url) {
+            throw new Error("Link doesn't look like an e-commerce platform");
+          }
+          await supabaseAdmin.from("videos").update({ product_url: safeProductUrl }).eq("id", data.id);
+          await analyzeVideoMetadata(supabaseAdmin, data.id, caption, safeProductUrl);
+        } catch (e) {
+          console.error("Background processing failed for video", data.id, e.message);
+          await supabaseAdmin.from("videos").update({ status: "rejected" }).eq("id", data.id);
+        }
+      })();
+      return;
+    } catch (err) {
+      console.error("Video Upload API Error:", err);
+      return res.status(400).json({ error: err.message });
+    }
+  });
+  app.put("/api/videos/:id", verifyAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { caption, tags } = req.body;
+      const user = req.user;
+      if (!supabaseAdmin) throw new Error("Supabase admin not ready");
+      const { data: video, error: videoError } = await supabaseAdmin.from("videos").select("user_id").eq("id", id).single();
+      if (videoError || !video) {
+        return res.status(404).json({ error: "Video not found" });
+      }
+      const isAdmin = user.is_database_admin === true;
+      if (video.user_id !== user.id && !isAdmin) {
+        return res.status(403).json({ error: "Not authorized to edit this video" });
+      }
+      const patch = {};
+      if (caption !== void 0) patch.caption = caption;
+      if (tags !== void 0 && Array.isArray(tags)) patch.tags = tags;
+      if (req.body.product_url !== void 0) {
+        if (!/^https:\/\//i.test(req.body.product_url.trim())) {
+          return res.status(400).json({ error: "product_url must securely use https" });
+        }
+        patch.product_url = req.body.product_url;
+      }
+      if (req.body.category_id !== void 0) patch.category_id = req.body.category_id;
+      if (Object.keys(patch).length === 0) {
+        return res.json({ success: true, message: "No changes provided" });
+      }
+      const { data, error } = await supabaseAdmin.from("videos").update(patch).eq("id", id).select().single();
+      if (error) {
+        throw error;
+      }
+      return res.json({ success: true, data });
+    } catch (err) {
+      console.error("Video Edit Error:", err);
+      return res.status(400).json({ error: err.message });
+    }
+  });
+  app.get("/api/bunny/status/:videoId", async (req, res) => {
+    try {
+      const libraryId = process.env.BUNNY_LIBRARY_ID;
+      const apiKey = process.env.BUNNY_LIBRARY_API_KEY;
+      const videoId = req.params.videoId;
+      if (!libraryId || !apiKey) {
+        return res.status(500).json({ error: "Bunny configuration is missing" });
+      }
+      const response = await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos/${videoId}`, {
+        headers: {
+          "AccessKey": apiKey,
+          "Accept": "application/json"
+        }
+      });
+      if (!response.ok) {
+        throw new Error("Failed to check video status");
+      }
+      const data = await response.json();
+      res.json({ status: data.status, encodeProgress: data.encodeProgress });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  app.get("/api/stream/:videoId/*", async (req, res) => {
+    try {
+      const { videoId } = req.params;
+      const relativePath = req.params[0];
+      if (!videoId || !relativePath) {
+        return res.status(400).send("Invalid video parameters");
+      }
+      const deliveryHostname = process.env.BUNNY_DELIVERY_HOSTNAME || "vz-238d4a06-b02.b-cdn.net";
+      let cdnUrl = `https://${deliveryHostname}/${videoId}/${relativePath}`;
+      const qs = Object.entries(req.query).map(([k, v]) => `${k}=${v}`).join("&");
+      if (qs) cdnUrl += `?${qs}`;
+      const headers = {
+        "Referer": "https://getnayi.com",
+        // Setting referer explicitly since bunny edge might block localhost occasionally
+        "Origin": "https://getnayi.com"
+      };
+      const proxyRes = await fetch(cdnUrl, { headers });
+      if (!proxyRes.ok) {
+        if (proxyRes.status !== 404) {
+          console.warn(`[Proxy Stream Warning] Failed to fetch ${cdnUrl}: Status ${proxyRes.status}`);
+        }
+        return res.status(proxyRes.status).send(`Failed to fetch streaming asset: ${proxyRes.statusText}`);
+      }
+      const contentType = proxyRes.headers.get("content-type");
+      if (contentType) {
+        res.setHeader("content-type", contentType);
+      }
+      if (relativePath.endsWith(".ts")) {
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      } else if (relativePath.endsWith(".m3u8")) {
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      }
+      if (proxyRes.body) {
+        import_stream.Readable.fromWeb(proxyRes.body).pipe(res);
+      } else {
+        res.status(500).send("No streaming response body available");
+      }
+    } catch (error) {
+      console.error("[Proxy Stream Error]:", error);
+      res.status(500).send(error.message);
+    }
+  });
+  app.post(["/api/user/revoke-and-reset", "/api/user/grant-and-approve"], verifyAuth, async (req, res) => {
+    try {
+      if (!supabaseAdmin) {
+        return res.status(500).json({ error: "Database Admin client not configured" });
+      }
+      const sessionUser = req.user;
+      if (sessionUser?.email?.toLowerCase() !== "chvenu143mn@gmail.com") {
+        return res.status(403).json({ error: "Forbidden: Restricted diagnostic route." });
+      }
+      const { data: usersData, error: authError } = await supabaseAdmin.auth.admin.listUsers();
+      if (authError || !usersData?.users) {
+        return res.status(500).json({ error: "Failed to access users directory" });
+      }
+      const targetEmail = "chvenu143mn@gmail.com";
+      const targetUser = usersData.users.find((u) => u.email?.toLowerCase() === targetEmail);
+      if (!targetUser) {
+        return res.status(404).json({ error: `User with email ${targetEmail} not found` });
+      }
+      const userId = targetUser.id;
+      const { error: profileError } = await supabaseAdmin.from("profiles").update({ can_upload: true, is_admin: true }).eq("id", userId);
+      if (profileError) {
+        console.error("Failed to grant and approve upload privilege:", profileError);
+      }
+      await supabaseAdmin.from("creator_applications").delete().eq("user_id", userId);
+      const { error: appError } = await supabaseAdmin.from("creator_applications").insert({
+        user_id: userId,
+        status: "approved",
+        notes: "Automated Creator/Admin Approval"
+      });
+      if (appError) {
+        console.error("Failed to create approved creator application:", appError);
+      }
+      console.log(`[Approval Service] Done. Granted full admin and upload permissions for ${targetEmail}`);
+      return res.json({ success: true, message: `Access granted and onboarding application approved/activated for ${targetEmail}` });
+    } catch (err) {
+      console.error("Approval process error:", err);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+  const verifyAdmin = async (req, res, next) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader) {
+        console.error("[Admin Auth Failed] No auth header provided");
+        return res.status(401).json({ error: "No authorization header provided" });
+      }
+      const token = authHeader.split(" ")[1];
+      if (!token) {
+        console.error("[Admin Auth Failed] Token format is invalid");
+        return res.status(401).json({ error: "Auth token must be Bearer token" });
+      }
+      if (!supabaseAdmin) {
+        console.error("[Admin Auth Failed] supabaseAdmin not configured");
+        throw new Error("Supabase admin client not initialized on server");
+      }
+      const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+      if (userError || !user) {
+        console.error("[Admin Auth Failed] Invalid or expired Supabase credentials:", userError);
+        return res.status(401).json({ error: "Invalid or expired auth token" });
+      }
+      const { data: profile, error: profileErr } = await supabaseAdmin.from("profiles").select("is_admin").eq("id", user.id).single();
+      if (profileErr || !profile?.is_admin) {
+        console.error(`[Admin Auth Forbidden] User ${user.email} does not possess is_admin flag. Profile:`, profile);
+        return res.status(403).json({ error: "Forbidden: Administrator privileges required." });
+      }
+      req.adminUser = user;
+      next();
+    } catch (err) {
+      console.error("[verifyAdmin Catch Error]", err);
+      return res.status(500).json({ error: err.message });
+    }
+  };
+  const logAdminAction = async (adminId, action, targetId, targetType, details) => {
+    try {
+      console.log(`[Admin Log] Admin: ${adminId} | Action: ${action} | Target: ${targetId} (${targetType})`, details);
+      if (supabaseAdmin) {
+        await supabaseAdmin.from("admin_audit_logs").insert({
+          admin_id: adminId,
+          action,
+          target_id: targetId,
+          target_type: targetType,
+          details
+        });
+      }
+    } catch (err) {
+      console.error("[logAdminAction Failed]", err);
+    }
+  };
+  let localSettings = {
+    require_verification_to_upload: false,
+    allowed_product_domains: ["amazon.in", "amazon.com", "flipkart.com", "getnayi.in", "myntra.com", "meesho.com"],
+    blacklisted_product_domains: ["spamlink.xyz", "malicious.com", "phishing.net", "dangerous-offers.icu"],
+    max_upload_size_mb: 100,
+    automatic_spam_filtering: true,
+    maintenance_mode: false,
+    support_email: "chvenu143mn@gmail.com"
+  };
+  const getSystemSettings = async () => {
+    try {
+      if (supabaseAdmin) {
+        const { data, error } = await supabaseAdmin.from("system_settings").select("*");
+        if (!error && data && data.length > 0) {
+          const loaded = {};
+          data.forEach((row) => {
+            loaded[row.key] = row.value;
+          });
+          return { ...localSettings, ...loaded };
+        }
+      }
+    } catch (e) {
+      console.warn("[Settings DB Engine] system_settings table not available, using Redis fallback:", e);
+    }
+    try {
+      const redisVal = await redis.get("system_settings");
+      if (redisVal) {
+        const parsed = typeof redisVal === "string" ? JSON.parse(redisVal) : redisVal;
+        return { ...localSettings, ...parsed };
+      }
+    } catch (e) {
+      console.error("[Settings Redis Engine] Failed querying Redis backup:", e);
+    }
+    return localSettings;
+  };
+  const saveSystemSettings = async (settings) => {
+    const updated = { ...localSettings, ...settings };
+    try {
+      await redis.set("system_settings", JSON.stringify(updated));
+    } catch (e) {
+      console.error("[Settings Store Engine] Redis save error:", e);
+    }
+    try {
+      if (supabaseAdmin) {
+        const promises = Object.entries(updated).map(([key, value]) => {
+          return supabaseAdmin.from("system_settings").upsert({ key, value }).select();
+        });
+        await Promise.allSettled(promises);
+      }
+    } catch (e) {
+      console.warn("[Settings Store Engine] Postgres table row write bypassed:", e);
+    }
+    return updated;
+  };
+  app.get("/api/admin/applications", verifyAdmin, async (req, res) => {
+    try {
+      if (!supabaseAdmin) throw new Error("Supabase admin not configured");
+      const { data, error } = await supabaseAdmin.from("creator_applications").select(`*, profiles (*)`).order("created_at", { ascending: false });
+      if (error) return res.status(400).json({ error: error.message });
+      return res.json({ data: data || [] });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+  app.put("/api/admin/applications/:id", verifyAdmin, async (req, res) => {
+    try {
+      if (!supabaseAdmin) throw new Error("Supabase admin not configured");
+      const adminId = req.adminUser.id;
+      const { status, userId } = req.body;
+      const { data, error } = await supabaseAdmin.from("creator_applications").update({ status }).eq("id", req.params.id).select().single();
+      if (error) return res.status(400).json({ error: error.message });
+      if (status === "approved" && userId) {
+        const isBrandApp = data?.notes?.startsWith("Role: Brand") || false;
+        await supabaseAdmin.from("profiles").update({
+          can_upload: true,
+          is_brand: isBrandApp
+        }).eq("id", userId);
+      }
+      await logAdminAction(adminId, `update_application_status_${status}`, req.params.id, "creator_application", { userId });
+      return res.json({ success: true, data });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+  app.get("/api/admin/videos", verifyAdmin, async (req, res) => {
+    try {
+      if (!supabaseAdmin) throw new Error("Supabase admin not configured");
+      const { data, error } = await supabaseAdmin.from("videos").select(`*, profiles (*)`).order("created_at", { ascending: false });
+      if (error) throw error;
+      return res.json({ data: data || [] });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+  app.put("/api/admin/videos/:id", verifyAdmin, async (req, res) => {
+    try {
+      if (!supabaseAdmin) throw new Error("Supabase admin not configured");
+      const adminId = req.adminUser.id;
+      const { status, trust_score, is_verified_real, category_id, caption, product_url, reason } = req.body;
+      const patch = {};
+      if (status !== void 0) patch.status = status;
+      if (trust_score !== void 0) patch.trust_score = Number(trust_score);
+      if (is_verified_real !== void 0) patch.is_verified_real = !!is_verified_real;
+      if (category_id !== void 0) patch.category_id = category_id || null;
+      if (caption !== void 0) patch.caption = caption;
+      if (product_url !== void 0) patch.product_url = product_url || null;
+      if (status === "rejected") {
+        if (!reason || !reason.trim()) {
+          return res.status(400).json({ error: "Rejection reason is required." });
+        }
+        patch.rejection_reason = reason.trim();
+      }
+      const { data, error } = await supabaseAdmin.from("videos").update(patch).eq("id", req.params.id).select().single();
+      if (error) {
+        if (error.message && error.message.includes('column "rejection_reason" of relation "videos" does not exist')) {
+          const fallbackPatch = { ...patch };
+          delete fallbackPatch.rejection_reason;
+          const { data: fallbackData, error: fallbackError } = await supabaseAdmin.from("videos").update(fallbackPatch).eq("id", req.params.id).select().single();
+          if (fallbackError) throw fallbackError;
+          if (status === "rejected" && fallbackData) {
+            const notifPayload = {
+              user_id: fallbackData.user_id,
+              actor_id: adminId,
+              video_id: fallbackData.id,
+              type: "admin",
+              rejection_reason: reason.trim(),
+              is_read: false
+            };
+            const { error: notifErr } = await supabaseAdmin.from("notifications").insert(notifPayload);
+            if (notifErr && notifErr.message && notifErr.message.includes("rejection_reason")) {
+              delete notifPayload.rejection_reason;
+              await supabaseAdmin.from("notifications").insert(notifPayload);
+            }
+          }
+          await logAdminAction(adminId, "edit_video_moderation", req.params.id, "video", fallbackPatch);
+          return res.json({ success: true, data: fallbackData });
+        }
+        throw error;
+      }
+      if (status === "rejected" && data) {
+        const { data: triggerNotif } = await supabaseAdmin.from("notifications").select("id").eq("video_id", data.id).eq("type", "admin").limit(1);
+        if (!triggerNotif || triggerNotif.length === 0) {
+          const notifPayload = {
+            user_id: data.user_id,
+            actor_id: adminId,
+            video_id: data.id,
+            type: "admin",
+            rejection_reason: reason.trim(),
+            is_read: false
+          };
+          const { error: notifErr } = await supabaseAdmin.from("notifications").insert(notifPayload);
+          if (notifErr && notifErr.message && notifErr.message.includes("rejection_reason")) {
+            delete notifPayload.rejection_reason;
+            await supabaseAdmin.from("notifications").insert(notifPayload);
+          }
+        }
+      }
+      await logAdminAction(adminId, "edit_video_moderation", req.params.id, "video", patch);
+      return res.json({ success: true, data });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+  app.delete("/api/admin/videos/:id", verifyAdmin, async (req, res) => {
+    try {
+      if (!supabaseAdmin) throw new Error("Supabase admin not configured");
+      const adminId = req.adminUser.id;
+      const videoId = req.params.id;
+      const { data: videoData, error: fetchErr } = await supabaseAdmin.from("videos").select("video_url, user_id").eq("id", videoId).single();
+      if (fetchErr) throw fetchErr;
+      const { error: deleteErr } = await supabaseAdmin.from("videos").delete().eq("id", videoId);
+      if (deleteErr) throw deleteErr;
+      if (videoData?.video_url) {
+        const match = videoData.video_url.match(/https?:\/\/[^\/]+\/([a-f0-9\-]+)\//i);
+        if (match && match[1]) {
+          try {
+            const libraryId = process.env.BUNNY_LIBRARY_ID;
+            const apiKey = process.env.BUNNY_LIBRARY_API_KEY;
+            if (libraryId && apiKey) {
+              await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos/${match[0]}`, {
+                method: "DELETE",
+                headers: { "AccessKey": apiKey }
+              });
+            }
+          } catch (e) {
+            console.warn("[CDN Stream Server] Bunny Video delete warning:", e);
+          }
+        }
+      }
+      await logAdminAction(adminId, "delete_video", videoId, "video", videoData);
+      return res.json({ success: true, message: "Video content and metadata purged successfully." });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+  app.get("/api/admin/reports", verifyAdmin, async (req, res) => {
+    try {
+      if (!supabaseAdmin) throw new Error("Supabase admin not configured");
+      const { data, error } = await supabaseAdmin.from("reports").select(`*, videos (*, profiles (*)), profiles (*)`).order("created_at", { ascending: false });
+      if (error) throw error;
+      return res.json({ data: data || [] });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+  app.put("/api/admin/reports/:id", verifyAdmin, async (req, res) => {
+    try {
+      if (!supabaseAdmin) throw new Error("Supabase admin not configured");
+      const adminId = req.adminUser.id;
+      const { status } = req.body;
+      const { data, error } = await supabaseAdmin.from("reports").update({ status: status || "reviewed" }).eq("id", req.params.id).select().single();
+      if (error) {
+        console.warn("Reports column edit status failed. This is expected if alter script not applied:", error);
+      }
+      await logAdminAction(adminId, `verify_report_${status || "reviewed"}`, req.params.id, "report", { status });
+      return res.json({ success: true, data: data || { id: req.params.id } });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+  app.delete("/api/admin/reports/:id", verifyAdmin, async (req, res) => {
+    try {
+      if (!supabaseAdmin) throw new Error("Supabase admin not configured");
+      const adminId = req.adminUser.id;
+      const reportId = req.params.id;
+      const { error } = await supabaseAdmin.from("reports").delete().eq("id", reportId);
+      if (error) throw error;
+      await logAdminAction(adminId, "dismiss_report", reportId, "report", {});
+      return res.json({ success: true, message: "Report dismissed" });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+  app.get("/api/admin/creators", verifyAdmin, async (req, res) => {
+    try {
+      if (!supabaseAdmin) throw new Error("Supabase admin not configured");
+      const { data, error } = await supabaseAdmin.from("profiles").select(`*`).order("created_at", { ascending: false });
+      if (error) throw error;
+      return res.json({ data: data || [] });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+  app.put("/api/admin/creators/:id", verifyAdmin, async (req, res) => {
+    try {
+      if (!supabaseAdmin) throw new Error("Supabase admin not configured");
+      const adminId = req.adminUser.id;
+      const creatorId = req.params.id;
+      const { can_upload, is_brand, is_admin, is_suspended } = req.body;
+      const patch = {};
+      if (can_upload !== void 0) patch.can_upload = !!can_upload;
+      if (is_brand !== void 0) patch.is_brand = !!is_brand;
+      if (is_admin !== void 0) patch.is_admin = !!is_admin;
+      if (is_suspended !== void 0) patch.is_suspended = !!is_suspended;
+      const { data, error } = await supabaseAdmin.from("profiles").update(patch).eq("id", creatorId).select().single();
+      if (error) throw error;
+      if (is_suspended) {
+        await supabaseAdmin.from("profiles").update({ can_upload: false }).eq("id", creatorId);
+        await supabaseAdmin.from("videos").update({ status: "rejected" }).eq("user_id", creatorId);
+      }
+      await logAdminAction(adminId, "update_creator", creatorId, "creator_profile", patch);
+      return res.json({ success: true, data });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+  app.get("/api/admin/products", verifyAdmin, async (req, res) => {
+    try {
+      if (!supabaseAdmin) throw new Error("Supabase admin not configured");
+      const { data: videosData, error } = await supabaseAdmin.from("videos").select("id, caption, product_url, trust_score, created_at, profiles(username)").not("product_url", "is", null).order("created_at", { ascending: false });
+      if (error) throw error;
+      const list = (videosData || []).map((v) => {
+        let domain = "unknown";
+        try {
+          if (v.product_url) {
+            const parsed = new URL(v.product_url);
+            domain = parsed.hostname.replace("www.", "");
+          }
+        } catch (e) {
+        }
+        return {
+          id: v.id,
+          video_id: v.id,
+          caption: v.caption,
+          product_url: v.product_url,
+          username: v.profiles?.username || "user",
+          is_verified: isAllowedMarketplace(v.product_url),
+          trust_score: v.trust_score,
+          created_at: v.created_at,
+          domain
+        };
+      });
+      return res.json({ data: list });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+  app.get("/api/admin/spam", verifyAdmin, async (req, res) => {
+    try {
+      if (!supabaseAdmin) throw new Error("Supabase admin not configured");
+      const settings = await getSystemSettings();
+      const blacklist = settings.blacklisted_product_domains || [];
+      const { data, error } = await supabaseAdmin.from("videos").select(`*, profiles (*)`).order("created_at", { ascending: false });
+      if (error) throw error;
+      const flagged = (data || []).map((video) => {
+        let riskScore = 0;
+        const reasons = [];
+        if (video.trust_score < 80) {
+          riskScore += 100 - video.trust_score;
+          reasons.push(`Low user/system safety trust score: ${video.trust_score}`);
+        }
+        if (video.product_url) {
+          const hasBlacklisted = blacklist.some(
+            (domain) => video.product_url.toLowerCase().includes(domain.toLowerCase())
+          );
+          if (hasBlacklisted) {
+            riskScore += 90;
+            reasons.push(`Contains blacklisted commercial domain: ${video.product_url}`);
+          }
+          const spamKeywords = ["gift", "free", "win", "prize", "earn", "crypto", "bonus", "make-money", "fast"];
+          const hasSpamKeyword = spamKeywords.some((keyword) => video.product_url.toLowerCase().includes(keyword));
+          if (hasSpamKeyword) {
+            riskScore += 30;
+            reasons.push(`Link path contains promotional buzzword`);
+          }
+        }
+        return {
+          id: video.id,
+          video,
+          riskScore,
+          reasons,
+          isSpam: riskScore >= 30
+        };
+      }).filter((v) => v.isSpam).sort((a, b) => b.riskScore - a.riskScore);
+      return res.json({ data: flagged });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+  app.get("/api/admin/settings", verifyAdmin, async (req, res) => {
+    try {
+      const data = await getSystemSettings();
+      return res.json({ data });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+  app.post("/api/admin/settings", verifyAdmin, async (req, res) => {
+    try {
+      const adminId = req.adminUser.id;
+      const settings = req.body;
+      const data = await saveSystemSettings(settings);
+      await logAdminAction(adminId, "change_system_settings", "system", "settings", settings);
+      return res.json({ success: true, data });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+  app.get("/api/admin/audit-logs", verifyAdmin, async (req, res) => {
+    try {
+      if (!supabaseAdmin) throw new Error("Supabase admin not configured");
+      const { data, error } = await supabaseAdmin.from("admin_audit_logs").select(`*, profiles:admin_id (*)`).order("created_at", { ascending: false });
+      if (error) {
+        console.warn("Audit logs table failed:", error);
+        return res.json({ data: [] });
+      }
+      return res.json({ data: data || [] });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+  let vite;
+  if (process.env.NODE_ENV !== "production") {
+    vite = await (0, import_vite.createServer)({
+      server: { middlewareMode: true },
+      appType: "spa"
+    });
+  }
+  app.get(["/video/:videoId", "/shared-collection"], async (req, res, next) => {
+    try {
+      let title = req.query.t || "Getnayi - Discover amazing products";
+      let description = req.query.desc || "Check out this amazing content on Getnayi!";
+      let imageUrl = req.query.thumb || "https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=1000&auto=format&fit=crop";
+      let currentPath = req.path;
+      let videoUrl = req.query.v || "";
+      const isDBRequired = !req.query.t || !req.query.thumb || !req.query.desc;
+      const db = isDBRequired ? supabaseAdmin || (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY ? (0, import_supabase_js.createClient)(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false } }) : null) : null;
+      if (currentPath.startsWith("/video/")) {
+        let videoId = currentPath.split("/")[2];
+        if (db && videoId) {
+          try {
+            const { data: video } = await db.from("videos").select("*, profiles(username)").eq("id", videoId).single();
+            if (video) {
+              const creatorName = video.profiles?.username || "creator";
+              title = video.caption ? `${video.caption} | Getnayi` : `Video by @${creatorName} | Getnayi`;
+              imageUrl = video.thumbnail_url || video.video_url?.replace("/playlist.m3u8", "/thumbnail.jpg") || video.main_product_image_url || imageUrl;
+              videoUrl = video.video_url || "";
+              description = `Check out this amazing discovery by @${creatorName} on Getnayi! Watch the full video to see it in action.`;
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      } else if (currentPath.startsWith("/shared-collection")) {
+        const name = req.query.n;
+        const vParam = req.query.v;
+        title = name ? `${name} - Getnayi Collection` : "Shared Collection | Getnayi";
+        const count = vParam ? vParam.split(",").length : 0;
+        description = `Check out this collection of ${count} product videos curated for you.`;
+        if (db && vParam) {
+          try {
+            const firstId = vParam.split(",")[0];
+            const { data: v } = await db.from("videos").select("thumbnail_url, main_product_image_url").eq("id", firstId).single();
+            if (v && (v.thumbnail_url || v.main_product_image_url)) {
+              imageUrl = v.thumbnail_url || v.main_product_image_url;
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      }
+      let templateCode = "";
+      const fs2 = await import("fs");
+      try {
+        if (process.env.NODE_ENV !== "production") {
+          templateCode = await fs2.promises.readFile(import_path.default.join(process.cwd(), "index.html"), "utf-8");
+          if (vite) {
+            templateCode = await vite.transformIndexHtml(req.originalUrl, templateCode);
+          }
+        } else {
+          templateCode = await fs2.promises.readFile(import_path.default.join(process.cwd(), "dist", "index.html"), "utf-8");
+        }
+      } catch (err) {
+        console.error("Error reading index.html:", err);
+        return res.status(500).send("Internal Server Error: Unable to read index.html");
+      }
+      let ogTags = `
+        <meta property="og:title" content="${title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;")}" />
+        <meta property="og:description" content="${description.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;")}" />
+        <meta property="og:image" content="${imageUrl}" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:type" content="${videoUrl ? "video.other" : "website"}" />
+        <meta property="og:url" content="${req.protocol}://${req.get("host")}${req.originalUrl.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;")}" />
+      `;
+      if (videoUrl) {
+        ogTags += `
+        <meta property="og:video" content="${videoUrl}" />
+        <meta property="og:video:secure_url" content="${videoUrl}" />
+        <meta property="og:video:type" content="video/mp4" />
+        `;
+      }
+      ogTags += `
+        <meta name="twitter:card" content="${videoUrl ? "player" : "summary_large_image"}" />
+        <meta name="twitter:title" content="${title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;")}" />
+        <meta name="twitter:description" content="${description.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;")}" />
+        <meta name="twitter:image" content="${imageUrl}" />
+      `;
+      if (videoUrl) {
+        ogTags += `
+        <meta name="twitter:player" content="${req.protocol}://${req.get("host")}${req.originalUrl}" />
+        <meta name="twitter:player:width" content="720" />
+        <meta name="twitter:player:height" content="1280" />
+        `;
+      }
+      const html = templateCode.replace("</head>", `${ogTags}</head>`);
+      res.status(200).set({ "Content-Type": "text/html" }).end(html);
+    } catch (e) {
+      if (vite) {
+        vite.ssrFixStacktrace(e);
+      }
+      next(e);
+    }
+  });
+  app.post("/api/shorten", import_express.default.json(), async (req, res) => {
+    try {
+      const { longUrl } = req.body;
+      if (!longUrl || typeof longUrl !== "string" || !longUrl.startsWith("/")) {
+        return res.status(400).json({ error: "Invalid longUrl. Must be a relative path starting with /" });
+      }
+      if (!supabaseAdmin) {
+        return res.json({ shortUrl: longUrl });
+      }
+      const { data: existing } = await supabaseAdmin.from("short_links").select("id").eq("long_url", longUrl).single();
+      if (existing) {
+        return res.json({ shortUrl: `/s/${existing.id}` });
+      }
+      const shortId = Math.random().toString(36).substring(2, 8);
+      const { error } = await supabaseAdmin.from("short_links").insert({
+        id: shortId,
+        long_url: longUrl
+      });
+      if (error) {
+        console.error("Error creating short url:", error);
+        return res.json({ shortUrl: longUrl });
+      }
+      res.json({ shortUrl: `/s/${shortId}` });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Failed" });
+    }
+  });
+  app.get("/s/:shortId", async (req, res, next) => {
+    console.log("RECEIVED SHORT URL REQUEST:", req.params.shortId);
+    try {
+      const { shortId } = req.params;
+      const db = supabaseAdmin || (process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY ? (0, import_supabase_js.createClient)(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false } }) : null);
+      if (!db) {
+        console.log("No Supabase client found in short URL handler");
+        return next();
+      }
+      const { data: link, error } = await db.from("short_links").select("long_url").eq("id", shortId).single();
+      console.log("Short URL link result:", link, "Error:", error);
+      if (link && !error) {
+        let protocol = req.protocol;
+        let host = req.get("host");
+        if (host && !host.includes("ai.studio") && !host.includes("localhost") && !host.includes("run.app")) {
+          host = "localhost";
+        }
+        let absoluteUrl = `${protocol}://${host}${link.long_url}`;
+        console.log("Redirecting to:", absoluteUrl);
+        res.redirect(301, absoluteUrl);
+      } else {
+        console.log("Short link not found, calling next()");
+        next();
+      }
+    } catch (err) {
+      console.error("Error in short link handler:", err);
+      next(err);
+    }
+  });
+  app.post("/api/subscription/create", verifyAuth, async (req, res) => {
+    try {
+      const razorpay = getRazorpay();
+      if (!razorpay) return res.status(500).json({ error: "Razorpay not configured" });
+      const user = req.user;
+      const { plan_id } = req.body;
+      if (!plan_id) return res.status(400).json({ error: "Plan ID required" });
+      let amountInPaise = 0;
+      if (plan_id === "plan_pro_yearly" || plan_id === process.env.VITE_RAZORPAY_PRO_YEARLY_PLAN_ID || plan_id === process.env.VITE_RAZORPAY_PRO_PLAN_ID) {
+        amountInPaise = 5988 * 100;
+      } else if (plan_id === "plan_pro_monthly" || plan_id === process.env.VITE_RAZORPAY_PRO_MONTHLY_PLAN_ID) {
+        amountInPaise = 599 * 100;
+      } else if (plan_id === "plan_creator_yearly" || plan_id === process.env.VITE_RAZORPAY_CREATOR_YEARLY_PLAN_ID || plan_id === process.env.VITE_RAZORPAY_CREATOR_PLAN_ID) {
+        amountInPaise = 17988 * 100;
+      } else if (plan_id === "plan_creator_monthly" || plan_id === process.env.VITE_RAZORPAY_CREATOR_MONTHLY_PLAN_ID) {
+        amountInPaise = 1699 * 100;
+      } else {
+        return res.status(400).json({ error: "Invalid plan ID" });
+      }
+      const order = await razorpay.orders.create({
+        amount: amountInPaise,
+        currency: "INR",
+        receipt: `rcpt_${Date.now()}`,
+        notes: {
+          user_id: user.id,
+          plan_id
+        }
+      });
+      return res.json({ order_id: order.id, amount: order.amount, currency: order.currency });
+    } catch (err) {
+      console.error("Razorpay create err:", err);
+      const errorMessage = err.error?.description || err.message || "Error creating order.";
+      return res.status(400).json({ error: errorMessage });
+    }
+  });
+  app.post("/api/subscription/verify", verifyAuth, async (req, res) => {
+    try {
+      const razorpay = getRazorpay();
+      if (!razorpay) return res.status(500).json({ error: "Razorpay not configured" });
+      const user = req.user;
+      const { razorpay_payment_id, razorpay_order_id, razorpay_signature, plan_id } = req.body;
+      const body = razorpay_order_id + "|" + razorpay_payment_id;
+      const expectedSignature = import_crypto.default.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET).update(body.toString()).digest("hex");
+      if (expectedSignature === razorpay_signature) {
+        const payment = await razorpay.payments.fetch(razorpay_payment_id);
+        if (payment.status === "captured" || payment.status === "authorized") {
+          const plan = plan_id?.includes("creator") || plan_id === process.env.VITE_RAZORPAY_CREATOR_PLAN_ID ? "creator" : "pro";
+          const reqSupabase = getRequestSupabaseClient(req);
+          const { error: dbError } = await reqSupabase.from("profiles").update({
+            subscription_plan: plan,
+            razorpay_subscription_id: razorpay_order_id,
+            subscription_status: "active"
+          }).eq("id", user.id);
+          if (dbError) {
+            console.error("Failed to update subscription in DB:", dbError);
+            return res.status(500).json({ error: "Failed to update subscription in database" });
+          }
+          return res.json({ success: true });
+        } else {
+          return res.status(400).json({ error: `Payment not captured. Status: ${payment.status}` });
+        }
+      } else {
+        return res.status(400).json({ error: "Signature mismatch" });
+      }
+    } catch (err) {
+      console.error("Razorpay verify err:", err);
+      return res.status(500).json({ error: "Internal error" });
+    }
+  });
+  app.post("/api/subscription/webhook", async (req, res) => {
+    try {
+      const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+      if (!secret) return res.status(200).send("No webhook secret");
+      const signature = req.headers["x-razorpay-signature"];
+      if (!signature) return res.status(400).send("No signature");
+      let payloadString;
+      if (req.rawBody && Buffer.isBuffer(req.rawBody)) {
+        payloadString = req.rawBody.toString("utf8");
+      } else if (Buffer.isBuffer(req.body)) {
+        payloadString = req.body.toString("utf8");
+      } else if (typeof req.body === "string") {
+        payloadString = req.body;
+      } else {
+        payloadString = JSON.stringify(req.body);
+      }
+      const expectedSignature = import_crypto.default.createHmac("sha256", secret).update(payloadString).digest("hex");
+      if (expectedSignature !== signature) {
+        return res.status(400).send("Invalid signature");
+      }
+      const parsedBody = JSON.parse(payloadString);
+      const event = parsedBody.event;
+      if (event === "order.paid" || event === "payment.captured") {
+        let orderEntity = parsedBody.payload.order?.entity;
+        let paymentEntity = parsedBody.payload.payment?.entity;
+        let notes = orderEntity?.notes || paymentEntity?.notes;
+        if (notes && notes.user_id) {
+          const plan = notes.plan_id?.includes("creator") || notes.plan_id === process.env.VITE_RAZORPAY_CREATOR_PLAN_ID ? "creator" : "pro";
+          const orderId = orderEntity?.id || paymentEntity?.order_id;
+          if (supabaseAdmin) {
+            const { error: dbError } = await supabaseAdmin.from("profiles").update({
+              subscription_plan: plan,
+              subscription_status: "active",
+              razorpay_subscription_id: orderId
+              // Storing order ID
+            }).eq("id", notes.user_id);
+            if (dbError) {
+              console.error("Webhook: Failed to update subscription in DB:", dbError);
+            }
+          }
+        }
+      } else if (event === "payment.failed") {
+        let paymentEntity = parsedBody.payload.payment?.entity;
+        let notes = paymentEntity?.notes;
+        if (notes && notes.user_id) {
+          console.log(`Payment failed for user ${notes.user_id}`);
+        }
+      }
+      return res.status(200).json({ status: "ok" });
+    } catch (err) {
+      console.error("Webhook error:", err);
+      return res.status(500).send("Webhook Error");
+    }
+  });
+  app.all("/api/*", (req, res) => {
+    res.status(404).json({ error: "API endpoint not found" });
+  });
+  app.get("/sitemap.xml", async (req, res) => {
+    try {
+      if (!supabaseAdmin) {
+        return res.status(500).send("Database not configured");
+      }
+      const { data: videos, error } = await supabaseAdmin.from("videos").select("id, updated_at, created_at").eq("status", "active").order("created_at", { ascending: false }).limit(1e3);
+      if (error) {
+        throw error;
+      }
+      const baseUrl = process.env.VITE_APP_URL || "https://aisles.app";
+      const staticUrls = [
+        "",
+        "/explore",
+        "/search",
+        "/auth"
+      ].map((route) => `
+        <url>
+          <loc>${baseUrl}${route}</loc>
+          <changefreq>daily</changefreq>
+          <priority>${route === "" ? "1.0" : "0.8"}</priority>
+        </url>`);
+      const dynamicUrls = (videos || []).map((video) => {
+        const lastMod = video.updated_at || video.created_at || (/* @__PURE__ */ new Date()).toISOString();
+        return `
+        <url>
+          <loc>${baseUrl}/video/${video.id}</loc>
+          <lastmod>${new Date(lastMod).toISOString()}</lastmod>
+          <changefreq>weekly</changefreq>
+          <priority>0.7</priority>
+        </url>`;
+      });
+      const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${staticUrls.join("")}
+${dynamicUrls.join("")}
+</urlset>`;
+      res.header("Content-Type", "application/xml");
+      res.send(sitemap);
+    } catch (err) {
+      console.error("Sitemap generation error:", err);
+      res.status(500).end();
+    }
+  });
+  const getAssetPath = (filename) => {
+    if (process.env.NODE_ENV !== "production") {
+      return import_path.default.join(process.cwd(), "public", filename);
+    } else {
+      return import_path.default.join(process.cwd(), "dist", filename);
+    }
+  };
+  app.get("/manifest.webmanifest", (req, res) => {
+    res.setHeader("Content-Type", "application/manifest+json; charset=utf-8");
+    res.sendFile(getAssetPath("manifest.webmanifest"));
+  });
+  app.get("/manifest.json", (req, res) => {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.sendFile(getAssetPath("manifest.json"));
+  });
+  app.get("/sw.js", (req, res) => {
+    res.setHeader("Content-Type", "text/javascript; charset=utf-8");
+    res.sendFile(getAssetPath("sw.js"));
+  });
+  app.get("/icon-192.png", (req, res) => {
+    res.setHeader("Content-Type", "image/png");
+    res.sendFile(getAssetPath("icon-192.png"));
+  });
+  app.get("/icon-512.png", (req, res) => {
+    res.setHeader("Content-Type", "image/png");
+    res.sendFile(getAssetPath("icon-512.png"));
+  });
+  app.get("/favicon-32x32.png", (req, res) => {
+    res.setHeader("Content-Type", "image/png");
+    res.sendFile(getAssetPath("favicon-32x32.png"));
+  });
+  app.get("/favicon-16x16.png", (req, res) => {
+    res.setHeader("Content-Type", "image/png");
+    res.sendFile(getAssetPath("favicon-16x16.png"));
+  });
+  app.get("/favicon.ico", (req, res) => {
+    res.setHeader("Content-Type", "image/x-icon");
+    res.sendFile(getAssetPath("favicon.ico"));
+  });
+  app.get("/apple-touch-icon.png", (req, res) => {
+    res.setHeader("Content-Type", "image/png");
+    res.sendFile(getAssetPath("apple-touch-icon.png"));
+  });
+  if (process.env.NODE_ENV !== "production") {
+    app.use(vite.middlewares);
+  } else {
+    const distPath = import_path.default.join(process.cwd(), "dist");
+    app.use(import_express.default.static(distPath, { index: false, dotfiles: "ignore" }));
+    app.get("*", (req, res) => {
+      res.sendFile(import_path.default.join(distPath, "index.html"));
+    });
+  }
+  app.listen(Number(PORT), "0.0.0.0", () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+startServer();
+// Annotate the CommonJS export names for ESM import in node:
+0 && (module.exports = {
+  getRazorpay,
+  getStripe
+});

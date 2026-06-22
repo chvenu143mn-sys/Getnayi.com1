@@ -157,7 +157,7 @@ function resolveRedirectsNative(initialUrl: string): Promise<string> {
   return new Promise((resolve) => {
     const visited = new Set<string>();
     
-    function step(currentUrl: string, depth: number) {
+    async function step(currentUrl: string, depth: number) {
       if (depth > 10 || visited.has(currentUrl)) {
         resolve(currentUrl);
         return;
@@ -168,7 +168,17 @@ function resolveRedirectsNative(initialUrl: string): Promise<string> {
         const parsed = new URL(currentUrl);
         const client = parsed.protocol === 'https:' ? https : http;
         
+        const safeInfo = await isSafeUrl(currentUrl);
+        if (!safeInfo.isSafe) {
+          resolve(currentUrl);
+          return;
+        }
+
         const req = client.request(currentUrl, {
+        lookup: (hostname, options, callback) => {
+          // Prevent DNS Rebinding by reusing the IP resolved during isSafeUrl
+          callback(null, [{ address: safeInfo.ip, family: 4 }]);
+        },
           method: 'HEAD',
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -206,12 +216,22 @@ function resolveRedirectsNative(initialUrl: string): Promise<string> {
       }
     }
 
-    function fallbackToGet(currentUrl: string, depth: number) {
+    async function fallbackToGet(currentUrl: string, depth: number) {
       try {
         const parsed = new URL(currentUrl);
         const client = parsed.protocol === 'https:' ? https : http;
         
+        const safeInfo = await isSafeUrl(currentUrl);
+        if (!safeInfo.isSafe) {
+          resolve(currentUrl);
+          return;
+        }
+
         const req = client.request(currentUrl, {
+        lookup: (hostname, options, callback) => {
+          // Prevent DNS Rebinding by reusing the IP resolved during isSafeUrl
+          callback(null, [{ address: safeInfo.ip, family: 4 }]);
+        },
           method: 'GET',
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -257,10 +277,10 @@ ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 dotenv.config();
 
 // Helper to resolve and validate URL target against SSRF
-async function isSafeUrl(targetUrl: string): Promise<boolean> {
+async function isSafeUrl(targetUrl: string): Promise<{ isSafe: boolean, ip?: string }> {
   try {
     const parsed = new URL(targetUrl);
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return { isSafe: false };
 
     const hostname = parsed.hostname.toLowerCase();
 
@@ -279,12 +299,12 @@ async function isSafeUrl(targetUrl: string): Promise<boolean> {
        hostname.includes('0x') ||
        hostname.endsWith('.local')
     ) {
-       return false;
+       return { isSafe: false };
     }
 
     // Resolve DNS to catch domains pointing to internal IPs (e.g. nip.io)
     const { address } = await dns.promises.lookup(hostname);
-    if (!address) return false;
+    if (!address) return { isSafe: false };
 
     if (
       address.startsWith('127.') ||
@@ -298,12 +318,12 @@ async function isSafeUrl(targetUrl: string): Promise<boolean> {
       address.toLowerCase().startsWith('fd00:') ||
       address.toLowerCase().startsWith('fe80:')
     ) {
-      return false;
+      return { isSafe: false };
     }
 
-    return true;
+    return { isSafe: true, ip: address };
   } catch (err) {
-    return false; // Fail securely if URL parsing or DNS lookup fails
+    return { isSafe: false }; // Fail securely if URL parsing or DNS lookup fails
   }
 }
 
@@ -2559,21 +2579,99 @@ async function startServer() {
 
 
   // Proxy image to avoid CORS
+
+// A secure fetch wrapper that follows redirects but strictly verifies SSRF on each hop
+function safeFetch(targetUrl: string, maxRedirects = 5): Promise<{ buffer: Buffer, contentType: string }> {
+  return new Promise(async (resolve, reject) => {
+    let currentUrl = targetUrl;
+    let redirects = 0;
+
+    async function step() {
+      if (redirects > maxRedirects) {
+        return reject(new Error('Too many redirects'));
+      }
+
+      const safeInfo = await isSafeUrl(currentUrl);
+      if (!safeInfo.isSafe || !safeInfo.ip) {
+        return reject(new Error('Private network access forbidden'));
+      }
+
+      const parsed = new URL(currentUrl);
+      const client = parsed.protocol === 'https:' ? https : http;
+
+      const req = client.request(currentUrl, {
+        lookup: (hostname, options, callback) => {
+          // Prevent DNS Rebinding by reusing the IP resolved during isSafeUrl
+          callback(null, [{ address: safeInfo.ip, family: 4 }]);
+        },
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        },
+        timeout: 10000,
+      }, (res) => {
+        const statusCode = res.statusCode || 200;
+
+        if (statusCode >= 300 && statusCode < 400 && res.headers.location) {
+          try {
+            const nextUrl = new URL(res.headers.location, currentUrl).toString();
+            currentUrl = nextUrl;
+            redirects++;
+            res.resume(); // consume body
+            return step();
+          } catch (e) {
+            return reject(new Error('Invalid redirect URL'));
+          }
+        }
+
+        if (statusCode >= 400) {
+          res.resume();
+          return reject(new Error(`HTTP error ${statusCode}`));
+        }
+
+        const chunks: Buffer[] = [];
+        let length = 0;
+        const maxBuffer = 10 * 1024 * 1024; // 10MB max
+
+        res.on('data', (chunk) => {
+          chunks.push(chunk);
+          length += chunk.length;
+          if (length > maxBuffer) {
+             res.destroy();
+             reject(new Error('Response too large'));
+          }
+        });
+
+        res.on('end', () => {
+          resolve({
+             buffer: Buffer.concat(chunks),
+             contentType: res.headers['content-type'] || 'application/octet-stream'
+          });
+        });
+      });
+
+      req.on('error', reject);
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error('Request timeout'));
+      });
+
+      req.end();
+    }
+
+    step();
+  });
+}
+
   app.get('/api/proxy-image', async (req, res) => {
     try {
       const targetUrl = req.query.url as string;
       if (!targetUrl) return res.status(400).send('URL required');
-      
-      const safe = await isSafeUrl(targetUrl);
-      if (!safe) {
-         return res.status(403).send('Private network access forbidden');
-      }
 
-      const response = await fetch(targetUrl);
-      if (!response.ok) throw new Error('Failed to fetch image');
-      const buffer = await response.arrayBuffer();
-      res.set('Content-Type', response.headers.get('content-type') || 'image/jpeg');
-      return res.send(Buffer.from(buffer));
+      const { buffer, contentType } = await safeFetch(targetUrl);
+      res.set('Content-Type', contentType);
+      return res.send(buffer);
     } catch(err) {
       return res.status(500).send('Proxy error');
     }
@@ -2587,8 +2685,8 @@ async function startServer() {
         return res.status(400).json({ error: 'Invalid URL format' });
       }
       
-      const safe = await isSafeUrl(url);
-      if (!safe) {
+      const safeInfo = await isSafeUrl(url);
+      if (!safeInfo.isSafe) {
          return res.status(400).json({ error: 'Local or internal IP addresses are not allowed.' });
       }
 
@@ -2783,8 +2881,8 @@ Example: {"productName": "Awesome Shirt", "productPrice": "1499"}`;
             if (blockedExtensions.some(ext => pathname.endsWith(ext))) throw new Error('Must be a valid product page link');
 
             const hostname = url.hostname.toLowerCase();
-            const isIpAddress = validator.isIP(hostname) || /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname);
-            if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.local') || hostname.includes('0x') || isIpAddress) {
+            const safeInfo = await isSafeUrl(url.toString());
+            if (!safeInfo.isSafe) {
                throw new Error('Local/IP addresses not allowed');
             }
 
