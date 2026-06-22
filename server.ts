@@ -1602,7 +1602,7 @@ async function startServer() {
         }
 
         if (videosToUpdate && videosToUpdate.length > 0) {
-           for (const video of videosToUpdate) {
+           await Promise.all(videosToUpdate.map(async (video) => {
              let nextStatus = 'active';
              if (video.product_url && !isAllowedMarketplace(video.product_url)) {
                nextStatus = 'pending_review';
@@ -1620,7 +1620,7 @@ async function startServer() {
              } else {
                console.log(`[Webhook] Successfully processed video: ${VideoGuid} to ${nextStatus}`);
              }
-           }
+           }));
         }
       }
       
