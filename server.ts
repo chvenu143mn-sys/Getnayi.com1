@@ -27,6 +27,16 @@ import Razorpay from 'razorpay';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
+/**
+ * Escapes strings used in PostgREST `.or()` conditions to prevent injection.
+ * @param val The value to escape
+ * @returns The safely escaped string
+ */
+function escapePostgrestValue(val: string): string {
+  // Wrap string in double quotes and escape internal double quotes by doubling them
+  return `"${val.replace(/"/g, '""')}"`;
+}
+
 const generateContentWithRetry = async (aiInstance: any, params: any, retries = 3) => {
   for (let i = 0; i <= retries; i++) {
     try {
@@ -655,30 +665,35 @@ function setupCronJobs() {
 
       // 2. Process each user and check their actual Stripe state
       if (premiumUsers && premiumUsers.length > 0) {
-        for (const user of premiumUsers) {
-          try {
-            const subscription = await stripe.subscriptions.retrieve(user.stripe_subscription_id as string);
-            // If subscription is naturally canceled, unpaid, or past_due to the point of cancellation
-            if (new Set(['canceled', 'unpaid', 'past_due']).has(subscription.status)) {
-               // Update local DB to revoke premium
-               await supabaseAdmin
-                 .from('profiles')
-                 .update({ is_premium: false })
-                 .eq('id', user.id);
-               console.log(`[CRON] 🚨 Revoked premium for user ${user.id} -> Sub status: ${subscription.status}`);
-               canceledCount++;
+        // Process in chunks to avoid hitting Stripe API rate limits
+        const chunkSize = 10;
+        for (let i = 0; i < premiumUsers.length; i += chunkSize) {
+          const chunk = premiumUsers.slice(i, i + chunkSize);
+          await Promise.all(chunk.map(async (user) => {
+            try {
+              const subscription = await stripe.subscriptions.retrieve(user.stripe_subscription_id as string);
+              // If subscription is naturally canceled, unpaid, or past_due to the point of cancellation
+              if (new Set(['canceled', 'unpaid', 'past_due']).has(subscription.status)) {
+                 // Update local DB to revoke premium
+                 await supabaseAdmin
+                   .from('profiles')
+                   .update({ is_premium: false })
+                   .eq('id', user.id);
+                 console.log(`[CRON] 🚨 Revoked premium for user ${user.id} -> Sub status: ${subscription.status}`);
+                 canceledCount++;
+              }
+            } catch (err: any) {
+              console.error(`❌ [CRON] Failed to verify subscription for user ${user.id}:`, err?.message);
+              // If the subscription is missing/deleted entirely from Stripe, revoke premium
+              if (err?.statusCode === 404) {
+                 await supabaseAdmin.from('profiles').update({ is_premium: false }).eq('id', user.id);
+                 console.log(`[CRON] 🚨 Revoked premium for user ${user.id} (Subscription 404 Not Found)`);
+                 canceledCount++;
+              } else {
+                 failedCount++;
+              }
             }
-          } catch (err: any) {
-            console.error(`❌ [CRON] Failed to verify subscription for user ${user.id}:`, err?.message);
-            // If the subscription is missing/deleted entirely from Stripe, revoke premium
-            if (err?.statusCode === 404) {
-               await supabaseAdmin.from('profiles').update({ is_premium: false }).eq('id', user.id);
-               console.log(`[CRON] 🚨 Revoked premium for user ${user.id} (Subscription 404 Not Found)`);
-               canceledCount++;
-            } else {
-               failedCount++;
-            }
-          }
+          }));
         }
       }
 
@@ -1868,9 +1883,9 @@ async function startServer() {
         queryBuilder = queryBuilder.in('id', videoIds);
       } else if (cleanQuery !== '') {
         const terms = cleanQuery.split(/\s+/).filter(w => w.length > 2);
-        const orConditions = [`caption.ilike.%${cleanQuery}%`];
+        const orConditions = [`caption.ilike.${escapePostgrestValue('%' + cleanQuery + '%')}`];
         for (const t of terms) {
-           orConditions.push(`caption.ilike.%${t}%`);
+           orConditions.push(`caption.ilike.${escapePostgrestValue('%' + t + '%')}`);
         }
         queryBuilder = queryBuilder.or(orConditions.join(','));
       }
@@ -2095,7 +2110,8 @@ async function startServer() {
           query = query.eq('category_id', categoryId);
         } else if (userInterests.length > 0) {
           // ensure relevancy pool but also include uncategorized videos to avoid empty feeds
-          query = query.or(`category_id.in.(${userInterests.join(',')}),category_id.is.null`);
+          const escapedInterests = userInterests.map(i => escapePostgrestValue(i)).join(',');
+          query = query.or(`category_id.in.(${escapedInterests}),category_id.is.null`);
         }
         
         let { data, error } = await query;
@@ -2104,8 +2120,12 @@ async function startServer() {
             console.warn("Falling back feed latest query without trust_score...");
             selectQuery = `*, categories (id, name), profiles (id, username, avatar_url, is_brand), likes(count), comments(count), saved_videos(count)`;
             let retryQuery = supabaseAdmin!.from('videos').select(selectQuery).eq('status', 'active').gte('created_at', fourteenDaysAgo).limit(candidatePoolSize);
-            if (categoryId) retryQuery = retryQuery.eq('category_id', categoryId);
-            else if (userInterests.length > 0) retryQuery = retryQuery.or(`category_id.in.(${userInterests.join(',')}),category_id.is.null`);
+            if (categoryId) {
+                retryQuery = retryQuery.eq('category_id', categoryId);
+            } else if (userInterests.length > 0) {
+                const escapedInterests = userInterests.map(i => escapePostgrestValue(i)).join(',');
+                retryQuery = retryQuery.or(`category_id.in.(${escapedInterests}),category_id.is.null`);
+            }
             
             const retryRes = await retryQuery;
             data = retryRes.data;
