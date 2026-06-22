@@ -1,5 +1,9 @@
 import { test, expect } from '@playwright/test';
+ testing-videoutils-parsevideoproduct-4977186561800272510
 import { extractStoreName, parseVideoProduct, ParsedProduct } from '../src/utils/videoUtils';
+
+import { extractStoreName } from '../src/utils/videoUtils';
+ main
 
 test.describe('extractStoreName', () => {
   test('should return empty string for null or undefined', () => {
@@ -30,6 +34,7 @@ test.describe('extractStoreName', () => {
     expect(extractStoreName('htp://')).toBe('Store');
   });
 });
+ testing-videoutils-parsevideoproduct-4977186561800272510
 
 test.describe('videoUtils - parseVideoProduct', () => {
   const defaultProduct: ParsedProduct = {
@@ -152,3 +157,5 @@ test.describe('videoUtils - parseVideoProduct', () => {
     expect(result.productName).toBe('First Line Content');
   });
 });
+
+ main
