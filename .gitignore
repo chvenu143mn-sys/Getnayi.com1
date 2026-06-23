@@ -6,8 +6,3 @@ coverage/
 *.log
 .env*
 !.env.example
-test-results/
- fix/webhook-n-plus-1-optimization-7926320386299636634
-
-playwright-report/
- main
