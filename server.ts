@@ -843,9 +843,10 @@ app.get('/api/metrics', async (req, res) => {
     helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }),
   ); // allow external resources like videos
   // Specific helmet configurations to address findings
-  app.use(
-    helmet.hsts({ maxAge: 63072000, includeSubDomains: true }),
-  );
+  app.use((req, res, next) => {
+    res.setHeader("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
+    next();
+  });
   // Removed frameguard deny to allow AI Studio iframe preview
   app.use(helmet.noSniff());
   app.disable("x-powered-by");
