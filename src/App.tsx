@@ -1,32 +1,35 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import './App.css';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { BottomNav } from './components/BottomNav';
 import { Sidebar } from './components/Sidebar';
 import { SEO } from './components/SEO';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
-import AuthPage from './pages/Auth';
-import Feed from './pages/Feed';
-import Upload from './pages/Upload';
-import ProfilePage from './pages/Profile';
-import Admin from './pages/Admin';
-import Explore from './pages/Explore';
-import Trending from './pages/Trending';
-import Notifications from './pages/Notifications';
-import Subscription from './pages/Subscription';
-import SubscriptionSettings from './pages/SubscriptionSettings';
-import Saved from './pages/Saved';
-import Collection from './pages/Collection';
-import SharedCollection from './pages/SharedCollection';
-import CreatorVerification from './pages/CreatorVerification';
-import CreatorDashboard from './pages/CreatorDashboard';
-import StoreFeed from './pages/StoreFeed';
-import CategoryFeed from './pages/CategoryFeed';
-import ShortUrlRedirect from './pages/ShortUrlRedirect';
-import UpdatePasswordPage from './pages/UpdatePassword';
-import Interests from './pages/Interests';
+import { ErrorBoundary } from './components/ErrorBoundary';
+
+// Lazy loaded pages for Code Splitting
+const AuthPage = React.lazy(() => import('./pages/Auth'));
+const Feed = React.lazy(() => import('./pages/Feed'));
+const Upload = React.lazy(() => import('./pages/Upload'));
+const ProfilePage = React.lazy(() => import('./pages/Profile'));
+const Admin = React.lazy(() => import('./pages/Admin'));
+const Explore = React.lazy(() => import('./pages/Explore'));
+const Trending = React.lazy(() => import('./pages/Trending'));
+const Notifications = React.lazy(() => import('./pages/Notifications'));
+const Subscription = React.lazy(() => import('./pages/Subscription'));
+const SubscriptionSettings = React.lazy(() => import('./pages/SubscriptionSettings'));
+const Saved = React.lazy(() => import('./pages/Saved'));
+const Collection = React.lazy(() => import('./pages/Collection'));
+const SharedCollection = React.lazy(() => import('./pages/SharedCollection'));
+const CreatorVerification = React.lazy(() => import('./pages/CreatorVerification'));
+const CreatorDashboard = React.lazy(() => import('./pages/CreatorDashboard'));
+const StoreFeed = React.lazy(() => import('./pages/StoreFeed'));
+const CategoryFeed = React.lazy(() => import('./pages/CategoryFeed'));
+const ShortUrlRedirect = React.lazy(() => import('./pages/ShortUrlRedirect'));
+const UpdatePasswordPage = React.lazy(() => import('./pages/UpdatePassword'));
+const Interests = React.lazy(() => import('./pages/Interests'));
+
 import { isSupabaseConfigured } from './lib/supabase';
 import { Database } from 'lucide-react';
 import { Toaster } from 'sonner';
@@ -144,56 +147,67 @@ function AppContent() {
     <>
       <SEO />
       <PWAInstallPrompt />
-      <Routes>
-        <Route path="/auth" element={!user ? <MainLayout><AuthPage /></MainLayout> : <Navigate to={location.state?.returnTo || "/"} replace />} />
-        <Route path="/update-password" element={<UpdatePasswordPage />} />
-      <Route path="/interests" element={<ProtectedRoute><MainLayout><Interests /></MainLayout></ProtectedRoute>} />
-      <Route path="/" element={<FeedLayout><Feed /></FeedLayout>} />
-      <Route path="/video/:videoId" element={<FeedLayout><Feed /></FeedLayout>} />
-      <Route path="/explore" element={<MainLayout><Explore /></MainLayout>} />
-      <Route path="/trending" element={<MainLayout><Trending /></MainLayout>} />
-      <Route path="/saved" element={<ProtectedRoute><MainLayout><Saved /></MainLayout></ProtectedRoute>} />
-      <Route path="/collection/:id" element={<ProtectedRoute><MainLayout><Collection /></MainLayout></ProtectedRoute>} />
-      <Route path="/shared-collection" element={<MainLayout><SharedCollection /></MainLayout>} />
-      <Route path="/s/:shortId" element={<ShortUrlRedirect />} />
-      <Route path="/store/:name" element={<MainLayout><StoreFeed /></MainLayout>} />
-      <Route path="/category/:id" element={<MainLayout><CategoryFeed /></MainLayout>} />
-
-      <Route path="/creator-verification" element={<ProtectedRoute><MainLayout><CreatorVerification /></MainLayout></ProtectedRoute>} />
-      <Route path="/creator-dashboard" element={<ProtectedRoute><MainLayout><CreatorDashboard /></MainLayout></ProtectedRoute>} />
-      <Route path="/subscription" element={<MainLayout><Subscription /></MainLayout>} />
-      <Route path="/settings/subscription" element={<ProtectedRoute><MainLayout><SubscriptionSettings /></MainLayout></ProtectedRoute>} />
-      <Route path="/notifications" element={<ProtectedRoute><MainLayout><Notifications /></MainLayout></ProtectedRoute>} />
-      <Route 
-        path="/upload" 
-        element={
-          <MainLayout><Upload /></MainLayout>
-        } 
-      />
-      <Route 
-        path="/profile" 
-        element={
-          <MainLayout><ProfilePage /></MainLayout>
-        } 
-      />
-      <Route 
-        path="/admin" 
-        element={
-          <ProtectedRoute>
-            <MainLayout><Admin /></MainLayout>
-          </ProtectedRoute>
-        } 
-      />
-      <Route path="*" element={
-        <MainLayout>
-          <div className="flex flex-col items-center justify-center p-8 text-center h-[50vh]">
-            <h1 className="text-2xl font-bold text-white mb-2">Page Not Found</h1>
-            <p className="text-gray-400">The page you are looking for doesn't exist or has been moved.</p>
+      <ErrorBoundary>
+        <Suspense fallback={
+          <div className="h-full bg-[#0c0c0e] text-white relative flex flex-col font-sans">
+            <div className="flex-1 flex flex-col items-center justify-center p-8 gap-y-6">
+               <div className="size-12 bg-zinc-800 rounded-2xl animate-pulse"></div>
+               <div className="w-32 h-4 bg-zinc-800 rounded-md animate-pulse"></div>
+            </div>
           </div>
-        </MainLayout>
-      } />
-    </Routes>
-    <Toaster theme="dark" position="top-center" />
+        }>
+          <Routes>
+            <Route path="/auth" element={!user ? <MainLayout><AuthPage /></MainLayout> : <Navigate to={location.state?.returnTo || "/"} replace />} />
+            <Route path="/update-password" element={<UpdatePasswordPage />} />
+          <Route path="/interests" element={<ProtectedRoute><MainLayout><Interests /></MainLayout></ProtectedRoute>} />
+          <Route path="/" element={<FeedLayout><Feed /></FeedLayout>} />
+          <Route path="/video/:videoId" element={<FeedLayout><Feed /></FeedLayout>} />
+          <Route path="/explore" element={<MainLayout><Explore /></MainLayout>} />
+          <Route path="/trending" element={<MainLayout><Trending /></MainLayout>} />
+          <Route path="/saved" element={<ProtectedRoute><MainLayout><Saved /></MainLayout></ProtectedRoute>} />
+          <Route path="/collection/:id" element={<ProtectedRoute><MainLayout><Collection /></MainLayout></ProtectedRoute>} />
+          <Route path="/shared-collection" element={<MainLayout><SharedCollection /></MainLayout>} />
+          <Route path="/s/:shortId" element={<ShortUrlRedirect />} />
+          <Route path="/store/:name" element={<MainLayout><StoreFeed /></MainLayout>} />
+          <Route path="/category/:id" element={<MainLayout><CategoryFeed /></MainLayout>} />
+
+          <Route path="/creator-verification" element={<ProtectedRoute><MainLayout><CreatorVerification /></MainLayout></ProtectedRoute>} />
+          <Route path="/creator-dashboard" element={<ProtectedRoute><MainLayout><CreatorDashboard /></MainLayout></ProtectedRoute>} />
+          <Route path="/subscription" element={<MainLayout><Subscription /></MainLayout>} />
+          <Route path="/settings/subscription" element={<ProtectedRoute><MainLayout><SubscriptionSettings /></MainLayout></ProtectedRoute>} />
+          <Route path="/notifications" element={<ProtectedRoute><MainLayout><Notifications /></MainLayout></ProtectedRoute>} />
+          <Route 
+            path="/upload" 
+            element={
+              <MainLayout><Upload /></MainLayout>
+            } 
+          />
+          <Route 
+            path="/profile" 
+            element={
+              <MainLayout><ProfilePage /></MainLayout>
+            } 
+          />
+          <Route 
+            path="/admin" 
+            element={
+              <ProtectedRoute>
+                <MainLayout><Admin /></MainLayout>
+              </ProtectedRoute>
+            } 
+          />
+          <Route path="*" element={
+            <MainLayout>
+              <div className="flex flex-col items-center justify-center p-8 text-center h-[50vh]">
+                <h1 className="text-2xl font-bold text-white mb-2">Page Not Found</h1>
+                <p className="text-gray-400">The page you are looking for doesn't exist or has been moved.</p>
+              </div>
+            </MainLayout>
+          } />
+          </Routes>
+        </Suspense>
+      </ErrorBoundary>
+      <Toaster theme="dark" position="top-center" />
     </>
   );
 }

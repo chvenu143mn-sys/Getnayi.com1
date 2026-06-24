@@ -182,12 +182,37 @@ export default function Explore() {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const activeRequestRef = useRef<number>(0);
 
-  // Active category filter
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
-
+  // Dynamic Explore state
+  const [exploreVideos, setExploreVideos] = useState<any[]>([]);
+  const [trendingVideos, setTrendingVideos] = useState<any[]>([]);
+  
   // Local persistence simulation State lists (Save Product & Follow Creator)
   const [savedProductIds, setSavedProductIds] = useState<string[]>([]);
   const [followedCreatorIds, setFollowedCreatorIds] = useState<string[]>([]);
+  
+  // Active category filter
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+
+  useEffect(() => {
+    if (!exploreVideos.length) {
+      fetch('/api/feed?limit=6')
+        .then(res => res.json())
+        .then(data => data.videos && setExploreVideos(data.videos))
+        .catch(console.error);
+        
+      fetch('/api/feed?tab=trending&limit=4')
+        .then(res => res.json())
+        .then(data => data.videos && setTrendingVideos(data.videos))
+        .catch(console.error);
+    }
+  }, []);
+
+  // Filter explore dynamically by selectedCategory
+  const currentForYou = exploreVideos.length > 0 
+    ? exploreVideos.filter(v => selectedCategory === 'all' || v.category_id === selectedCategory)
+    : initialForYouProducts.filter(p => selectedCategory === 'all' || p.category === selectedCategory);
+
+  const currentTrending = trendingVideos.length > 0 ? trendingVideos : trendingThisWeekProducts;
 
   useEffect(() => {
     if (qParam !== null && qParam !== searchQuery) {
@@ -278,10 +303,6 @@ export default function Explore() {
 
   const isSearchActive = searchQuery.trim() !== "";
 
-  // Filter "For You" products based on Category Chip
-  const filteredForYou = selectedCategory === "all"
-    ? initialForYouProducts
-    : initialForYouProducts.filter(p => p.category === selectedCategory);
 
   return (
     <div className="flex-1 w-full bg-[#0c0c0e] text-white font-sans h-full flex flex-col overflow-hidden">
@@ -358,7 +379,7 @@ export default function Explore() {
                    {searchResults.map((item: any, idx: number) => (
                       <div 
                         key={item.id || idx}
-                        onClick={() => navigate(`/video/dummy`)}
+                        onClick={() => navigate(item.id ? `/video/${item.id}` : `/video/dummy`)}
                         className="bg-zinc-900/50 border border-white/5 rounded-2xl overflow-hidden cursor-pointer group hover:border-white/10 transition-colors"
                       >
                          <div className="relative aspect-[4/3] bg-zinc-800">
@@ -396,24 +417,31 @@ export default function Explore() {
                   </div>
                </div>
 
-               {filteredForYou.length > 0 ? (
+               {currentForYou.length > 0 ? (
                  <div className="grid grid-cols-2 gap-3">
-                   {filteredForYou.map((product) => {
-                     const isSaved = savedProductIds.includes(product.id);
-                     const isFollowing = followedCreatorIds.includes(product.creator);
+                   {currentForYou.map((product) => {
+                     const isReal = !!product.video_url; // if db object
+                     const productId = product.id;
+                     const creatorName = isReal ? product.profiles?.username : product.creator;
+                     const image = isReal ? (product.main_product_image_url || product.thumbnail_url) : product.image;
+                     const name = isReal ? (product.product_name || product.caption || 'Video Product') : product.name;
+                     const price = isReal ? product.product_price : product.price;
+
+                     const isSaved = savedProductIds.includes(productId);
+                     const isFollowing = followedCreatorIds.includes(creatorName);
                      return (
                        <div 
-                         key={product.id}
-                         onClick={() => navigate(`/video/dummy`)}
+                         key={productId}
+                         onClick={() => navigate(isReal ? `/video/${productId}` : `/video/dummy`)}
                          className="bg-[#121215] border border-white/5 rounded-2xl overflow-hidden cursor-pointer hover:border-zinc-850 hover:scale-[1.01] transition-all duration-300 flex flex-col group relative"
                        >
                           {/* Image Box */}
                           <div className="relative aspect-[4/5] bg-zinc-900">
-                             <img src={product.image} className="size-full object-cover group-hover:scale-102 transition-transform duration-500" />
+                             <img src={image} className="size-full object-cover group-hover:scale-102 transition-transform duration-500" alt={name} />
                              
                              {/* Save product icon option */}
                              <button 
-                               onClick={(e) => handleToggleSaveProduct(product.id, e)}
+                               onClick={(e) => handleToggleSaveProduct(productId, e)}
                                className="absolute top-2.5 right-2.5 size-8 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center border border-white/10 active:scale-90 transition-transform"
                                aria-label="Save product selection"
                              >
@@ -423,35 +451,35 @@ export default function Explore() {
                              {/* Trust rating indicator label badged */}
                              <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-md px-2 py-0.5 rounded-md border border-white/5 flex items-center gap-1">
                                 <ShieldCheck className="size-3 text-emerald-400 fill-emerald-400/20" />
-                                <span className="text-[9.5px] font-bold text-zinc-200">{product.trustScore}</span>
+                                <span className="text-[9.5px] font-bold text-zinc-200">{product.trustScore || '98% Trust'}</span>
                              </div>
                           </div>
 
                           {/* Info Part */}
                           <div className="p-3.5 flex-1 flex flex-col justify-between">
                              <div>
-                                <h3 className="text-xs font-bold text-white line-clamp-2 leading-snug group-hover:text-red-400 transition-colors">{product.name}</h3>
-                                <p className="text-xs font-black text-red-500 mt-1.5">{product.price}</p>
+                                <h3 className="text-xs font-bold text-white line-clamp-2 leading-snug group-hover:text-red-400 transition-colors">{name}</h3>
+                                <p className="text-xs font-black text-red-500 mt-1.5">{price}</p>
                              </div>
 
                              {/* Creator card inside */}
                              <div className="border-t border-white/5 pt-2.5 mt-3 flex items-center justify-between">
                                 <div className="flex items-center gap-1.5 min-w-0">
-                                   <img src={product.creatorAvatar} className="size-5 rounded-full object-cover border border-white/20 shrink-0" />
+                                   <img src={isReal ? product.profiles?.avatar_url : product.creatorAvatar} className="size-5 rounded-full object-cover border border-white/20 shrink-0" alt="" />
                                    <div className="min-w-0">
-                                     <span className="text-[10px] text-zinc-400 font-bold block truncate">{product.creator}</span>
-                                     <span className="text-[8px] text-zinc-600 block">{product.saves} saves</span>
+                                     <span className="text-[10px] text-zinc-400 font-bold block truncate">{creatorName}</span>
+                                     <span className="text-[8px] text-zinc-600 block">{product.saves || (isReal ? product.saved_videos?.[0]?.count : '3.2k')} saves</span>
                                    </div>
                                 </div>
 
                                 <button
-                                  onClick={(e) => handleToggleFollowCreator(product.creator, e)}
+                                  onClick={(e) => handleToggleFollowCreator(creatorName, e)}
                                   className={cn(
                                     "px-2 py-1 rounded-md text-[8.5px] font-black uppercase transition-all shrink-0 tracking-wide",
-                                    isFollowing ? "bg-zinc-800 text-zinc-500" : "bg-white hover:bg-zinc-200 text-black active:scale-95"
+                                    isFollowing ? "bg-white/10 text-white border border-white/5" : "bg-red-500 text-white"
                                   )}
                                 >
-                                  {isFollowing ? "Yes" : "+Follow"}
+                                  {isFollowing ? "Following" : "Follow"}
                                 </button>
                              </div>
                           </div>
@@ -475,28 +503,35 @@ export default function Explore() {
                   <p className="text-[11px] text-zinc-500">Most discussed product reviews widely agreed by consumers</p>
                </div>
 
-               <div className="flex overflow-x-auto gap-4 py-1 px-4 no-scrollbar snap-x">
-                 {trendingThisWeekProducts.map((p) => (
-                    <div 
-                      key={p.id}
-                      onClick={() => navigate(`/video/dummy`)}
-                      className="snap-start shrink-0 bg-zinc-900 border border-white/5 rounded-2xl overflow-hidden w-[200px] hover:border-zinc-700 transition-colors cursor-pointer"
-                    >
-                       <div className="relative aspect-[16/10] bg-zinc-800">
-                          <img src={p.image} className="size-full object-cover" />
-                          <span className="absolute top-2 left-2 bg-red-650/85 text-[9px] font-black text-white px-2 py-0.5 rounded-full uppercase tracking-wider">
-                             {p.tag}
-                          </span>
-                       </div>
-                       <div className="p-3">
-                          <h4 className="text-xs font-bold text-white line-clamp-1 leading-snug">{p.name}</h4>
-                          <p className="text-[10px] text-red-500 font-bold mt-1">{p.price}</p>
-                          <span className="text-[10px] text-zinc-500 mt-2 block border-t border-white/5 pt-1.5 font-bold">
-                             🔥 {p.metric}
-                          </span>
-                       </div>
-                    </div>
-                 ))}
+               <div className="flex gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory pt-1 pb-4">
+                 {currentTrending.map((product) => {
+                     const isReal = !!product.video_url;
+                     const image = isReal ? (product.thumbnail_url || product.main_product_image_url) : product.image;
+                     const name = isReal ? (product.product_name || product.caption) : product.name;
+                     const price = isReal ? product.product_price : product.price;
+
+                     return(
+                     <div 
+                       key={product.id}
+                       onClick={() => navigate(isReal ? `/video/${product.id}` : `/video/dummy`)}
+                       className="snap-center shrink-0 w-[160px] bg-[#121215] border border-white/5 rounded-2xl overflow-hidden cursor-pointer hover:border-zinc-800 transition-all group"
+                     >
+                        <div className="aspect-[4/5] bg-zinc-900 relative">
+                           <img src={image} className="size-full object-cover" alt="" />
+                           <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-md px-2 py-1 rounded-md border border-white/5 flex items-center gap-1">
+                              <TrendingUp className="size-3 text-red-500" />
+                              <span className="text-[9px] font-bold text-white uppercase tracking-wider">{product.tag || 'Trending'}</span>
+                           </div>
+                        </div>
+                        <div className="p-3">
+                           <h3 className="text-xs font-semibold text-white line-clamp-1 group-hover:text-red-400 transition-colors">{name}</h3>
+                           <div className="flex items-center justify-between mt-1">
+                             <span className="text-xs font-black text-zinc-300">{price}</span>
+                             <span className="text-[9px] text-zinc-500">{product.metric || `${product.likes?.[0]?.count || 0} likes`}</span>
+                           </div>
+                        </div>
+                     </div>
+                   )})}
                </div>
             </section>
 

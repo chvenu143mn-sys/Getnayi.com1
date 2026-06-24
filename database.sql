@@ -898,3 +898,46 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS subscription_plan text defa
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS razorpay_customer_id text;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS razorpay_subscription_id text;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS subscription_status text default 'none';
+
+-- Database Enhancements v5 (Materialized Views and Scalability)
+CREATE INDEX IF NOT EXISTS idx_videos_post_status ON public.videos(post_status) WHERE post_status = 'published';
+CREATE INDEX IF NOT EXISTS idx_videos_is_verified ON public.videos(is_verified_real) WHERE is_verified_real = true;
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS public.mv_trending_videos AS
+SELECT 
+    v.id, v.caption, v.video_url, v.thumbnail_url, v.user_id, v.views, v.status, v.post_status, v.created_at,
+    COUNT(DISTINCT l.id) as like_count,
+    COUNT(DISTINCT c.id) as comment_count,
+    (COALESCE(v.views, 0) * 0.1 + COUNT(DISTINCT l.id) * 2.0 + COUNT(DISTINCT c.id) * 3.0) as trending_score
+FROM public.videos v
+LEFT JOIN public.likes l ON v.id = l.video_id AND l.created_at > (now() - interval '7 days')
+LEFT JOIN public.comments c ON v.id = c.video_id AND c.created_at > (now() - interval '7 days')
+WHERE v.status = 'active' AND (v.post_status = 'published' OR v.post_status IS NULL)
+GROUP BY v.id
+ORDER BY trending_score DESC;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_trending_videos_id ON public.mv_trending_videos(id);
+CREATE INDEX IF NOT EXISTS idx_mv_trending_videos_score ON public.mv_trending_videos(trending_score DESC);
+
+CREATE OR REPLACE FUNCTION public.refresh_mv_trending_videos()
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  REFRESH MATERIALIZED VIEW CONCURRENTLY public.mv_trending_videos;
+END;
+$$;
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS public.mv_creator_stats AS
+SELECT 
+  p.id as user_id, COUNT(v.id) as total_published_videos, COALESCE(SUM(v.views), 0) as total_views, p.trust_score
+FROM public.profiles p
+LEFT JOIN public.videos v ON p.id = v.user_id AND v.status = 'active'
+GROUP BY p.id;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_creator_stats_user_id ON public.mv_creator_stats(user_id);
+
+CREATE OR REPLACE FUNCTION public.refresh_mv_creator_stats()
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  REFRESH MATERIALIZED VIEW CONCURRENTLY public.mv_creator_stats;
+END;
+$$;

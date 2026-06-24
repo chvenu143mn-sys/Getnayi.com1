@@ -90,10 +90,7 @@ const formatTime = (timeInSeconds: number) => {
 };
 
 export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: isParentActive }: VideoPlayerProps) {
-  // ⚡ Bolt: Memoize expensive parsing and string manipulation functions
-  // to prevent unnecessary re-computations during every time update frame
-  const parsedProduct = React.useMemo(() => parseVideoProduct(video.caption), [video.caption]);
-  const storeName = React.useMemo(() => extractStoreName(video.product_url), [video.product_url]);
+  const parsedProduct = parseVideoProduct(video.caption);
 
   const resolvedVideoUrl = React.useMemo(() => {
     if (!video.video_url) return '';
@@ -965,15 +962,16 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
             {video.product_url && (
               <button
                 type="button"
-                title={`Store: ${storeName}`}
+                title={`Store: ${extractStoreName(video.product_url)}`}
                 onClick={(e) => {
                   e.stopPropagation();
+                  const storeName = extractStoreName(video.product_url);
                   navigate(`/store/${encodeURIComponent(storeName)}`);
                 }}
                 className="px-2 py-0.5 bg-[#ef2950] border border-[#ef2950] text-white text-[10px] font-bold uppercase tracking-wider shadow-sm flex items-center rounded cursor-pointer hover:bg-[#ff3d63] hover:scale-[1.02] active:scale-[0.98] transition-all max-w-[140px]"
               >
                 <ShoppingBag className="size-3 mr-1 shrink-0" />
-                <span className="truncate">{storeName}</span>
+                <span className="truncate">{extractStoreName(video.product_url)}</span>
               </button>
             )}
           </div>
@@ -1366,16 +1364,17 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                     {video.product_url && (
                       <button
                         type="button"
-                        title={`Store: ${storeName}`}
+                        title={`Store: ${extractStoreName(video.product_url)}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           setShowProductDetails(false);
+                          const storeName = extractStoreName(video.product_url);
                           navigate(`/store/${encodeURIComponent(storeName)}`);
                         }}
                         className="px-2.5 py-1 bg-[#ef2950]/10 hover:bg-[#ef2950]/20 active:scale-[0.98] text-[#ef2950] rounded-lg border border-[#ef2950]/20 text-[11px] font-semibold flex items-center transition-all cursor-pointer max-w-[150px]"
                       >
                         <ShoppingBag className="size-3.5 mr-1.5 text-[#ef2950] shrink-0" />
-                        <span className="truncate">{storeName}</span>
+                        <span className="truncate">{extractStoreName(video.product_url)}</span>
                       </button>
                     )}
                   </div>
@@ -1614,7 +1613,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                  onClick={() => setShowPurchaseDisclaimer(true)}
                  className="w-full bg-[#ef2950] hover:bg-[#ff3b61] active:scale-[0.98] text-white font-bold py-4.5 px-6 rounded-2xl transition-all flex items-center justify-center text-[16px] shadow-[0_4px_15px_rgba(239,41,80,0.45)] tracking-wide shrink-0 cursor-pointer"
                >
-                 Buy from {storeName || "Store"}
+                 Buy from {extractStoreName(video.product_url) || "Store"}
                </button>
             </div>
 
@@ -1681,7 +1680,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                   </p>
                   <ul className="text-zinc-300 text-[12.5px] leading-relaxed pl-4 list-disc space-y-2 font-sans">
                     <li>
-                      <span className="text-[#ef2950] font-semibold">Redirect Notice:</span> You will be redirected to <span className="text-white font-semibold font-mono">{storeName || "the external website"}</span> to purchase the product.
+                      <span className="text-[#ef2950] font-semibold">Redirect Notice:</span> You will be redirected to <span className="text-white font-semibold font-mono">{extractStoreName(video.product_url) || "the external website"}</span> to purchase the product.
                     </li>
                     <li>
                       <span className="text-white font-semibold">No Platform Liability:</span> We are <span className="text-[#ef2950] font-bold">not responsible</span> for any fraud, delayed shipping, payment errors, transit damage, or item quality.
@@ -1706,7 +1705,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                   onClick={() => setShowPurchaseDisclaimer(false)}
                   className="w-full bg-[#ef2950] hover:bg-[#ff3b61] active:scale-[0.98] text-white text-[15px] font-bold py-4 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shadow-[0_4px_12px_rgba(239,41,80,0.3)] cursor-pointer"
                 >
-                  <span>Proceed to {storeName || "Store"}</span>
+                  <span>Proceed to {extractStoreName(video.product_url) || "Store"}</span>
                   <ChevronRight className="size-4" strokeWidth={2.5} />
                 </a>
 
