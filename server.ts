@@ -782,7 +782,7 @@ app.get('/api/metrics', async (req, res) => {
       process.env.COOKIE_SECRET || crypto.randomBytes(32).toString("hex"),
     ),
   );
-  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+  const PORT = 3000;
 
   // Setup Observability (APM) and structured request logging (e.g. for Datadog ingestion)
   const apmLog = (
