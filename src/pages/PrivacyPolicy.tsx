@@ -1,21 +1,9 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function PrivacyPolicy() {
   const navigate = useNavigate();
-  const cookieDeclarationRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (cookieDeclarationRef.current && !cookieDeclarationRef.current.hasChildNodes()) {
-      const script = document.createElement('script');
-      script.id = 'CookieDeclaration';
-      script.src = 'https://consent.cookiebot.com/2f26d290-f395-4b78-8832-f7fbca29f2b3/cd.js';
-      script.type = 'text/javascript';
-      script.async = true;
-      cookieDeclarationRef.current.appendChild(script);
-    }
-  }, []);
 
   return (
     <div className="bg-[#0c0c0e] min-h-full text-white pb-20">
@@ -100,11 +88,6 @@ export default function PrivacyPolicy() {
             <strong>GetNayi</strong><br/>
             Email: privacy@getnayi.com
           </p>
-        </section>
-
-        <section>
-          <h2 className="text-xl font-bold mb-3">8. Cookie Declaration</h2>
-          <div ref={cookieDeclarationRef} className="text-zinc-400 text-sm leading-relaxed"></div>
         </section>
       </div>
     </div>

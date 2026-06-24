@@ -7,25 +7,12 @@ import App from './App.tsx';
 import './index.css';
 import { supabase } from './lib/supabase';
 
-// Initialize PostHog (opt-out by default until consent is granted via Cookiebot)
+// Initialize PostHog
 if (import.meta.env.VITE_POSTHOG_KEY) {
   posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
     api_host: import.meta.env.VITE_POSTHOG_HOST || 'https://us.i.posthog.com',
-    opt_out_capturing_by_default: true,
   });
 }
-
-// Handle Cookiebot consent
-window.addEventListener('CookiebotOnAccept', () => {
-  if ((window as any).Cookiebot && (window as any).Cookiebot.consent.statistics) {
-    posthog.opt_in_capturing();
-  } else {
-    posthog.opt_out_capturing();
-  }
-});
-window.addEventListener('CookiebotOnDecline', () => {
-  posthog.opt_out_capturing();
-});
 
 // Intercept completely harmless Supabase refresh token errors that trigger test failures
 const originalConsoleError = console.error;
