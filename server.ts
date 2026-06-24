@@ -761,6 +761,16 @@ function setupCronJobs() {
 async function startServer() {
   const app = express();
 
+  // Enforce HTTPS in production
+  app.use((req, res, next) => {
+    if (process.env.NODE_ENV === "production") {
+      if (req.headers["x-forwarded-proto"] !== "https" && !req.secure) {
+        return res.redirect(301, `https://${req.headers.host}${req.url}`);
+      }
+    }
+    next();
+  });
+
 app.use((req, res, next) => {
   (req as any).requestId = req.headers['x-request-id'] || crypto.randomUUID();
   res.setHeader('x-request-id', (req as any).requestId);
@@ -783,7 +793,7 @@ app.get('/api/metrics', async (req, res) => {
       process.env.COOKIE_SECRET || crypto.randomBytes(32).toString("hex"),
     ),
   );
-  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+  const PORT = 3000;
 
   // Setup Observability (APM) and structured request logging (e.g. for Datadog ingestion)
   const apmLog = (
