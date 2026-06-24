@@ -43,7 +43,7 @@ test.describe('Getnayi End-to-End User Experience & Security Auditing Suite', ()
           expires_at: Math.floor(Date.now() / 1000) + 3600,
           refresh_token: 'mock-refresh-token',
           user: {
-            id: 'test-user-id',
+            id: '11111111-2222-3333-4444-555555555555',
             aud: 'authenticated',
             role: 'authenticated',
             email: 'admin@getnayi.com',
@@ -52,7 +52,7 @@ test.describe('Getnayi End-to-End User Experience & Security Auditing Suite', ()
             confirmed_at: '2026-05-30T00:00:00Z',
             last_sign_in_at: '2026-05-30T00:00:00Z',
             app_metadata: { provider: 'email', providers: ['email'] },
-            user_metadata: { username: 'admin' },
+            user_metadata: { username: 'admin', onboarded: true },
             identities: [],
             created_at: '2026-05-30T00:00:00Z',
             updated_at: '2026-05-30T00:00:00Z'
@@ -79,8 +79,8 @@ test.describe('Getnayi End-to-End User Experience & Security Auditing Suite', ()
         body: JSON.stringify({
           success: true,
           data: {
-            user: { id: 'test-user-id', email: 'test@example.com' },
-            session: { access_token: mockJwt, user: { id: 'test-user-id' } }
+            user: { id: '11111111-2222-3333-4444-555555555555', email: 'test@example.com' },
+            session: { access_token: mockJwt, user: { id: '11111111-2222-3333-4444-555555555555' } }
           }
         })
       });
@@ -92,7 +92,7 @@ test.describe('Getnayi End-to-End User Experience & Security Auditing Suite', ()
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          id: 'test-user-id',
+          id: '11111111-2222-3333-4444-555555555555',
           aud: 'authenticated',
           role: 'authenticated',
           email: 'admin@getnayi.com',
@@ -101,7 +101,7 @@ test.describe('Getnayi End-to-End User Experience & Security Auditing Suite', ()
           confirmed_at: '2026-05-30T00:00:00Z',
           last_sign_in_at: '2026-05-30T00:00:00Z',
           app_metadata: { provider: 'email', providers: ['email'] },
-          user_metadata: { username: 'admin' },
+          user_metadata: { username: 'admin', onboarded: true },
           identities: [],
           created_at: '2026-05-30T00:00:00Z',
           updated_at: '2026-05-30T00:00:00Z'
@@ -109,22 +109,22 @@ test.describe('Getnayi End-to-End User Experience & Security Auditing Suite', ()
       });
     });
 
-    // Mock general profiles lists
-    await page.route('**/rest/v1/profiles*', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([])
-      });
-    });
-
-    // Intercept profile select is_admin query
-    await page.route(/.*\/rest\/v1\/profiles\?select=is_admin.*/, async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ is_admin: true })
-      });
+    // Mock general profiles and admin checks
+    await page.route(url => url.pathname.includes('/rest/v1/profiles'), async (route) => {
+      const reqUrl = route.request().url();
+      if (reqUrl.includes('select=is_admin')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ is_admin: true })
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([])
+        });
+      }
     });
 
     // Mock creator applications list
@@ -263,10 +263,10 @@ test.describe('Getnayi End-to-End User Experience & Security Auditing Suite', ()
   test('3. Home Feed Rendering & Dynamic Navigation', async ({ page }) => {
     await page.goto('/');
 
-    // Check Home screen view and Bottom Nav indicators
-    const homeIcon = page.locator('text=Home');
-    const exploreIcon = page.locator('text=Explore');
-    const profileIcon = page.locator('text=Profile');
+    // Check Home screen view and Bottom Nav indicators (supports both desktop "For You" and mobile "Home")
+    const homeIcon = page.locator('text=Home').or(page.locator('text="For You"')).first();
+    const exploreIcon = page.locator('text=Explore').first();
+    const profileIcon = page.locator('text=Profile').first();
 
     await expect(homeIcon).toBeVisible();
     await expect(exploreIcon).toBeVisible();
@@ -276,8 +276,8 @@ test.describe('Getnayi End-to-End User Experience & Security Auditing Suite', ()
   test('4. Explore Page, Autocomplete & Instant Search Checks', async ({ page }) => {
     await page.goto('/explore');
 
-    // Verify Search Box component
-    const searchBox = page.locator('[placeholder="Search creators or products"]');
+    // Verify Search Box component (supports both old and new search placeholder strings)
+    const searchBox = page.locator('[placeholder="Search products, experts & reviews"], [placeholder="Search creators or products"]').first();
     await expect(searchBox).toBeVisible();
 
     // Click on Trending Searches shortcuts

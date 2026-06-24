@@ -401,6 +401,49 @@ function resolveRedirectsNative(initialUrl: string): Promise<string> {
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 dotenv.config();
 
+// Auto-generate .env file or sync VITE_ variables to .env so Vite's dev server reads them
+const envFilePath = path.join(process.cwd(), ".env");
+let existingEnv = "";
+try {
+  if (fs.existsSync(envFilePath)) {
+    existingEnv = fs.readFileSync(envFilePath, "utf-8");
+  }
+} catch (e) {}
+
+const requiredEnvVars = [
+  "VITE_SUPABASE_URL",
+  "VITE_SUPABASE_ANON_KEY",
+  "GEMINI_API_KEY",
+  "VITE_RAZORPAY_KEY_ID",
+  "VITE_RAZORPAY_PRO_PLAN_ID",
+  "VITE_RAZORPAY_CREATOR_PLAN_ID"
+];
+
+let envContentToWrite = existingEnv;
+let envUpdated = false;
+
+for (const key of requiredEnvVars) {
+  const val = process.env[key];
+  if (val) {
+    const lineRegex = new RegExp(`^${key}=.*$`, "m");
+    if (lineRegex.test(envContentToWrite)) {
+      const currentLine = envContentToWrite.match(lineRegex)?.[0];
+      if (currentLine !== `${key}="${val}"` && currentLine !== `${key}=${val}`) {
+        envContentToWrite = envContentToWrite.replace(lineRegex, `${key}="${val}"`);
+        envUpdated = true;
+      }
+    } else {
+      envContentToWrite += `\n${key}="${val}"`;
+      envUpdated = true;
+    }
+  }
+}
+
+if (envUpdated || !fs.existsSync(envFilePath)) {
+  fs.writeFileSync(envFilePath, envContentToWrite.trim() + "\n", "utf-8");
+  logger.info(".env file synchronized with system environment variables.");
+}
+
 // Helper to fetch page HTML bypassing SSL/TLS certificate validation errors
 function fetchPageHtmlWithNoTls(targetUrl: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -776,13 +819,24 @@ app.get('/api/metrics', async (req, res) => {
   res.set('Content-Type', client.register.contentType);
   res.send(await client.register.metrics());
 });
+
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: "ok",
+    hasSupabaseUrl: !!process.env.VITE_SUPABASE_URL,
+    hasSupabaseKey: !!process.env.VITE_SUPABASE_ANON_KEY,
+    supabaseUrl: process.env.VITE_SUPABASE_URL,
+    nodeEnv: process.env.NODE_ENV
+  });
+});
+
   app.set("trust proxy", "loopback, linklocal, uniquelocal");
   app.use(
     cookieParser(
       process.env.COOKIE_SECRET || crypto.randomBytes(32).toString("hex"),
     ),
   );
-  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+  const PORT = process.env.APPLET_ID ? 3000 : (process.env.PORT ? parseInt(process.env.PORT, 10) : 3000);
 
   // Setup Observability (APM) and structured request logging (e.g. for Datadog ingestion)
   const apmLog = (
@@ -819,11 +873,17 @@ app.get('/api/metrics', async (req, res) => {
 
   // Added for VIBESCAN security compliance
   app.use(
-    helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }),
+    helmet({ 
+      contentSecurityPolicy: false, 
+      crossOriginEmbedderPolicy: false,
+      frameguard: false,
+      crossOriginOpenerPolicy: false,
+      crossOriginResourcePolicy: false
+    })
   ); // allow external resources like videos
   // Specific helmet configurations to address findings
   app.use(
-    helmet.hsts({ maxAge: 31536000, includeSubDomains: true, preload: true }),
+    helmet.hsts({ maxAge: 31536000, includeSubDomains: true, preload: true })
   );
   // Removed frameguard deny to allow AI Studio iframe preview
   app.use(helmet.noSniff());
@@ -838,19 +898,9 @@ app.get('/api/metrics', async (req, res) => {
 
   app.use(
     cors({
-      origin: (origin, callback) => {
-        // More restrictive CORS
-        if (!origin) return callback(null, true);
-        const allowedOrigins = ['localhost', 'run.app', 'getnayi.com'];
-        const isAllowed = allowedOrigins.some(allowed => origin.includes(allowed));
-        if (isAllowed) {
-          callback(null, origin);
-        } else {
-          callback(new Error('Not allowed by CORS'));
-        }
-      },
+      origin: true, // allow any origin dynamically
       credentials: true,
-    }),
+    })
   );
 
   setupCronJobs();
@@ -5449,8 +5499,18 @@ ${dynamicUrls.join("")}
     });
   }
 
-  app.listen(Number(PORT), "0.0.0.0", () => {
+  const server = app.listen(Number(PORT), "0.0.0.0", () => {
     logger.info(`Server running on port ${PORT}`);
+  });
+  
+  server.on('error', (e: any) => {
+    if (e.code === 'EADDRINUSE') {
+      logger.error(`Port ${PORT} is in use, retrying...`);
+      setTimeout(() => {
+        server.close();
+        server.listen(Number(PORT), "0.0.0.0");
+      }, 1000);
+    }
   });
 }
 

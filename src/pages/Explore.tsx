@@ -356,6 +356,23 @@ export default function Explore() {
             </button>
           ))}
         </div>
+
+        {/* Trending Search Shortcuts */}
+        <div className="flex items-center gap-3 px-1 mt-1 text-xs text-zinc-400">
+          <span className="font-sans font-semibold text-zinc-500">Popular:</span>
+          <button 
+            onClick={() => handleSearchChange("Korean Skincare")}
+            className="text-white hover:text-red-500 transition-colors font-medium border border-white/10 rounded-full px-2.5 py-0.5"
+          >
+            Korean Skincare
+          </button>
+          <button 
+            onClick={() => handleSearchChange("Nothing Ear")}
+            className="text-zinc-500 hover:text-white transition-colors font-medium"
+          >
+            Nothing Ear
+          </button>
+        </div>
       </div>
 
       {/* Main Grid / Body content area under scroll limit */}

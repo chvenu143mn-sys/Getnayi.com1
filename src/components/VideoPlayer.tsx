@@ -189,7 +189,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
   const [isScrubbing, setIsScrubbing] = useState<boolean>(false);
-  const [showMetadata, setShowMetadata] = useState<boolean>(false);
+  const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
   const timelineRef = useRef<HTMLDivElement>(null);
   const wasPlayingBeforeScrub = useRef<boolean>(false);
@@ -767,7 +767,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
   };
 
   return (
-    <div ref={setRefs} className="relative w-full h-full snap-start snap-always bg-zinc-900 group shrink-0 overflow-hidden">
+    <div ref={setRefs} className="relative w-full h-[100dvh] snap-start snap-always bg-zinc-900 group shrink-0 overflow-hidden">
       {/* Video Element */}
       {isNearView ? (
         resolvedVideoUrl && !hasError ? (
@@ -924,88 +924,133 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
       <div className="absolute bottom-0 left-0 right-0 h-[40%] bg-gradient-to-t from-black/40 via-black/10 to-transparent pointer-events-none z-0" />
 
       {/* Content Overlay */}
-      <div className="absolute bottom-[90px] left-4 right-16 flex flex-col justify-end pointer-events-none z-10 pb-safe">
+      <div className="absolute bottom-[calc(90px+env(safe-area-inset-bottom))] left-4 right-16 flex flex-col justify-end pointer-events-none z-10">
         
         {/* Information Container */}
         <div className="flex flex-col mb-2 pointer-events-auto max-w-[90%] gap-y-2">
           
-          <div className="flex items-center flex-wrap gap-y-1 mb-1">
-            <span className="text-white font-sans font-bold text-[15px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-              @{video.profiles?.username || (video as any).public_profiles?.username || 'user'}
-            </span>
-            {(video.profiles?.is_brand || (video as any).public_profiles?.is_brand) && (
-              <BadgeCheck className="size-[15px] text-[#3897f0] ml-1 shrink-0 drop-shadow-sm" fill="currentColor" strokeWidth={0} />
-            )}
-            {/* Kept 'You' badge for self-identification, but removed inline follow button to clean up layout. The avatar follow button is used instead. */}
-            {user && video.user_id === user.id && (
-              <span className="ml-2.5 px-1.5 py-0.5 bg-white/10 text-white/70 rounded text-[9.5px] font-bold uppercase tracking-wider border border-white/5">
-                You
-              </span>
-            )}
-          </div>
-
-          <div className="mb-1.5 flex items-center gap-2 flex-wrap">
-            {video.categories && (
-              <button
-                type="button"
-                title={`Category: ${video.categories.name}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate(`/category/${video.categories.id}`);
-                }}
-                className="px-2 py-0.5 bg-white/25 backdrop-blur-md rounded border border-white/20 text-white text-[10px] font-bold uppercase tracking-wider shadow-sm flex items-center cursor-pointer hover:bg-white/40 hover:scale-[1.02] active:scale-[0.98] transition-all max-w-[140px]"
-              >
-                <Tag className="size-3 mr-1 shrink-0" />
-                <span className="truncate">{video.categories.name}</span>
-              </button>
-            )}
-            {video.product_url && (
-              <button
-                type="button"
-                title={`Store: ${extractStoreName(video.product_url)}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const storeName = extractStoreName(video.product_url);
-                  navigate(`/store/${encodeURIComponent(storeName)}`);
-                }}
-                className="px-2 py-0.5 bg-[#d9183b] border border-[#d9183b] text-white text-[10px] font-bold uppercase tracking-wider shadow-sm flex items-center rounded cursor-pointer hover:bg-[#ff3d63] hover:scale-[1.02] active:scale-[0.98] transition-all max-w-[140px]"
-              >
-                <ShoppingBag className="size-3 mr-1 shrink-0" />
-                <span className="truncate">{extractStoreName(video.product_url)}</span>
-              </button>
-            )}
-          </div>
-
-          {/* Caption */}
-          {parsedProduct.captionText && (
-            <div className="mt-2 text-left pointer-events-auto">
-              <p 
-                className="text-white/95 text-[14px] font-sans drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] leading-[1.3] line-clamp-2 font-normal pr-2 whitespace-pre-wrap animate-fadeIn text-left"
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(parsedProduct.captionText) }}
-              />
+          {/* Collapsed State */}
+          {!isExpanded && (
+            <div className="text-left pointer-events-auto">
+              <div className="flex items-center flex-wrap gap-y-1 mb-1">
+                <span className="text-white font-sans font-bold text-[15px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                  @{video.profiles?.username || (video as any).public_profiles?.username || 'user'}
+                </span>
+                {(video.profiles?.is_brand || (video as any).public_profiles?.is_brand) && (
+                  <BadgeCheck className="size-[15px] text-[#3897f0] ml-1 shrink-0 drop-shadow-sm inline-block align-middle" fill="currentColor" strokeWidth={0} />
+                )}
+                {user && video.user_id === user.id && (
+                  <span className="ml-2 px-1 py-0.5 bg-white/10 text-white/70 rounded text-[9px] font-bold uppercase tracking-wider border border-white/5 inline-block align-middle">
+                    You
+                  </span>
+                )}
+              </div>
+              {parsedProduct.captionText && (
+                <div className="text-left leading-normal">
+                  <span 
+                    className="text-white/95 text-[14px] font-sans drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] font-normal pr-1 inline"
+                    dangerouslySetInnerHTML={{ 
+                      __html: DOMPurify.sanitize(
+                        parsedProduct.captionText.length > 60 
+                          ? parsedProduct.captionText.substring(0, 60) + '...'
+                          : parsedProduct.captionText
+                      ) 
+                    }}
+                  />
+                  {(parsedProduct.captionText.length > 60 || video.categories || video.product_url || (video.tags && video.tags.length > 0)) && (
+                    <button 
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
+                      className="text-white/80 font-bold text-[13.5px] hover:text-white cursor-pointer ml-1 inline-block bg-transparent border-none p-0 align-baseline"
+                    >
+                      ...more
+                    </button>
+                  )}
+                </div>
+              )}
+              {!parsedProduct.captionText && (video.categories || video.product_url || (video.tags && video.tags.length > 0)) && (
+                <button 
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
+                  className="text-white/80 font-bold text-[13px] hover:text-white cursor-pointer mt-1"
+                >
+                  ...more
+                </button>
+              )}
             </div>
           )}
 
-          {/* Search Metadata & Tags Expandable Section */}
-          {(video.tags && video.tags.length > 0) && (
-            <div className="mt-2.5 pointer-events-auto">
-              <button type="button" 
-                onClick={(e) => { e.stopPropagation(); setShowMetadata(!showMetadata); }}
-                className="flex items-center gap-1.5 text-white/70 hover:text-white transition-colors py-1 text-[12px] font-semibold tracking-wide drop-shadow-sm"
+          <AnimatePresence>
+            {isExpanded && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden flex flex-col gap-y-2 pointer-events-auto"
               >
-                <Tag className="size-3.5" />
-                {showMetadata ? 'Hide Tags' : 'Show Metadata & Tags'}
-              </button>
-              
-              <AnimatePresence>
-                {showMetadata && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="pt-2 flex flex-wrap gap-1.5 max-w-full">
+                <div className="flex items-center flex-wrap gap-y-1 mb-0.5">
+                  <span className="text-white font-sans font-bold text-[15px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                    @{video.profiles?.username || (video as any).public_profiles?.username || 'user'}
+                  </span>
+                  {(video.profiles?.is_brand || (video as any).public_profiles?.is_brand) && (
+                    <BadgeCheck className="size-[15px] text-[#3897f0] ml-1 shrink-0 drop-shadow-sm inline-block align-middle" fill="currentColor" strokeWidth={0} />
+                  )}
+                  {user && video.user_id === user.id && (
+                    <span className="ml-2 px-1 py-0.5 bg-white/10 text-white/70 rounded text-[9px] font-bold uppercase tracking-wider border border-white/5 inline-block align-middle">
+                      You
+                    </span>
+                  )}
+                </div>
+
+                {/* Categories & Store Link Buttons */}
+                {(video.categories || video.product_url) && (
+                  <div className="flex items-center gap-2 flex-wrap my-0.5">
+                    {video.categories && (
+                      <button
+                        type="button"
+                        title={`Category: ${video.categories.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/category/${video.categories.id}`);
+                        }}
+                        className="px-2 py-0.5 bg-white/25 backdrop-blur-md rounded border border-white/20 text-white text-[10px] font-bold uppercase tracking-wider shadow-sm flex items-center cursor-pointer hover:bg-white/40 hover:scale-[1.02] active:scale-[0.98] transition-all max-w-[140px]"
+                      >
+                        <Tag className="size-3 mr-1 shrink-0" />
+                        <span className="truncate">{video.categories.name}</span>
+                      </button>
+                    )}
+                    {video.product_url && (
+                      <button
+                        type="button"
+                        title={`Store: ${extractStoreName(video.product_url)}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const storeName = extractStoreName(video.product_url);
+                          navigate(`/store/${encodeURIComponent(storeName)}`);
+                        }}
+                        className="px-2 py-0.5 bg-[#d9183b] border border-[#d9183b] text-white text-[10px] font-bold uppercase tracking-wider shadow-sm flex items-center rounded cursor-pointer hover:bg-[#ff3d63] hover:scale-[1.02] active:scale-[0.98] transition-all max-w-[140px]"
+                      >
+                        <ShoppingBag className="size-3 mr-1 shrink-0" />
+                        <span className="truncate">{extractStoreName(video.product_url)}</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Caption */}
+                {parsedProduct.captionText && (
+                  <div className="mt-1 text-left">
+                    <p 
+                      className="text-white/95 text-[14px] font-sans drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] leading-[1.3] font-normal pr-2 whitespace-pre-wrap animate-fadeIn text-left"
+                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(parsedProduct.captionText) }}
+                    />
+                  </div>
+                )}
+
+                {/* Search Metadata & Tags */}
+                {(video.tags && video.tags.length > 0) && (
+                  <div className="mt-1">
+                    <div className="flex flex-wrap gap-1.5 max-w-full">
                       {video.tags.map((tag: string, index: number) => {
                          const cleanTag = tag.replace(/^#/, '');
                          const displayTag = tag.startsWith('#') ? tag : `#${tag}`;
@@ -1023,11 +1068,19 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                          );
                       })}
                     </div>
-                  </motion.div>
+                  </div>
                 )}
-              </AnimatePresence>
-            </div>
-          )}
+                
+                <button 
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setIsExpanded(false); }}
+                  className="text-white/70 text-[13px] font-semibold tracking-wide drop-shadow-sm hover:text-white self-start mt-1 cursor-pointer active:scale-95 transition-all"
+                >
+                  less
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Product CTA (Reels style card) */}
           {video.product_url && (
@@ -1081,7 +1134,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
       </div>
 
       {/* Right Side Action Buttons */}
-      <div className="absolute bottom-[90px] right-3 w-14 flex flex-col items-center gap-y-[20px] z-20 pointer-events-auto pb-safe">
+      <div className="absolute bottom-[calc(90px+env(safe-area-inset-bottom))] right-3 w-14 flex flex-col items-center gap-y-[20px] z-20 pointer-events-auto">
         
         {/* Avatar */}
         <div className="relative mb-1">

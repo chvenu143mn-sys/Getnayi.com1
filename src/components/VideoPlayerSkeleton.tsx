@@ -3,11 +3,11 @@ import { cn } from '../lib/utils';
 
 export function VideoPlayerSkeleton({ className }: { className?: string }) {
   return (
-    <div className={cn("h-full w-full shrink-0 snap-start snap-always relative bg-[#0c0c0e] flex flex-col justify-end p-0 overflow-hidden", className)}>
+    <div className={cn("h-[100dvh] w-full shrink-0 snap-start snap-always relative bg-[#0c0c0e] flex flex-col justify-end p-0 overflow-hidden", className)}>
       <div className="absolute inset-0 pointer-events-none bg-zinc-900 animate-pulse" />
       
       {/* Right Side Action Buttons Skeleton */}
-      <div className="absolute bottom-[80px] right-2 w-14 flex flex-col items-center gap-y-[18px] z-20 pointer-events-none pb-safe">
+      <div className="absolute bottom-[calc(90px+env(safe-area-inset-bottom))] right-2 w-14 flex flex-col items-center gap-y-[18px] z-20 pointer-events-none">
         {/* Avatar */}
         <div className="size-[42px] bg-white/10 rounded-full animate-pulse border-[1.5px] border-white/20 mb-1" />
         
@@ -43,7 +43,7 @@ export function VideoPlayerSkeleton({ className }: { className?: string }) {
       </div>
 
       {/* Bottom Info Skeleton */}
-      <div className="absolute bottom-[80px] left-3 right-16 flex flex-col justify-end pointer-events-none z-10 pb-safe">
+      <div className="absolute bottom-[calc(90px+env(safe-area-inset-bottom))] left-3 right-16 flex flex-col justify-end pointer-events-none z-10">
         <div className="flex flex-col mb-1.5 max-w-[90%]">
           
           {/* Tags / Store link */}
