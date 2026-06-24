@@ -17,7 +17,7 @@ if (import.meta.env.VITE_POSTHOG_KEY) {
 
 // Handle Cookiebot consent
 window.addEventListener('CookiebotOnAccept', () => {
-  if (window.Cookiebot && window.Cookiebot.consent.statistics) {
+  if ((window as any).Cookiebot && (window as any).Cookiebot.consent.statistics) {
     posthog.opt_in_capturing();
   } else {
     posthog.opt_out_capturing();
