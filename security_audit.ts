@@ -146,6 +146,33 @@ function performScanDetails(): Finding[] {
   totalFilesAudited = 0;
   totalLinesAnalyzed = 0;
 
+  // Legal & Trust compliance (GitHub / Security Scanners)
+  if (!fs.existsSync(path.join(ROOT_DIR, 'PRIVACY.md')) && !fs.existsSync(path.join(SRC_DIR, 'pages', 'PrivacyPolicy.tsx'))) {
+    list.push({
+      rule: { id: "COMP-001", name: "Missing Privacy Policy", owasp: "Legal/Trust", cwe: "N/A", cvss: 2.0 },
+      severity: 'LOW',
+      file: 'Root',
+      line: 0,
+      snippet: "Missing PRIVACY.md",
+      details: "Privacy Policy not found. App Store and GDPR require this.",
+      exploitScenario: "Fines and app rejection.",
+      remediation: "Create PRIVACY.md in root or a privacy policy page."
+    });
+  }
+
+  if (!fs.existsSync(path.join(ROOT_DIR, 'TERMS.md')) && !fs.existsSync(path.join(SRC_DIR, 'pages', 'TermsOfService.tsx'))) {
+    list.push({
+      rule: { id: "COMP-002", name: "Missing Terms of Service", owasp: "Legal/Trust", cwe: "N/A", cvss: 2.0 },
+      severity: 'LOW',
+      file: 'Root',
+      line: 0,
+      snippet: "Missing TERMS.md",
+      details: "Terms of Service not found.",
+      exploitScenario: "Lack of legal protection against abuse.",
+      remediation: "Create TERMS.md in root or a terms of service page."
+    });
+  }
+
   // Scan server.ts
   if (fs.existsSync(SERVER_FILE)) {
     const content = fs.readFileSync(SERVER_FILE, 'utf8');
@@ -272,7 +299,9 @@ function performScanDetails(): Finding[] {
         const lineNum = idx + 1;
 
         if (lineText.includes('dangerouslySetInnerHTML')) {
-          if (!lineText.includes('DOMPurify.sanitize') && !lineText.includes('clientSanitize')) {
+          const windowRange = lines.slice(Math.max(0, idx), idx + 4);
+          const surroundingCode = windowRange.join('\n');
+          if (!surroundingCode.includes('DOMPurify.sanitize') && !surroundingCode.includes('clientSanitize')) {
             const rule = RULES.XSS_RAW_HTML;
             list.push({
               rule,

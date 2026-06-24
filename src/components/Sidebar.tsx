@@ -106,7 +106,7 @@ export function Sidebar() {
         </Link>
       </div>
 
-      <div className="mt-auto pt-6">
+      <div className="mt-auto pt-6 flex flex-col gap-4">
         <Link
           to="/upload"
           className="flex items-center justify-center gap-x-2 w-full py-4 rounded-xl bg-gradient-to-r from-[#d9183b] to-[#20D5EC] text-white font-bold text-[16px] transition-transform active:scale-95 shadow-lg shadow-[#d9183b]/20"
@@ -114,6 +114,11 @@ export function Sidebar() {
           <Plus className="size-6" strokeWidth={2.5} />
           Upload
         </Link>
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 mt-4 text-[11px] font-medium text-zinc-500 pb-2">
+          <Link to="/terms" className="hover:text-zinc-300 transition-colors">Terms</Link>
+          <Link to="/privacy" className="hover:text-zinc-300 transition-colors">Privacy Policy</Link>
+          <span className="text-zinc-600">© 2026 GetNayi</span>
+        </div>
       </div>
     </div>
   );
