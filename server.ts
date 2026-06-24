@@ -3,6 +3,7 @@ import client from "prom-client";
 import pino from "pino";
 import pinoHttp from "pino-http";
 import crypto from "crypto";
+import bcrypt from "bcryptjs";
 
 const logger: any = pino({ level: process.env.LOG_LEVEL || "info" });
 client.collectDefaultMetrics({ prefix: 'aisles_' });
@@ -800,8 +801,62 @@ function setupCronJobs() {
 
 }
 
+async function ensureUserPasswordsTable() {
+  if (!supabaseAdmin) return;
+  try {
+    const { error } = await supabaseAdmin.rpc("execute_sql", {
+      sql_query: `
+        CREATE TABLE IF NOT EXISTS public.user_passwords (
+          id uuid references auth.users(id) on delete cascade not null primary key,
+          email text unique not null,
+          password_hash text not null,
+          created_at timestamp with time zone default timezone('utc'::text, now()) not null
+        );
+        ALTER TABLE public.user_passwords ENABLE ROW LEVEL SECURITY;
+      `
+    });
+    if (error) {
+      logger.error("Error creating user_passwords table via execute_sql RPC:", error);
+    } else {
+      logger.info("Successfully ensured user_passwords table exists.");
+    }
+  } catch (err) {
+    logger.error("Failed to execute SQL to ensure user_passwords table:", err);
+  }
+}
+
 async function startServer() {
   const app = express();
+  await ensureUserPasswordsTable();
+
+  // Redirect HTTP to HTTPS at the application layer
+  app.use((req, res, next) => {
+    const proto = req.headers["x-forwarded-proto"];
+    const isHttps = proto === "https" || req.secure;
+    const host = req.get("host") || "";
+    const isLocalhost = host.includes("localhost") || host.includes("127.0.0.1") || host.includes("0.0.0.0");
+
+    if (!isHttps && !isLocalhost) {
+      // 308 Permanent Redirect preserves the HTTP method and request body
+      const httpsUrl = `https://${host}${req.originalUrl}`;
+      return res.redirect(308, httpsUrl);
+    }
+    next();
+  });
+
+  // Strict-Transport-Security (HSTS) response header
+  app.use((req, res, next) => {
+    const proto = req.headers["x-forwarded-proto"];
+    const isHttps = proto === "https" || req.secure;
+    const host = req.get("host") || "";
+    const isLocalhost = host.includes("localhost") || host.includes("127.0.0.1") || host.includes("0.0.0.0");
+
+    if (isHttps && !isLocalhost) {
+      // Recommended 2 years (63072000 seconds) max-age with includeSubDomains
+      res.setHeader("Strict-Transport-Security", "max-age=63072000; includeSubDomains");
+    }
+    next();
+  });
 
 app.use((req, res, next) => {
   (req as any).requestId = req.headers['x-request-id'] || crypto.randomUUID();
@@ -828,6 +883,128 @@ app.get('/api/health', (req, res) => {
     supabaseUrl: process.env.VITE_SUPABASE_URL,
     nodeEnv: process.env.NODE_ENV
   });
+});
+
+app.get('/sitemap.xml', async (req, res) => {
+  const host = req.get("host") || "";
+  const proto = req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
+  const scheme = host.includes("localhost") || host.includes("127.0.0.1") || host.includes("0.0.0.0") ? proto : "https";
+  const baseUrl = `${scheme}://${host}`;
+
+  const staticRoutes = [
+    { path: '/', priority: '1.0', changefreq: 'daily' },
+    { path: '/explore', priority: '0.8', changefreq: 'daily' },
+    { path: '/trending', priority: '0.8', changefreq: 'daily' },
+    { path: '/shared-collection', priority: '0.7', changefreq: 'weekly' },
+    { path: '/subscription', priority: '0.8', changefreq: 'monthly' }
+  ];
+
+  const urls: string[] = [];
+  const today = new Date().toISOString().split('T')[0];
+
+  // Helper to extract store name inside the route
+  const extractStoreNameLocal = (urlStr: string | null | undefined): string => {
+    if (!urlStr) return '';
+    try {
+      const url = new URL(urlStr);
+      const hostname = url.hostname.toLowerCase();
+      let cleanHostname = hostname.replace(/^www\./, '');
+      if (cleanHostname.endsWith('.myshopify.com')) {
+        const shopPrefix = cleanHostname.replace(/\.myshopify\.com$/, '');
+        return shopPrefix.charAt(0).toUpperCase() + shopPrefix.slice(1);
+      }
+      const parts = cleanHostname.split('.');
+      if (parts.length > 1) {
+        const mainDomain = parts[parts.length - 2];
+        return mainDomain.charAt(0).toUpperCase() + mainDomain.slice(1);
+      }
+      return cleanHostname;
+    } catch (e) {
+      return '';
+    }
+  };
+
+  // Add static routes
+  for (const route of staticRoutes) {
+    urls.push(`  <url>
+    <loc>${baseUrl}${route.path}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>${route.changefreq}</changefreq>
+    <priority>${route.priority}</priority>
+  </url>`);
+  }
+
+  // Try to dynamically add public pages (videos, categories, stores) from database
+  if (supabaseAdmin) {
+    try {
+      // 1. Fetch public videos (limit to top 200 for speed/size)
+      const { data: videos } = await supabaseAdmin
+        .from("videos")
+        .select("id, created_at, product_url")
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      if (videos && videos.length > 0) {
+        // Add video pages
+        for (const video of videos) {
+          const videoDate = video.created_at ? new Date(video.created_at).toISOString().split('T')[0] : today;
+          urls.push(`  <url>
+    <loc>${baseUrl}/video/${video.id}</loc>
+    <lastmod>${videoDate}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>`);
+        }
+
+        // Extract unique stores
+        const uniqueStores = new Set<string>();
+        for (const video of videos) {
+          if (video.product_url) {
+            const storeName = extractStoreNameLocal(video.product_url);
+            if (storeName && storeName.trim()) {
+              uniqueStores.add(storeName.trim());
+            }
+          }
+        }
+
+        // Add store pages
+        for (const store of uniqueStores) {
+          urls.push(`  <url>
+    <loc>${baseUrl}/store/${encodeURIComponent(store)}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>`);
+        }
+      }
+
+      // 2. Fetch categories
+      const { data: categories } = await supabaseAdmin
+        .from("categories")
+        .select("id");
+
+      if (categories && categories.length > 0) {
+        for (const category of categories) {
+          urls.push(`  <url>
+    <loc>${baseUrl}/category/${category.id}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>`);
+        }
+      }
+    } catch (err) {
+      logger.error({ err }, "Error generating dynamic sitemap resources from Supabase");
+    }
+  }
+
+  const sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.join('\n')}
+</urlset>`;
+
+  res.header('Content-Type', 'application/xml');
+  res.send(sitemapXml);
 });
 
   app.set("trust proxy", "loopback, linklocal, uniquelocal");
@@ -1303,9 +1480,19 @@ app.get('/api/health', (req, res) => {
             });
         }
 
+        // Hash password with bcrypt cost factor 12
+        const salt = await bcrypt.genSalt(12);
+        const bcryptHash = await bcrypt.hash(password, salt);
+
+        // Compute deterministic hash for Supabase auth
+        const deterministicPassword = crypto
+          .createHash("sha256")
+          .update(password + (process.env.JWT_SECRET || "aisles-secure-pepper"))
+          .digest("hex");
+
         const { data, error } = await supabaseAdmin.auth.signUp({
           email,
-          password,
+          password: deterministicPassword,
           options: {
             data: { username: username.trim() },
           },
@@ -1323,14 +1510,126 @@ app.get('/api/health', (req, res) => {
           }
           return res.status(400).json({ error: error.message });
         }
+
+        if (data && data.user) {
+          // Store secure bcrypt hash in user_passwords table
+          const { error: dbErr } = await supabaseAdmin.from("user_passwords").insert({
+            id: data.user.id,
+            email: email.trim().toLowerCase(),
+            password_hash: bcryptHash,
+          });
+          if (dbErr) {
+            logger.error({ err: dbErr }, "Failed to store secure password hash in database");
+          }
+        }
+
         res.json({ success: true, data });
       } catch (err: any) {
-        {
         logger.error({ err: err, reqId: (req as any).requestId }, "API Error");
         res.status(500).json({ error: "Internal Server Error", referenceCode: (req as any).requestId });
       }
-      }
     },
+  );
+
+  app.post(
+    "/api/auth/login",
+    async (req, res) => {
+      try {
+        const { email, password } = req.body;
+        if (!email || !password) {
+          return res.status(400).json({ error: "Email and password are required" });
+        }
+        if (!supabaseAdmin) {
+          return res.status(500).json({ error: "Database not configured" });
+        }
+
+        const getDeterministicPassword = (pass: string) => {
+          return crypto
+            .createHash("sha256")
+            .update(pass + (process.env.JWT_SECRET || "aisles-secure-pepper"))
+            .digest("hex");
+        };
+
+        const trimmedEmail = email.trim().toLowerCase();
+
+        // 1. Fetch user password hash from our secure user_passwords table
+        const { data: credential, error: fetchError } = await supabaseAdmin
+          .from("user_passwords")
+          .select("password_hash, id")
+          .eq("email", trimmedEmail)
+          .maybeSingle();
+
+        if (fetchError) {
+          logger.error({ err: fetchError }, "Error fetching user credentials");
+        }
+
+        if (credential) {
+          // User is fully migrated, let's verify with bcrypt
+          const matches = await bcrypt.compare(password, credential.password_hash);
+          if (!matches) {
+            return res.status(401).json({ error: "Invalid email or password" });
+          }
+
+          // Password matched, sign in with Supabase using deterministic password
+          const deterministicPassword = getDeterministicPassword(password);
+          const { data: sessionData, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
+            email: trimmedEmail,
+            password: deterministicPassword,
+          });
+
+          if (signInError) {
+            return res.status(400).json({ error: signInError.message });
+          }
+
+          return res.json({ success: true, ...sessionData });
+        } else {
+          // No bcrypt record found; try migrating user (login directly with plaintext to see if it's a legacy user)
+          const { data: sessionData, error: legacySignInError } = await supabaseAdmin.auth.signInWithPassword({
+            email: trimmedEmail,
+            password: password,
+          });
+
+          if (legacySignInError) {
+            return res.status(401).json({ error: "Invalid email or password" });
+          }
+
+          const user = sessionData.user;
+          if (user) {
+            // User successfully authenticated using legacy plaintext. Let's migrate them:
+            const salt = await bcrypt.genSalt(12);
+            const bcryptHash = await bcrypt.hash(password, salt);
+
+            // Store the bcrypt hash in user_passwords
+            const { error: dbErr } = await supabaseAdmin.from("user_passwords").insert({
+              id: user.id,
+              email: trimmedEmail,
+              password_hash: bcryptHash,
+            });
+
+            if (dbErr) {
+              logger.error({ err: dbErr }, "Failed to save user password hash during migration");
+            }
+
+            // Update Supabase Auth password to the secure deterministic hash
+            const deterministicPassword = getDeterministicPassword(password);
+            const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
+              password: deterministicPassword,
+            });
+
+            if (updateErr) {
+              logger.error({ err: updateErr }, "Failed to update Supabase Auth password to deterministic hash during migration");
+            }
+
+            logger.info(`Successfully migrated legacy user ${user.id} to bcrypt password hashing (cost factor 12)`);
+          }
+
+          return res.json({ success: true, ...sessionData });
+        }
+      } catch (err: any) {
+        logger.error({ err }, "Login error");
+        res.status(500).json({ error: "Internal Server Error" });
+      }
+    }
   );
 
   // --- CREATOR TRUST SYSTEM ---
@@ -4927,7 +5226,7 @@ Example: {"productName": "Awesome Shirt", "productPrice": "1499"}`;
         "Check out this amazing content on Getnayi!";
       let imageUrl =
         (req.query.thumb as string) ||
-        "https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=1000&auto=format&fit=crop";
+        "/og-image.png";
 
       let currentPath = req.path;
       let videoUrl = (req.query.v as string) || "";
@@ -5027,14 +5326,25 @@ Example: {"productName": "Awesome Shirt", "productPrice": "1499"}`;
           .send("Internal Server Error: Unable to read index.html");
       }
 
+      const host = req.get("host") || "";
+      const proto = req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
+      const scheme = host.includes("localhost") || host.includes("127.0.0.1") || host.includes("0.0.0.0") ? proto : "https";
+      const baseUrl = `${scheme}://${host}`;
+
+      let absoluteImageUrl = imageUrl;
+      if (imageUrl.startsWith("/")) {
+        absoluteImageUrl = `${baseUrl}${imageUrl}`;
+      }
+
       let ogTags = `
         <meta property="og:title" content="${title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;")}" />
         <meta property="og:description" content="${description.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;")}" />
-        <meta property="og:image" content="${imageUrl}" />
+        <meta property="og:image" content="${absoluteImageUrl}" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:type" content="${videoUrl ? "video.other" : "website"}" />
-        <meta property="og:url" content="${req.protocol}://${req.get("host")}${req.originalUrl.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;")}" />
+        <meta property="og:url" content="${baseUrl}${req.originalUrl.split('?')[0].replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;")}" />
+        <meta property="og:site_name" content="Aisles" />
       `;
 
       if (videoUrl) {
@@ -5049,7 +5359,7 @@ Example: {"productName": "Awesome Shirt", "productPrice": "1499"}`;
         <meta name="twitter:card" content="${videoUrl ? "player" : "summary_large_image"}" />
         <meta name="twitter:title" content="${title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;")}" />
         <meta name="twitter:description" content="${description.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;")}" />
-        <meta name="twitter:image" content="${imageUrl}" />
+        <meta name="twitter:image" content="${absoluteImageUrl}" />
       `;
 
       if (videoUrl) {

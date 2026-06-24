@@ -55,11 +55,23 @@ export default function AuthPage() {
       }
       
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
         });
-        if (error) throw error;
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Failed to log in');
+
+        if (result.session) {
+          const { error } = await supabase.auth.setSession({
+            access_token: result.session.access_token,
+            refresh_token: result.session.refresh_token,
+          });
+          if (error) throw error;
+        } else {
+          throw new Error('Authentication failed: no session returned');
+        }
       } else {
         const response = await fetch('/api/auth/signup', {
           method: 'POST',

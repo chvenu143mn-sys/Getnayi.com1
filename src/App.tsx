@@ -7,6 +7,7 @@ import { Sidebar } from './components/Sidebar';
 import { SEO } from './components/SEO';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { CookieConsent } from './components/CookieConsent';
 
 // Lazy loaded pages for Code Splitting
 const AuthPage = React.lazy(() => import('./pages/Auth'));
@@ -208,6 +209,7 @@ function AppContent() {
         </Suspense>
       </ErrorBoundary>
       <Toaster theme="dark" position="top-center" />
+      <CookieConsent />
     </>
   );
 }
