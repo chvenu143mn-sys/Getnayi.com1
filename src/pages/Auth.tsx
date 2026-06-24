@@ -15,6 +15,7 @@ export default function AuthPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -44,6 +45,11 @@ export default function AuthPage() {
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isLogin && !showForgotPassword && !acceptedTerms) {
+      setError('You must agree to the Terms of Service and Privacy Policy to register.');
+      return;
+    }
+    
     setIsLoading(true);
     setError(null);
     setSuccess(null);
@@ -236,6 +242,46 @@ export default function AuthPage() {
                     className="w-full px-5 py-3.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder:text-white/50 focus:outline-none focus:border-white/40 focus:bg-white/20 transition-all font-sans text-[15px] backdrop-blur-sm"
                     placeholder="Password"
                   />
+                </div>
+              )}
+
+              {!isLogin && !showForgotPassword && (
+                <div className="flex items-start gap-x-2.5 mt-1 bg-white/5 border border-white/10 p-3 rounded-xl backdrop-blur-sm">
+                  <input
+                    type="checkbox"
+                    id="agree-terms"
+                    required
+                    checked={acceptedTerms}
+                    onChange={(e) => setAcceptedTerms(e.target.checked)}
+                    className="mt-0.5 size-4 rounded bg-black/30 border-white/20 text-[#d9183b] focus:ring-0 focus:ring-offset-0 cursor-pointer shrink-0"
+                  />
+                  <label htmlFor="agree-terms" className="text-[11px] text-zinc-400 leading-normal select-none cursor-pointer">
+                    I agree to the{' '}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        navigate('/terms');
+                      }}
+                      className="text-white hover:underline font-semibold inline"
+                    >
+                      Terms of Service
+                    </button>
+                    {' '}and{' '}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        navigate('/privacy');
+                      }}
+                      className="text-white hover:underline font-semibold inline"
+                    >
+                      Privacy Policy
+                    </button>
+                    .
+                  </label>
                 </div>
               )}
 
