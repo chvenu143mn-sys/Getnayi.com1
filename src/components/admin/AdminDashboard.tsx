@@ -87,7 +87,7 @@ export default function AdminDashboard({
         <div className="bg-[#141416] border border-white/5 rounded-2xl p-5 flex flex-col justify-between transition-all hover:border-white/10">
           <div className="text-zinc-400 text-xs font-mono uppercase tracking-wider mb-2 flex items-center justify-between">
             <span>Verified Creators</span>
-            <Users className="size-4 text-zinc-600" />
+            <Users className="size-4 text-zinc-500" />
           </div>
           <div className="flex items-end justify-between">
             <span className="text-2xl font-bold text-white">{creators.length.toLocaleString()}</span>
@@ -99,7 +99,7 @@ export default function AdminDashboard({
         <div className="bg-[#141416] border border-white/5 rounded-2xl p-5 flex flex-col justify-between transition-all hover:border-white/10">
           <div className="text-zinc-400 text-xs font-mono uppercase tracking-wider mb-2 flex items-center justify-between">
             <span>Uploaded Videos</span>
-            <PlaySquare className="size-4 text-zinc-600" />
+            <PlaySquare className="size-4 text-zinc-500" />
           </div>
           <div className="flex items-end justify-between">
             <span className="text-2xl font-bold text-white">{stats.totalVideos.toLocaleString()}</span>

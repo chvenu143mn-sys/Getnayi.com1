@@ -59,7 +59,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
             <div className="flex items-center gap-x-2 text-[12.5px]">
               <span 
                 className="size-2 rounded-full shrink-0" 
-                style={{ backgroundColor: payload[0].payload?.color || payload[0].color || '#ef2950' }} 
+                style={{ backgroundColor: payload[0].payload?.color || payload[0].color || '#d9183b' }} 
               />
               <span className="text-zinc-300 font-medium">Value:</span>
               <span className="text-white font-mono font-bold">
@@ -71,7 +71,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
               <div key={index} className="flex items-center gap-x-2 text-[12.5px]">
                 <span 
                   className="size-2 rounded-full shrink-0" 
-                  style={{ backgroundColor: item.fill || item.color || '#ef2950' }} 
+                  style={{ backgroundColor: item.fill || item.color || '#d9183b' }} 
                 />
                 <span className="text-zinc-300 font-medium">{item.name}:</span>
                 <span className="text-white font-mono font-bold">
@@ -92,7 +92,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
                   </div>
                   {data.Likes !== undefined && (
                     <div className="flex items-center gap-x-2 text-[12.5px]">
-                      <span className="size-2 rounded-full bg-[#ef2950]/60 shrink-0" />
+                      <span className="size-2 rounded-full bg-[#d9183b]/60 shrink-0" />
                       <span className="text-zinc-400 font-medium">Likes:</span>
                       <span className="text-white font-mono font-bold">
                         {data.Likes >= 1000 ? (data.Likes / 1000).toFixed(1) + 'K' : data.Likes}
@@ -114,7 +114,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
                   <div key={index} className="flex items-center gap-x-2 text-[12.5px]">
                     <span 
                       className="size-2 rounded-full shrink-0" 
-                      style={{ backgroundColor: item.fill || item.color || '#ef2950' }} 
+                      style={{ backgroundColor: item.fill || item.color || '#d9183b' }} 
                     />
                     <span className="text-zinc-300 font-medium">{item.name}:</span>
                     <span className="text-white font-mono font-bold">
@@ -420,7 +420,7 @@ export default function CreatorDashboard() {
   ];
 
   const distributionData = [
-    { name: 'Likes', value: totalLikes, color: '#ef2950' },
+    { name: 'Likes', value: totalLikes, color: '#d9183b' },
     { name: 'Saved', value: totalSaves, color: '#facc15' },
     { name: 'Comments', value: totalComments, color: '#3897f0' },
   ];
@@ -459,7 +459,7 @@ export default function CreatorDashboard() {
                 onClick={() => setMainTab(tab.id as any)}
                 className={`pb-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors ${
                   mainTab === tab.id 
-                    ? 'border-[#ef2950] text-white' 
+                    ? 'border-[#d9183b] text-white' 
                     : 'border-transparent text-zinc-500 hover:text-zinc-300'
                 }`}
               >
@@ -603,7 +603,7 @@ export default function CreatorDashboard() {
             <div className="flex flex-col gap-y-3 mb-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-[15.5px] font-bold text-white tracking-wide flex items-center gap-2">
-                  <TrendingUp className="size-[18px] text-[#ef2950]" />
+                  <TrendingUp className="size-[18px] text-[#d9183b]" />
                   Trending on Platform
                 </h3>
                 <button type="button" 
@@ -618,7 +618,7 @@ export default function CreatorDashboard() {
                    <button type="button" 
                      key={i}
                      onClick={() => navigate(`/trending?tag=${encodeURIComponent(tag)}`)}
-                     className="px-3.5 py-1.5 bg-[#131316] border border-white/5 rounded-full text-[12px] font-semibold text-white/90 whitespace-nowrap hover:bg-[#ef2950]/10 hover:text-[#ef2950] transition-colors border-white/10"
+                     className="px-3.5 py-1.5 bg-[#131316] border border-white/5 rounded-full text-[12px] font-semibold text-white/90 whitespace-nowrap hover:bg-[#d9183b]/10 hover:text-[#d9183b] transition-colors border-white/10"
                    >
                      {tag.startsWith('#') ? tag : `#${tag.replace(/\s+/g, '')}`}
                    </button>
@@ -688,8 +688,8 @@ export default function CreatorDashboard() {
               <div className="p-4 bg-[#131316] border border-white/5 rounded-2xl shadow-sm flex flex-col justify-between">
                 <div className="flex items-center justify-between">
                   <span className="text-[12.5px] font-semibold text-zinc-500 tracking-wide uppercase whitespace-nowrap">Total Likes</span>
-                  <div className="p-1.5 rounded-lg bg-[#ef2950]/10 text-[#ef2950] border border-[#ef2950]/10 shrink-0 ml-1">
-                    <Heart className="size-4 fill-[#ef2950]/10" />
+                  <div className="p-1.5 rounded-lg bg-[#d9183b]/10 text-[#d9183b] border border-[#d9183b]/10 shrink-0 ml-1">
+                    <Heart className="size-4 fill-[#d9183b]/10" />
                   </div>
                 </div>
                 <div className="mt-4 flex flex-col">
@@ -697,7 +697,7 @@ export default function CreatorDashboard() {
                     {totalLikes >= 1000000 ? (totalLikes / 1000000).toFixed(1) + 'M' : totalLikes >= 1000 ? (totalLikes / 1000).toFixed(1) + 'K' : totalLikes}
                   </span>
                   {totalLikes > 0 && (
-                    <span className="text-[10.5px] font-medium text-[#ef2950] mt-1 flex items-center gap-0.5 whitespace-nowrap">
+                    <span className="text-[10.5px] font-medium text-[#d9183b] mt-1 flex items-center gap-0.5 whitespace-nowrap">
                       <TrendingUp className="size-3" /> Higher engagement
                     </span>
                   )}
@@ -759,7 +759,7 @@ export default function CreatorDashboard() {
                   <button type="button" aria-label="button"  
                     onClick={() => setActiveChartTab('trends')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all ${
-                      activeChartTab === 'trends' ? 'bg-[#ef2950] text-white shadow-sm' : 'bg-transparent text-zinc-500 hover:text-white/80'
+                      activeChartTab === 'trends' ? 'bg-[#d9183b] text-white shadow-sm' : 'bg-transparent text-zinc-500 hover:text-white/80'
                     }`}
                   >
                     Audience growth
@@ -767,7 +767,7 @@ export default function CreatorDashboard() {
                   <button type="button" aria-label="button"  
                     onClick={() => setActiveChartTab('comparison')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all ${
-                      activeChartTab === 'comparison' ? 'bg-[#ef2950] text-white shadow-sm' : 'bg-transparent text-zinc-500 hover:text-white/80'
+                      activeChartTab === 'comparison' ? 'bg-[#d9183b] text-white shadow-sm' : 'bg-transparent text-zinc-500 hover:text-white/80'
                     }`}
                   >
                     Top videos comparison
@@ -775,7 +775,7 @@ export default function CreatorDashboard() {
                   <button type="button" aria-label="button"  
                     onClick={() => setActiveChartTab('distribution')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all ${
-                      activeChartTab === 'distribution' ? 'bg-[#ef2950] text-white shadow-sm' : 'bg-transparent text-zinc-500 hover:text-white/80'
+                      activeChartTab === 'distribution' ? 'bg-[#d9183b] text-white shadow-sm' : 'bg-transparent text-zinc-500 hover:text-white/80'
                     }`}
                   >
                     Action distribution
@@ -784,7 +784,7 @@ export default function CreatorDashboard() {
               </div>
 
               {!hasStats ? (
-                <div className="h-[210px] w-full flex flex-col items-center justify-center text-zinc-600 gap-y-2 border border-dashed border-white/5 rounded-2xl">
+                <div className="h-[210px] w-full flex flex-col items-center justify-center text-zinc-500 gap-y-2 border border-dashed border-white/5 rounded-2xl">
                    <Info className="size-8 opacity-40 text-zinc-500" strokeWidth={1.5} />
                    <p className="text-xs">No analytics charts available.</p>
                    <p className="text-[10.5px] text-zinc-700">Upload your very first video to populate.</p>
@@ -796,15 +796,15 @@ export default function CreatorDashboard() {
                       <AreaChart data={finalTrendData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                         <defs>
                           <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#ef2950" stopOpacity={0.4}/>
-                            <stop offset="95%" stopColor="#ef2950" stopOpacity={0.0}/>
+                            <stop offset="5%" stopColor="#d9183b" stopOpacity={0.4}/>
+                            <stop offset="95%" stopColor="#d9183b" stopOpacity={0.0}/>
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
                         <XAxis dataKey="name" stroke="#6b7280" style={{ fontSize: '10px' }} />
                         <YAxis stroke="#6b7280" style={{ fontSize: '10px' }} />
                         <Tooltip content={<CustomTooltip />} />
-                        <Area type="monotone" dataKey="Views" stroke="#ef2950" strokeWidth={2} fillOpacity={1} fill="url(#colorViews)" />
+                        <Area type="monotone" dataKey="Views" stroke="#d9183b" strokeWidth={2} fillOpacity={1} fill="url(#colorViews)" />
                         <Legend wrapperStyle={{ fontSize: '10px', marginTop: '10px' }} />
                       </AreaChart>
                     </ResponsiveContainer>
@@ -818,7 +818,7 @@ export default function CreatorDashboard() {
                         <YAxis stroke="#6b7280" style={{ fontSize: '10px' }} />
                         <Tooltip content={<CustomTooltip />} />
                         <Bar dataKey="Views" fill="#3897f0" radius={[4, 4, 0, 0]} />
-                        <Bar dataKey="Likes" fill="#ef2950" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="Likes" fill="#d9183b" radius={[4, 4, 0, 0]} />
                         <Legend wrapperStyle={{ fontSize: '10px', marginTop: '10px' }} />
                       </BarChart>
                     </ResponsiveContainer>
@@ -889,7 +889,7 @@ export default function CreatorDashboard() {
                       <img src={topVideoByViews.thumbnail_url} className="size-full object-cover" alt="Best Video" />
                     ) : (
                       <div className="size-full flex items-center justify-center bg-zinc-800">
-                        <Play className="size-3 text-zinc-600" />
+                        <Play className="size-3 text-zinc-500" />
                       </div>
                     )}
                   </div>
@@ -898,14 +898,14 @@ export default function CreatorDashboard() {
                 {/* Most Engaged */}
                 {topVideoByEngagement.id !== topVideoByViews.id && (
                   <div 
-                    className="bg-gradient-to-br from-[#101013] to-[#141417] border border-[#ef2950]/10 p-4 rounded-3xl shadow-sm flex items-start cursor-pointer transition-all active:scale-[0.99] hover:bg-white/[0.02]"
+                    className="bg-gradient-to-br from-[#101013] to-[#141417] border border-[#d9183b]/10 p-4 rounded-3xl shadow-sm flex items-start cursor-pointer transition-all active:scale-[0.99] hover:bg-white/[0.02]"
                     onClick={() => navigate(`/video/${topVideoByEngagement.id}`)}
                   >
-                    <div className="p-2.5 bg-[#ef2950]/10 border border-[#ef2950]/20 text-[#ef2950] rounded-xl mr-3.5 shrink-0 shadow-sm">
-                      <Heart className="size-[18px] fill-[#ef2950]/20" strokeWidth={2.5} />
+                    <div className="p-2.5 bg-[#d9183b]/10 border border-[#d9183b]/20 text-[#d9183b] rounded-xl mr-3.5 shrink-0 shadow-sm">
+                      <Heart className="size-[18px] fill-[#d9183b]/20" strokeWidth={2.5} />
                     </div>
                     <div className="flex-1 min-w-0 pr-2 pt-0.5">
-                      <h4 className="text-[12px] font-bold text-[#ef2950] tracking-wide uppercase mb-0.5">Highest Engagement</h4>
+                      <h4 className="text-[12px] font-bold text-[#d9183b] tracking-wide uppercase mb-0.5">Highest Engagement</h4>
                       <p className="text-[14px] text-white font-semibold truncate mb-1">
                         {topVideoByEngagement.caption}
                       </p>
@@ -919,7 +919,7 @@ export default function CreatorDashboard() {
                         <img src={topVideoByEngagement.thumbnail_url} className="size-full object-cover" alt="Most Engaged" />
                       ) : (
                         <div className="size-full flex items-center justify-center bg-zinc-800">
-                          <Play className="size-3 text-zinc-600" />
+                          <Play className="size-3 text-zinc-500" />
                         </div>
                       )}
                     </div>
@@ -947,7 +947,7 @@ export default function CreatorDashboard() {
                    placeholder="Search video ledger..." 
                    value={searchTerm}
                    onChange={(e) => setSearchTerm(e.target.value)}
-                   className="w-full pl-11 pr-5 py-3 bg-[#131316] border border-white/5 rounded-2xl text-[13.5px] text-white/90 placeholder-zinc-500 focus:outline-none focus:border-[#ef2950] transition-colors"
+                   className="w-full pl-11 pr-5 py-3 bg-[#131316] border border-white/5 rounded-2xl text-[13.5px] text-white/90 placeholder-zinc-500 focus:outline-none focus:border-[#d9183b] transition-colors"
                  />
               </div>
 
@@ -972,7 +972,7 @@ export default function CreatorDashboard() {
                           {video.thumbnail_url ? (
                             <img src={video.thumbnail_url} alt="Video thumbnail" className="size-full object-cover" />
                           ) : (
-                            <div className="size-full flex items-center justify-center text-zinc-600 bg-zinc-805">
+                            <div className="size-full flex items-center justify-center text-zinc-500 bg-zinc-805">
                                <Play className="size-4 text-zinc-650" />
                             </div>
                           )}
@@ -1015,7 +1015,7 @@ export default function CreatorDashboard() {
                                 <span>{video.views >= 1000 ? (video.views/1000).toFixed(1) + 'K' : video.views}</span>
                              </div>
                              <div className="flex items-center justify-end text-[11.5px] text-zinc-400 font-mono tracking-wide">
-                                <Heart className="size-3.5 mr-1 text-[#ef2950] fill-[#ef2950]/10" strokeWidth={2} />
+                                <Heart className="size-3.5 mr-1 text-[#d9183b] fill-[#d9183b]/10" strokeWidth={2} />
                                 <span>{video.likes >= 1000 ? (video.likes/1000).toFixed(1) + 'K' : video.likes}</span>
                              </div>
                              <div className="flex items-center justify-end text-[11.5px] text-zinc-400 font-mono tracking-wide">
@@ -1073,7 +1073,7 @@ export default function CreatorDashboard() {
                     value={editVideoCaptionText}
                     onChange={(e) => setEditVideoCaptionText(e.target.value)}
                     placeholder="Enter new caption..."
-                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 transition-colors h-24 resize-none"
+                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-white/20 transition-colors h-24 resize-none"
                   />
                   <div className="text-right text-xs text-zinc-500 mt-1">
                     {editVideoCaptionText.length} characters
@@ -1087,7 +1087,7 @@ export default function CreatorDashboard() {
                     value={editVideoProductName}
                     onChange={(e) => setEditVideoProductName(e.target.value)}
                     placeholder="Enter product name..."
-                     className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 transition-colors"
+                     className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-white/20 transition-colors"
                   />
                 </div>
 
@@ -1098,7 +1098,7 @@ export default function CreatorDashboard() {
                     value={editVideoProductPrice}
                     onChange={(e) => setEditVideoProductPrice(e.target.value)}
                     placeholder="Enter product price..."
-                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 transition-colors"
+                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-white/20 transition-colors"
                   />
                 </div>
                 <div>
@@ -1108,7 +1108,7 @@ export default function CreatorDashboard() {
                     value={editVideoProductUrl}
                     onChange={(e) => setEditVideoProductUrl(e.target.value)}
                     placeholder="Enter product URL..."
-                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 transition-colors"
+                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-white/20 transition-colors"
                   />
                 </div>
                 <div>
@@ -1116,7 +1116,7 @@ export default function CreatorDashboard() {
                   <select 
                     value={editVideoCategoryId}
                     onChange={(e) => setEditVideoCategoryId(e.target.value)}
-                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 transition-colors appearance-none"
+                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-white/20 transition-colors appearance-none"
                   >
                     <option value="" disabled>Select category...</option>
                     {categories.map(cat => (
@@ -1129,7 +1129,7 @@ export default function CreatorDashboard() {
                   <textarea 
                     value={editVideoTags}
                     onChange={(e) => setEditVideoTags(e.target.value)}
-                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 transition-colors h-20 resize-none font-mono text-sm leading-relaxed"
+                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-white/20 transition-colors h-20 resize-none font-mono text-sm leading-relaxed"
                   />
                 </div>
                 

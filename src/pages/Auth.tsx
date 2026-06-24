@@ -55,11 +55,22 @@ export default function AuthPage() {
       }
       
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
         });
-        if (error) throw error;
+        
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Failed to log in');
+        
+        if (result.data?.session) {
+           await supabase.auth.setSession({
+              access_token: result.data.session.access_token,
+              refresh_token: result.data.session.refresh_token
+           });
+        }
       } else {
         const response = await fetch('/api/auth/signup', {
           method: 'POST',
@@ -135,7 +146,7 @@ export default function AuthPage() {
             className="text-[44px] tracking-tight text-white mb-5 font-sans relative inline-flex items-end font-semibold"
           >
             Getnayi
-            <div className="size-[7px] rounded-full bg-[#ef2950] shrink-0 mb-[9px] -ml-[2px]" />
+            <div className="size-[7px] rounded-full bg-[#d9183b] shrink-0 mb-[9px] -ml-[2px]" />
           </motion.h1>
           <motion.p 
             initial={{ y: 5, opacity: 0 }}
@@ -295,7 +306,7 @@ export default function AuthPage() {
                    setError(null);
                    setSuccess(null);                 
                  }}
-                 className="text-[#ef2950] ml-1.5 font-bold hover:text-[#ff3b61] transition-colors"
+                 className="text-[#d9183b] ml-1.5 font-bold hover:text-[#f4284d] transition-colors"
                >
                  {isLogin ? "Sign up" : "Log in"}
                </button>

@@ -41,12 +41,12 @@ export default function SubscriptionSettings() {
 
   if (loading) {
      return <div className="min-h-screen bg-[#0c0c0e] flex items-center justify-center">
-       <div className="w-8 h-8 rounded-full border-t-2 border-[#ef2950] animate-spin" />
+       <div className="w-8 h-8 rounded-full border-t-2 border-[#d9183b] animate-spin" />
      </div>
   }
 
   const planName = plan === 'free' ? 'Free Plan' : plan === 'pro' ? 'Pro Plan' : 'Creator Plan';
-  const planColor = plan === 'free' ? 'text-zinc-400' : 'text-[#ef2950]';
+  const planColor = plan === 'free' ? 'text-zinc-400' : 'text-[#d9183b]';
 
   return (
     <div className="min-h-screen bg-[#0c0c0e] text-white selection:bg-white/20 pb-32">
@@ -78,7 +78,7 @@ export default function SubscriptionSettings() {
           
           <div className="mt-6 pt-6 border-t border-white/5 space-y-4">
              {plan === 'free' ? (
-               <button onClick={() => navigate('/subscription')} className="w-full py-3.5 bg-[#ef2950] hover:bg-[#ff3b61] text-white rounded-xl font-bold tracking-wide transition shadow-lg shadow-[#ef2950]/20">
+               <button onClick={() => navigate('/subscription')} className="w-full py-3.5 bg-[#d9183b] hover:bg-[#f4284d] text-white rounded-xl font-bold tracking-wide transition shadow-lg shadow-[#d9183b]/20">
                  Upgrade Plan
                </button>
              ) : (
@@ -136,7 +136,7 @@ export default function SubscriptionSettings() {
                   <button 
                     key={r}
                     onClick={() => setCancelReason(r)}
-                    className={`w-full text-left px-4 py-3 rounded-xl border transition-all text-sm font-medium ${cancelReason === r ? 'border-[#ef2950] bg-[#ef2950]/10 text-[#ef2950]' : 'border-white/10 hover:border-white/20 text-zinc-300'}`}
+                    className={`w-full text-left px-4 py-3 rounded-xl border transition-all text-sm font-medium ${cancelReason === r ? 'border-[#d9183b] bg-[#d9183b]/10 text-[#d9183b]' : 'border-white/10 hover:border-white/20 text-zinc-300'}`}
                   >
                     {r}
                   </button>

@@ -55,12 +55,12 @@ export default function Subscription() {
       confetti({
         ...defaults, particleCount,
         origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
-        colors: ['#ef2950', '#ffffff', '#ffd700']
+        colors: ['#d9183b', '#ffffff', '#ffd700']
       });
       confetti({
         ...defaults, particleCount,
         origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
-        colors: ['#ef2950', '#ffffff', '#ffd700']
+        colors: ['#d9183b', '#ffffff', '#ffd700']
       });
     }, 250);
   };
@@ -137,7 +137,7 @@ export default function Subscription() {
           email: user.email || '',
         },
         theme: {
-          color: '#ef2950'
+          color: '#d9183b'
         },
         modal: {
           ondismiss: function() {
@@ -171,18 +171,18 @@ export default function Subscription() {
   const handleSelectFree = () => navigate('/upload?onboarding=true');
 
   return (
-    <div className="min-h-screen bg-[#0c0c0e] text-white selection:bg-[#ef2950]/30 py-20 px-4 pb-32">
+    <div className="min-h-screen bg-[#0c0c0e] text-white selection:bg-[#d9183b]/30 py-20 px-4 pb-32">
       
       {/* Hero Section */}
       <div className="max-w-4xl mx-auto text-center mb-24">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#ef2950]/10 text-[#ef2950] border border-[#ef2950]/20 text-sm font-semibold mb-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#d9183b]/10 text-[#d9183b] border border-[#d9183b]/20 text-sm font-semibold mb-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <Zap className="size-4" /> 
           Supercharge your reach
         </div>
         
         <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6 animate-in fade-in slide-in-from-bottom-6 duration-700">
           Turn videos into <br className="hidden md:block" />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#ef2950] to-orange-500">
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#d9183b] to-orange-500">
             revenue streams
           </span>
         </h1>
@@ -195,7 +195,7 @@ export default function Subscription() {
       {/* Value Props */}
       <div className="max-w-5xl mx-auto grid md:grid-cols-3 gap-10 mb-24 animate-in fade-in duration-1000 delay-200">
         <div className="flex flex-col items-center text-center">
-          <div className="size-14 rounded-2xl bg-[#ef2950]/10 flex items-center justify-center mb-5 text-[#ef2950] border border-[#ef2950]/20">
+          <div className="size-14 rounded-2xl bg-[#d9183b]/10 flex items-center justify-center mb-5 text-[#d9183b] border border-[#d9183b]/20">
             <ShieldCheck className="size-6" />
           </div>
           <h3 className="text-xl font-bold mb-3">Auto-Approval</h3>
@@ -203,7 +203,7 @@ export default function Subscription() {
         </div>
         
         <div className="flex flex-col items-center text-center">
-          <div className="size-14 rounded-2xl bg-[#ef2950]/10 flex items-center justify-center mb-5 text-[#ef2950] border border-[#ef2950]/20">
+          <div className="size-14 rounded-2xl bg-[#d9183b]/10 flex items-center justify-center mb-5 text-[#d9183b] border border-[#d9183b]/20">
             <TrendingUp className="size-6" />
           </div>
           <h3 className="text-xl font-bold mb-3">Priority Exposure</h3>
@@ -211,7 +211,7 @@ export default function Subscription() {
         </div>
         
         <div className="flex flex-col items-center text-center">
-          <div className="size-14 rounded-2xl bg-[#ef2950]/10 flex items-center justify-center mb-5 text-[#ef2950] border border-[#ef2950]/20">
+          <div className="size-14 rounded-2xl bg-[#d9183b]/10 flex items-center justify-center mb-5 text-[#d9183b] border border-[#d9183b]/20">
             <PlaySquare className="size-6" />
           </div>
           <h3 className="text-xl font-bold mb-3">Unlimited Uploads</h3>
@@ -240,7 +240,7 @@ export default function Subscription() {
       
       <SubscriptionFAQ />
       
-      <div className="max-w-6xl mx-auto mt-16 text-center text-sm text-zinc-600 flex flex-col items-center">
+      <div className="max-w-6xl mx-auto mt-16 text-center text-sm text-zinc-500 flex flex-col items-center">
         <img src="/razorpay-logo.png" alt="Secured by Razorpay" className="h-6 opacity-40 mb-3 grayscale" onError={(e) => e.currentTarget.style.display='none'} />
         <p>100% secure payment processing via Razorpay.</p>
         <p className="mt-1">Subscriptions renew automatically. Cancel anytime from your settings.</p>

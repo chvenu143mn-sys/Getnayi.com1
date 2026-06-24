@@ -87,8 +87,8 @@ export default function Trending() {
         <div className="flex items-center gap-x-3 mb-4">
           <GlobalBackButton className="p-2 -ml-2 hover:bg-white/5 bg-transparent border-transparent" />
           <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-[#ef2950]/10 shrink-0">
-              <TrendingUp className="size-[18px] text-[#ef2950]" />
+            <div className="p-1.5 rounded-lg bg-[#d9183b]/10 shrink-0">
+              <TrendingUp className="size-[18px] text-[#d9183b]" />
             </div>
             <h1 className="text-[19px] font-bold text-white tracking-tight">
               Trending
@@ -122,7 +122,7 @@ export default function Trending() {
         ) : trendingVideos.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
              <div className="size-16 rounded-full bg-zinc-900 border border-white/5 flex items-center justify-center mb-4">
-                <Zap className="size-8 text-zinc-600" />
+                <Zap className="size-8 text-zinc-500" />
              </div>
              <p className="text-[15px] font-bold text-white mb-1">No viral videos yet</p>
              <p className="text-[13px] text-zinc-500 w-2/3">Try checking another trending hashtag or topic.</p>

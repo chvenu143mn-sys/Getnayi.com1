@@ -22,7 +22,7 @@ export default function CreatorVerification() {
            <div className="absolute top-[18px] left-[30px] right-[30px] h-0.5 bg-zinc-800 -z-10" />
            
            <div className="flex flex-col items-center gap-2">
-             <div className="size-[38px] rounded-full bg-[#ef2950] text-white flex items-center justify-center font-bold text-[15px] shadow-[0_0_15px_rgba(239,41,80,0.3)]">
+             <div className="size-[38px] rounded-full bg-[#d9183b] text-white flex items-center justify-center font-bold text-[15px] shadow-[0_0_15px_rgba(239,41,80,0.3)]">
                1
              </div>
              <span className="text-[14px] font-medium text-white tracking-wide">Apply</span>
@@ -45,10 +45,10 @@ export default function CreatorVerification() {
 
         {/* Hero Icon */}
         <div className="relative mb-8">
-           <div className="absolute inset-0 bg-[#ef2950]/20 blur-2xl rounded-full" />
-           <div className="relative bg-gradient-to-br from-orange-400 to-[#ef2950] size-[100px] rounded-[30px] rotate-[15deg] flex items-center justify-center p-[4px] shadow-lg">
+           <div className="absolute inset-0 bg-[#d9183b]/20 blur-2xl rounded-full" />
+           <div className="relative bg-gradient-to-br from-orange-400 to-[#d9183b] size-[100px] rounded-[30px] rotate-[15deg] flex items-center justify-center p-[4px] shadow-lg">
               <div className="bg-[#1c1c1e] size-full rounded-[26px] flex items-center justify-center -rotate-[15deg]">
-                 <svg className="size-12 text-[#ef2950]" viewBox="0 0 24 24" fill="currentColor">
+                 <svg className="size-12 text-[#d9183b]" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                  </svg>
               </div>
@@ -71,7 +71,7 @@ export default function CreatorVerification() {
              'Agree to guidelines'
            ].map((text, i) => (
              <div key={i} className="flex items-center gap-4">
-                <CheckCircle2 className="size-6 text-[#ef2950]/80 shrink-0" strokeWidth={1.5} />
+                <CheckCircle2 className="size-6 text-[#d9183b]/80 shrink-0" strokeWidth={1.5} />
                 <span className="text-[15px] font-medium text-white/90 tracking-wide">{text}</span>
              </div>
            ))}
@@ -80,7 +80,7 @@ export default function CreatorVerification() {
 
       {/* Bottom Button */}
       <div className="px-6 pb-[calc(24px+env(safe-area-inset-bottom))] pt-4">
-        <button type="button" aria-label="button"  onClick={() => navigate('/upload')} className="w-full py-[18px] bg-[#ef2950] text-white font-semibold text-[16px] tracking-wide rounded-2xl flex items-center justify-center hover:bg-[#ef2950]/90 transition-colors active:scale-[0.98] shadow-md">
+        <button type="button" aria-label="button"  onClick={() => navigate('/upload')} className="w-full py-[18px] bg-[#d9183b] text-white font-semibold text-[16px] tracking-wide rounded-2xl flex items-center justify-center hover:bg-[#d9183b]/90 transition-colors active:scale-[0.98] shadow-md">
            Start Verification
         </button>
       </div>

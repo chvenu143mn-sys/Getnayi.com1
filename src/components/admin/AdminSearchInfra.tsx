@@ -137,14 +137,14 @@ export default function AdminSearchInfra() {
             <span className="text-xs font-mono text-zinc-400 flex items-center gap-1.5">
               <Terminal className="size-3.5 text-orange-500" /> Live Audit Terminal Engine
             </span>
-            <span className="text-[10px] font-mono text-zinc-600 bg-white/5 px-2 py-0.5 rounded-full">
+            <span className="text-[10px] font-mono text-zinc-500 bg-white/5 px-2 py-0.5 rounded-full">
               {terminalLogs.length} events logged
             </span>
           </div>
 
           <div className="flex-1 overflow-y-auto no-scrollbar font-mono text-[11px] text-zinc-300 space-y-1.5 mt-3 py-1 leading-relaxed bg-[#0c0c0e] p-3.5 rounded-xl border border-white/5 h-[300px]">
             {terminalLogs.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-zinc-600 py-20 text-center gap-2">
+              <div className="h-full flex flex-col items-center justify-center text-zinc-500 py-20 text-center gap-2">
                 <Terminal className="size-8 opacity-40 animate-pulse" />
                 <span>Click "Run Performance Audit" to spin up simulated cluster telemetry logs.</span>
               </div>
@@ -261,7 +261,7 @@ export default function AdminSearchInfra() {
                     <span className="text-[10px] text-zinc-500 truncate font-mono">{d.name}</span>
                     <div className="flex items-baseline gap-2 mt-1">
                       <span className="text-sm font-bold text-green-400">{d.optimized}ms</span>
-                      <span className="text-[9px] text-zinc-600 line-through">{d.unoptimized}ms</span>
+                      <span className="text-[9px] text-zinc-500 line-through">{d.unoptimized}ms</span>
                       <span className="text-[10px] font-bold text-orange-500 ml-auto bg-orange-500/10 px-1.5 py-0.5 rounded-full">{d.speedup}</span>
                     </div>
                   </div>

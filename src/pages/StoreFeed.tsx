@@ -37,7 +37,7 @@ export default function StoreFeed() {
   if (loading) {
     return (
       <div className="flex-1 w-full bg-[#0c0c0e] text-white flex flex-col h-full items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-[#ef2950]" />
+        <Loader2 className="size-8 animate-spin text-[#d9183b]" />
       </div>
     );
   }
@@ -66,9 +66,9 @@ export default function StoreFeed() {
                 {item.thumbnail_url || item.main_product_image_url ? (
                   <img src={item.thumbnail_url || item.main_product_image_url} alt="Video thumbnail" className="size-full object-cover" />
                 ) : (
-                  <div className="size-full flex items-center justify-center text-zinc-600 bg-zinc-800 text-xs">No img</div>
+                  <div className="size-full flex items-center justify-center text-zinc-500 bg-zinc-800 text-xs">No img</div>
                 )}
-                <div className="absolute inset-0 bg-[#0c0c0e]/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center border border-[#ef2950]">
+                <div className="absolute inset-0 bg-[#0c0c0e]/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center border border-[#d9183b]">
                   <Play className="size-8 fill-white/80 text-white/80" />
                 </div>
               </div>

@@ -1004,7 +1004,7 @@ export default function Admin() {
                             </div>
                             <div className="flex items-center justify-between w-1/2 text-xs">
                                <span className="text-zinc-500 truncate">by {r.profiles?.username || 'user'}</span>
-                               <span className="text-zinc-600">
+                               <span className="text-zinc-500">
                                  {Math.floor((new Date().getTime() - new Date(r.created_at).getTime()) / 60000)}m ago
                                </span>
                             </div>

@@ -27,7 +27,7 @@ export function SubscriptionPricingTable({
       <div className="w-full max-w-6xl mx-auto">
         <div className="grid lg:grid-cols-3 gap-8 items-start">
           {[1, 2, 3].map((i) => (
-            <div key={i} className={cn("rounded-3xl border border-zinc-800 bg-[#161618] p-8 shadow-sm flex flex-col h-full animate-pulse", i === 2 ? "lg:-translate-y-4 border-[#ef2950]/30" : "")}>
+            <div key={i} className={cn("rounded-3xl border border-zinc-800 bg-[#161618] p-8 shadow-sm flex flex-col h-full animate-pulse", i === 2 ? "lg:-translate-y-4 border-[#d9183b]/30" : "")}>
               <div className="mb-6">
                 <div className="h-6 w-24 bg-zinc-800 rounded-md mb-3"></div>
                 <div className="h-4 w-full max-w-[200px] bg-zinc-800 rounded-md"></div>
@@ -122,13 +122,13 @@ export function SubscriptionPricingTable({
         </div>
 
         {/* Pro Plan */}
-        <div className="rounded-3xl bg-gradient-to-b from-[#1c1c1e] to-[#121214] border border-[#ef2950]/50 p-8 relative shadow-[0_0_30px_rgba(239,41,80,0.15)] flex flex-col h-full transform lg:-translate-y-4">
-          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#ef2950] to-transparent opacity-70"></div>
-          <div className="absolute top-0 right-8 bg-[#ef2950] text-white text-[11px] font-black px-4 py-1.5 rounded-b-lg uppercase tracking-widest shadow-lg shadow-[#ef2950]/20">Most Popular</div>
+        <div className="rounded-3xl bg-gradient-to-b from-[#1c1c1e] to-[#121214] border border-[#d9183b]/50 p-8 relative shadow-[0_0_30px_rgba(239,41,80,0.15)] flex flex-col h-full transform lg:-translate-y-4">
+          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#d9183b] to-transparent opacity-70"></div>
+          <div className="absolute top-0 right-8 bg-[#d9183b] text-white text-[11px] font-black px-4 py-1.5 rounded-b-lg uppercase tracking-widest shadow-lg shadow-[#d9183b]/20">Most Popular</div>
           
           <div className="mb-6 mt-2">
             <h3 className="text-2xl font-bold flex items-center text-white mb-2">
-              Pro <Zap className="h-5 w-5 ml-2 text-[#ef2950]" fill="currentColor" />
+              Pro <Zap className="h-5 w-5 ml-2 text-[#d9183b]" fill="currentColor" />
             </h3>
             <p className="text-zinc-300 text-sm h-10">For serious creators who want to upload without limits.</p>
           </div>
@@ -145,23 +145,23 @@ export function SubscriptionPricingTable({
           <div className="flex-1">
             <ul className="space-y-4 mb-8">
               <li className="flex items-start">
-                <Check className="h-5 w-5 mr-3 text-[#ef2950] shrink-0 mt-0.5" />
+                <Check className="h-5 w-5 mr-3 text-[#d9183b] shrink-0 mt-0.5" />
                 <span className="text-white text-sm font-medium">Instant Auto-Approval for uploads</span>
               </li>
               <li className="flex items-start">
-                <Check className="h-5 w-5 mr-3 text-[#ef2950] shrink-0 mt-0.5" />
+                <Check className="h-5 w-5 mr-3 text-[#d9183b] shrink-0 mt-0.5" />
                 <span className="text-zinc-200 text-sm">Unlimited video uploads</span>
               </li>
               <li className="flex items-start">
-                <Check className="h-5 w-5 mr-3 text-[#ef2950] shrink-0 mt-0.5" />
+                <Check className="h-5 w-5 mr-3 text-[#d9183b] shrink-0 mt-0.5" />
                 <span className="text-zinc-200 text-sm">No rate limits or cool-downs</span>
               </li>
               <li className="flex items-start">
-                <Check className="h-5 w-5 mr-3 text-[#ef2950] shrink-0 mt-0.5" />
+                <Check className="h-5 w-5 mr-3 text-[#d9183b] shrink-0 mt-0.5" />
                 <span className="text-zinc-200 text-sm">Priority exposure in Trending feeds</span>
               </li>
               <li className="flex items-start">
-                <Check className="h-5 w-5 mr-3 text-[#ef2950] shrink-0 mt-0.5" />
+                <Check className="h-5 w-5 mr-3 text-[#d9183b] shrink-0 mt-0.5" />
                 <span className="text-zinc-200 text-sm">Advanced profile badge</span>
               </li>
             </ul>
@@ -170,7 +170,7 @@ export function SubscriptionPricingTable({
           <button
             onClick={() => onSubscribePro?.(isYearly)}
             disabled={loading || currentPlan === 'pro' || currentPlan === 'creator'}
-            className="w-full py-4 px-4 rounded-xl font-bold tracking-wide text-white bg-[#ef2950] hover:bg-[#d61e40] transition shadow-lg shadow-[#ef2950]/25 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-4 px-4 rounded-xl font-bold tracking-wide text-white bg-[#d9183b] hover:bg-[#d61e40] transition shadow-lg shadow-[#d9183b]/25 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (currentPlan === 'pro' ? 'Active Plan' : 'Upgrade to Pro')}
           </button>

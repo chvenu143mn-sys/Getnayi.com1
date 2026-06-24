@@ -45,7 +45,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
             <div className="flex items-center gap-x-2 text-[12.5px]">
               <span 
                 className="size-2 rounded-full shrink-0" 
-                style={{ backgroundColor: payload[0].payload?.color || payload[0].color || '#ef2950' }} 
+                style={{ backgroundColor: payload[0].payload?.color || payload[0].color || '#d9183b' }} 
               />
               <span className="text-zinc-300 font-medium">Value:</span>
               <span className="text-white font-mono font-bold">
@@ -57,7 +57,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
               <div key={index} className="flex items-center gap-x-2 text-[12.5px]">
                 <span 
                   className="size-2 rounded-full shrink-0" 
-                  style={{ backgroundColor: item.fill || item.color || '#ef2950' }} 
+                  style={{ backgroundColor: item.fill || item.color || '#d9183b' }} 
                 />
                 <span className="text-zinc-300 font-medium">{item.name}:</span>
                 <span className="text-white font-mono font-bold">
@@ -78,7 +78,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
                   </div>
                   {data.Likes !== undefined && (
                     <div className="flex items-center gap-x-2 text-[12.5px]">
-                      <span className="size-2 rounded-full bg-[#ef2950]/60 shrink-0" />
+                      <span className="size-2 rounded-full bg-[#d9183b]/60 shrink-0" />
                       <span className="text-zinc-400 font-medium">Likes:</span>
                       <span className="text-white font-mono font-bold">
                         {data.Likes >= 1000 ? (data.Likes / 1000).toFixed(1) + 'K' : data.Likes}
@@ -100,7 +100,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
                   <div key={index} className="flex items-center gap-x-2 text-[12.5px]">
                     <span 
                       className="size-2 rounded-full shrink-0" 
-                      style={{ backgroundColor: item.fill || item.color || '#ef2950' }} 
+                      style={{ backgroundColor: item.fill || item.color || '#d9183b' }} 
                     />
                     <span className="text-zinc-300 font-medium">{item.name}:</span>
                     <span className="text-white font-mono font-bold">
@@ -190,7 +190,7 @@ export default function CreatorAnalytics({ videos, engagementDetails }: CreatorA
             <YAxis stroke="#6b7280" style={{ fontSize: '10px' }} />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }} />
             <Bar dataKey="Views" fill="#3897f0" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="Likes" fill="#ef2950" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="Likes" fill="#d9183b" radius={[4, 4, 0, 0]} />
             <Bar dataKey="Saves" fill="#facc15" radius={[4, 4, 0, 0]} />
             <Legend wrapperStyle={{ fontSize: '10px', marginTop: '10px' }} />
           </BarChart>

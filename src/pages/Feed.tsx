@@ -253,7 +253,7 @@ export default function Feed() {
     return (
       <div className="flex flex-col items-center justify-center h-full bg-[#0c0c0e] px-6 text-center">
         <div className="size-20 bg-white/5 rounded-full flex items-center justify-center mb-6 border border-white/5 shadow-inner">
-          <Play className="size-8 text-white/30 ml-1.5" />
+          <Play className="size-8 text-white/60 ml-1.5" />
         </div>
         <p className="text-white/90 font-sans font-bold text-[18px] mb-2 tracking-tight">No published videos found</p>
         <p className="text-[14px] font-sans tracking-wide text-white/50 leading-relaxed max-w-[240px]">We couldn't find any active content right now. Check back later or adjust your filters.</p>
@@ -376,7 +376,7 @@ export default function Feed() {
         {(storeParam || tagParam) && (
           <div className="mx-4 mt-2 bg-zinc-950/90 backdrop-blur-md border border-white/15 rounded-2xl px-4 py-3 flex items-center justify-between pointer-events-auto shadow-2xl animate-fadeIn select-none">
             <div className="flex flex-col">
-              <span className="text-[9px] uppercase tracking-wider text-[#ef2950] font-sans font-extrabold">Active Filter</span>
+              <span className="text-[9px] uppercase tracking-wider text-[#d9183b] font-sans font-extrabold">Active Filter</span>
               <span className="text-white text-[13.5px] font-sans font-extrabold tracking-tight flex items-center gap-2 mt-0.5">
                 {storeParam ? (
                   <>

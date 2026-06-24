@@ -38,7 +38,7 @@ export function Sidebar() {
   return (
     <div className="hidden md:flex flex-col w-[240px] lg:w-[280px] h-full bg-[#0c0c0e] border-r border-white/10 shrink-0 p-4 pt-6 z-40 overflow-y-auto no-scrollbar">
       <Link to="/" className="flex items-center gap-3 px-4 mb-8">
-        <div className="size-8 rounded-lg bg-gradient-to-tr from-[#ef2950] to-[#20D5EC] flex items-center justify-center">
+        <div className="size-8 rounded-lg bg-gradient-to-tr from-[#d9183b] to-[#20D5EC] flex items-center justify-center">
            <Video className="size-5 text-white" />
         </div>
         <span className="text-xl font-display font-bold tracking-tight text-white">Getnayi</span>
@@ -82,13 +82,13 @@ export function Sidebar() {
           to="/notifications"
           className={cn(
             "flex items-center gap-x-4 px-4 py-3 rounded-xl transition-all relative",
-            location.pathname === '/notifications' ? "bg-white/10 text-[#ef2950] font-semibold" : "text-white/60 hover:bg-white/5 hover:text-white"
+            location.pathname === '/notifications' ? "bg-white/10 text-[#d9183b] font-semibold" : "text-white/60 hover:bg-white/5 hover:text-white"
           )}
         >
           <div className="relative">
             <MessageSquare className="size-6" strokeWidth={location.pathname === '/notifications' ? 2.5 : 2} />
             {hasUnread && (
-               <div className="absolute top-0 right-0 size-2.5 bg-[#ef2950] rounded-full border-2 border-[#0c0c0e] transform translate-x-1/3 -translate-y-1/4 animate-pulse"></div>
+               <div className="absolute top-0 right-0 size-2.5 bg-[#d9183b] rounded-full border-2 border-[#0c0c0e] transform translate-x-1/3 -translate-y-1/4 animate-pulse"></div>
             )}
           </div>
           <span className="text-[16px]">Messages</span>
@@ -109,7 +109,7 @@ export function Sidebar() {
       <div className="mt-auto pt-6">
         <Link
           to="/upload"
-          className="flex items-center justify-center gap-x-2 w-full py-4 rounded-xl bg-gradient-to-r from-[#ef2950] to-[#20D5EC] text-white font-bold text-[16px] transition-transform active:scale-95 shadow-lg shadow-[#ef2950]/20"
+          className="flex items-center justify-center gap-x-2 w-full py-4 rounded-xl bg-gradient-to-r from-[#d9183b] to-[#20D5EC] text-white font-bold text-[16px] transition-transform active:scale-95 shadow-lg shadow-[#d9183b]/20"
         >
           <Plus className="size-6" strokeWidth={2.5} />
           Upload

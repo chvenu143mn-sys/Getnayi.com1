@@ -476,7 +476,7 @@ export default function ProfilePage() {
         </header>
 
         {/* Profile Info Skeleton matches layout styles perfectly */}
-        <div className="px-5 pt-4 pb-8 flex flex-col items-start border-b border-white/5 w-full">
+        <div className="px-5 pt-4 pb-8 flex flex-col items-start w-full">
           {/* Top Row: Avatar & Name */}
           <div className="flex items-center w-full mb-6">
             <div className="size-[84px] rounded-full bg-zinc-900 animate-pulse border-[1.5px] border-white/10 shrink-0" />
@@ -516,6 +516,9 @@ export default function ProfilePage() {
             <div className="w-12 h-10 bg-zinc-900 rounded-xl animate-pulse" />
           </div>
         </div>
+
+        {/* Distinct Visual Boundary */}
+        <div className="h-2 w-full bg-[#151518] border-y border-white/5" />
 
         {/* Video Grid Skeleton matching real 3x grid aspect */}
         <div className="grid grid-cols-3 gap-0.5 mt-0.5">
@@ -580,7 +583,7 @@ export default function ProfilePage() {
       </header>
 
       {/* Profile Info */}
-      <div className="px-5 pt-3 pb-8 flex flex-col items-start relative border-b border-white/5">
+      <div className="px-5 pt-3 pb-8 flex flex-col items-start relative">
          {/* Top Row: Avatar & Name */}
          <div className="flex items-center w-full mb-6 relative">
             <motion.div 
@@ -592,7 +595,7 @@ export default function ProfilePage() {
               {profile?.avatar_url ? (
                 <img src={profile.avatar_url} alt="Profile" className="size-full object-cover" />
               ) : (
-                <div className="size-full bg-zinc-800 flex items-center justify-center text-white/40 font-serif italic text-2xl font-bold">
+                <div className="size-full bg-zinc-800 flex items-center justify-center text-white/60 font-serif italic text-2xl font-bold">
                   {profile?.username?.charAt(0)?.toLowerCase() || 'u'}
                 </div>
               )}
@@ -665,7 +668,7 @@ export default function ProfilePage() {
         <div className="flex w-full gap-x-3 mb-4">
            <button type="button" aria-label="button"  
              onClick={() => setIsEditModalOpen(true)}
-             className="flex-1 bg-[#ef2950] hover:bg-[#ff3b61] active:scale-[0.98] text-white font-bold py-3.5 rounded-[12px] transition-all text-[15px] shadow-[0_4px_14px_rgba(239,41,80,0.3)] tracking-wide"
+             className="flex-1 bg-[#d9183b] hover:bg-[#f4284d] active:scale-[0.98] text-white font-bold py-3.5 rounded-[12px] transition-all text-[15px] shadow-[0_4px_14px_rgba(239,41,80,0.3)] tracking-wide"
            >
              Edit Profile
            </button>
@@ -686,15 +689,15 @@ export default function ProfilePage() {
             onClick={() => navigate('/creator-dashboard')}
             className="flex-1 bg-[#1c1c1e] hover:bg-white/10 active:scale-[0.98] text-white font-medium py-3 rounded-[12px] transition-all border border-white/5 flex flex-col items-center justify-center gap-y-1 tracking-wide group"
           >
-            <TrendingUp className="size-[18px] text-[#ef2950] group-hover:scale-110 transition-transform" />
+            <TrendingUp className="size-[18px] text-[#d9183b] group-hover:scale-110 transition-transform" />
             <span className="text-[12px] text-zinc-300">Creator Dashboard</span>
           </button>
           <button type="button" aria-label="button"  
             onClick={() => navigate('/settings/subscription')}
-            className="flex-1 bg-gradient-to-br from-[#ef2950]/10 to-transparent hover:bg-white/10 active:scale-[0.98] text-white font-medium py-3 rounded-[12px] transition-all border border-[#ef2950]/30 flex flex-col items-center justify-center gap-y-1 tracking-wide group"
+            className="flex-1 bg-gradient-to-br from-[#d9183b]/10 to-transparent hover:bg-white/10 active:scale-[0.98] text-white font-medium py-3 rounded-[12px] transition-all border border-[#d9183b]/30 flex flex-col items-center justify-center gap-y-1 tracking-wide group"
           >
-            <Shield className="size-[18px] text-[#ef2950] group-hover:scale-110 transition-transform" />
-            <span className="text-[12px] text-[#ef2950] font-semibold">Upgrade / Plan</span>
+            <Shield className="size-[18px] text-[#d9183b] group-hover:scale-110 transition-transform" />
+            <span className="text-[12px] text-[#d9183b] font-semibold">Upgrade / Plan</span>
           </button>
           
           {profile?.is_admin && (
@@ -702,7 +705,7 @@ export default function ProfilePage() {
               onClick={() => navigate('/admin')}
               className="flex-1 bg-[#1c1c1e] hover:bg-white/10 active:scale-[0.98] text-white font-medium py-3 rounded-[12px] transition-all border border-white/5 flex flex-col items-center justify-center gap-y-1 tracking-wide group"
             >
-              <Shield className="size-[18px] text-[#ef2950] group-hover:scale-110 transition-transform" />
+              <Shield className="size-[18px] text-[#d9183b] group-hover:scale-110 transition-transform" />
               <span className="text-[12px] text-zinc-300">Admin Panel</span>
             </button>
           )}
@@ -713,6 +716,9 @@ export default function ProfilePage() {
            <CreatorAnalytics videos={videos} engagementDetails={engagementDetails} />
         </div>
       </div>
+
+      {/* Distinct Visual Boundary */}
+      <div className="h-2 w-full bg-[#151518] border-y border-white/5" />
 
       {/* Video Grid */}
       <div className="flex-1 w-full p-2">
@@ -729,7 +735,7 @@ export default function ProfilePage() {
                    {video.thumbnail_url || video.main_product_image_url ? (
                      <img src={video.thumbnail_url || video.main_product_image_url} alt="Video thumbnail" className="size-full object-cover" />
                    ) : (
-                     <div className="size-full flex items-center justify-center bg-zinc-800 text-zinc-600">No Image</div>
+                     <div className="size-full flex items-center justify-center bg-zinc-800 text-zinc-500">No Image</div>
                    )}
                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80 pointer-events-none" />
                    
@@ -849,7 +855,7 @@ export default function ProfilePage() {
                     ) : profile?.avatar_url ? (
                       <img src={profile.avatar_url} alt="Avatar" className="size-full object-cover" />
                     ) : (
-                      <ImagePlus className="size-8 text-zinc-600 group-hover:text-white transition-colors" strokeWidth={1.5} />
+                      <ImagePlus className="size-8 text-zinc-500 group-hover:text-white transition-colors" strokeWidth={1.5} />
                     )}
                     <div className="absolute inset-0 bg-[#0c0c0e]/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                       <ImagePlus className="size-6 text-white" />
@@ -858,7 +864,7 @@ export default function ProfilePage() {
                   
                   {/* Photo Standard Dimensions & Crop Notice */}
                   <div className="mt-4 text-center max-w-[280px]">
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-[#ef2950] block mb-1">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-[#d9183b] block mb-1">
                       Instagram Recommended
                     </span>
                     <p className="text-[11px] text-zinc-400 font-medium leading-normal">
@@ -881,9 +887,9 @@ export default function ProfilePage() {
                     onChange={(e) => setEditBio(e.target.value)}
                     placeholder="Add a bio..."
                     maxLength={150}
-                    className="w-full bg-zinc-900 text-white rounded-xl py-3 px-4 min-h-[100px] border border-white/5 focus:outline-none focus:border-white/30 resize-none text-sm placeholder:text-zinc-600 transition-colors"
+                    className="w-full bg-zinc-900 text-white rounded-xl py-3 px-4 min-h-[100px] border border-white/5 focus:outline-none focus:border-white/30 resize-none text-sm placeholder:text-zinc-500 transition-colors"
                   />
-                  <div className="text-right text-[11px] text-zinc-600 mt-1 font-medium tracking-wide">
+                  <div className="text-right text-[11px] text-zinc-500 mt-1 font-medium tracking-wide">
                     {editBio.length} / 150
                   </div>
                 </div>
@@ -896,7 +902,7 @@ export default function ProfilePage() {
                       value={editInstagram}
                       onChange={(e) => setEditInstagram(e.target.value)}
                       placeholder="Instagram username"
-                      className="w-full bg-transparent text-white py-3.5 focus:outline-none text-sm placeholder:text-zinc-600 font-sans"
+                      className="w-full bg-transparent text-white py-3.5 focus:outline-none text-sm placeholder:text-zinc-500 font-sans"
                     />
                   </div>
                 </div>
@@ -909,7 +915,7 @@ export default function ProfilePage() {
                       value={editTiktok}
                       onChange={(e) => setEditTiktok(e.target.value)}
                       placeholder="TikTok username"
-                      className="w-full bg-transparent text-white py-3.5 focus:outline-none text-sm placeholder:text-zinc-600 font-sans"
+                      className="w-full bg-transparent text-white py-3.5 focus:outline-none text-sm placeholder:text-zinc-500 font-sans"
                     />
                   </div>
                 </div>
@@ -965,7 +971,7 @@ export default function ProfilePage() {
                       {profile?.avatar_url ? (
                          <img src={profile.avatar_url} alt="Profile" className="size-full object-cover" />
                       ) : (
-                         <div className="size-full bg-zinc-800 flex items-center justify-center text-white/40 font-serif italic text-lg font-bold">
+                         <div className="size-full bg-zinc-800 flex items-center justify-center text-white/60 font-serif italic text-lg font-bold">
                            {profile?.username?.charAt(0)?.toLowerCase() || 'u'}
                          </div>
                       )}
@@ -974,7 +980,7 @@ export default function ProfilePage() {
                        <h4 className="text-[15px] font-medium text-white tracking-wide mb-0.5">Account</h4>
                        <p className="text-[13px] text-zinc-400 tracking-wide">Edit profile, username, email</p>
                     </div>
-                    <ChevronRight className="size-[18px] text-zinc-600 group-hover:text-white/70 transition-colors" />
+                    <ChevronRight className="size-[18px] text-zinc-500 group-hover:text-white/70 transition-colors" />
                   </button>
 
                   <button type="button" aria-label="button"  
@@ -985,13 +991,13 @@ export default function ProfilePage() {
                     className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5"
                   >
                     <div className="size-[42px] rounded-full bg-[#1c1c1e] shrink-0 mr-4 flex items-center justify-center border border-white/5 group-hover:bg-zinc-800 transition-colors">
-                      <Bookmark className="size-5 text-[#ef2950]" strokeWidth={2.0} />
+                      <Bookmark className="size-5 text-[#d9183b]" strokeWidth={2.0} />
                     </div>
                     <div className="flex-1 mr-2">
                        <h4 className="text-[15px] font-medium text-white tracking-wide mb-0.5">Saved Items</h4>
                        <p className="text-[13px] text-zinc-400 tracking-wide">My bookmarked videos, products & collections</p>
                     </div>
-                    <ChevronRight className="size-[18px] text-zinc-600 group-hover:text-white/70 transition-colors" />
+                    <ChevronRight className="size-[18px] text-zinc-500 group-hover:text-white/70 transition-colors" />
                   </button>
 
                   <button type="button" aria-label="button"  onClick={() => alert('Privacy module coming soon')} className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5">
@@ -1002,7 +1008,7 @@ export default function ProfilePage() {
                        <h4 className="text-[15px] font-medium text-white tracking-wide mb-0.5">Privacy</h4>
                        <p className="text-[13px] text-zinc-400 tracking-wide">Security, hidden accounts</p>
                     </div>
-                    <ChevronRight className="size-[18px] text-zinc-600 group-hover:text-white/70 transition-colors" />
+                    <ChevronRight className="size-[18px] text-zinc-500 group-hover:text-white/70 transition-colors" />
                   </button>
 
                   <button type="button" aria-label="button"  onClick={() => alert('Notifications module coming soon')} className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5">
@@ -1013,7 +1019,7 @@ export default function ProfilePage() {
                        <h4 className="text-[15px] font-medium text-white tracking-wide mb-0.5">Notifications</h4>
                        <p className="text-[13px] text-zinc-400 tracking-wide">Push, email preferences</p>
                     </div>
-                    <ChevronRight className="size-[18px] text-zinc-600 group-hover:text-white/70 transition-colors" />
+                    <ChevronRight className="size-[18px] text-zinc-500 group-hover:text-white/70 transition-colors" />
                   </button>
 
                   <button type="button" aria-label="button"  onClick={() => {
@@ -1027,7 +1033,7 @@ export default function ProfilePage() {
                        <h4 className="text-[15px] font-medium text-white tracking-wide mb-0.5">Creator Verification</h4>
                        <p className="text-[13px] text-zinc-400 tracking-wide">Apply for verification badge</p>
                     </div>
-                    <ChevronRight className="size-[18px] text-zinc-600 group-hover:text-white/70 transition-colors" />
+                    <ChevronRight className="size-[18px] text-zinc-500 group-hover:text-white/70 transition-colors" />
                   </button>
 
                   <button type="button" aria-label="button"  onClick={toggleTheme} className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5">
@@ -1038,7 +1044,7 @@ export default function ProfilePage() {
                        <h4 className="text-[15px] font-medium text-white tracking-wide mb-0.5">Theme</h4>
                        <p className="text-[13px] text-zinc-400 tracking-wide">Dark</p>
                     </div>
-                    <ChevronRight className="size-[18px] text-zinc-600 group-hover:text-white/70 transition-colors" />
+                    <ChevronRight className="size-[18px] text-zinc-500 group-hover:text-white/70 transition-colors" />
                   </button>
 
                   <button type="button" aria-label="button"  onClick={() => alert('Help & Support module coming soon')} className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5">
@@ -1049,7 +1055,7 @@ export default function ProfilePage() {
                        <h4 className="text-[15px] font-medium text-white tracking-wide mb-0.5">Help & Support</h4>
                        <p className="text-[13px] text-zinc-400 tracking-wide">FAQs, reporting, contact us</p>
                     </div>
-                    <ChevronRight className="size-[18px] text-zinc-600 group-hover:text-white/70 transition-colors" />
+                    <ChevronRight className="size-[18px] text-zinc-500 group-hover:text-white/70 transition-colors" />
                   </button>
                 </div>
                 
@@ -1142,7 +1148,7 @@ export default function ProfilePage() {
                     value={editVideoCaptionText}
                     onChange={(e) => setEditVideoCaptionText(e.target.value)}
                     placeholder="Enter new caption..."
-                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 transition-colors h-24 resize-none"
+                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-white/20 transition-colors h-24 resize-none"
                   />
                   <div className="text-right text-xs text-zinc-500 mt-1">
                     {editVideoCaptionText.length} characters
@@ -1156,7 +1162,7 @@ export default function ProfilePage() {
                     value={editVideoProductName}
                     onChange={(e) => setEditVideoProductName(e.target.value)}
                     placeholder="Enter product name..."
-                     className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 transition-colors"
+                     className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-white/20 transition-colors"
                   />
                 </div>
 
@@ -1167,7 +1173,7 @@ export default function ProfilePage() {
                     value={editVideoProductPrice}
                     onChange={(e) => setEditVideoProductPrice(e.target.value)}
                     placeholder="Enter product price..."
-                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 transition-colors"
+                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-white/20 transition-colors"
                   />
                 </div>
                 <div>
@@ -1177,7 +1183,7 @@ export default function ProfilePage() {
                     value={editVideoProductUrl}
                     onChange={(e) => setEditVideoProductUrl(e.target.value)}
                     placeholder="Enter product URL..."
-                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 transition-colors"
+                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-white/20 transition-colors"
                   />
                 </div>
                 <div>
@@ -1185,7 +1191,7 @@ export default function ProfilePage() {
                   <select 
                     value={editVideoCategoryId}
                     onChange={(e) => setEditVideoCategoryId(e.target.value)}
-                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 transition-colors appearance-none"
+                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-white/20 transition-colors appearance-none"
                   >
                     <option value="" disabled>Select category...</option>
                     {categories.map(cat => (
@@ -1198,7 +1204,7 @@ export default function ProfilePage() {
                   <textarea 
                     value={editVideoTags}
                     onChange={(e) => setEditVideoTags(e.target.value)}
-                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 transition-colors h-20 resize-none font-mono text-sm leading-relaxed"
+                    className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-white/20 transition-colors h-20 resize-none font-mono text-sm leading-relaxed"
                   />
                 </div>
                 

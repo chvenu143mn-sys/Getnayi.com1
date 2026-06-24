@@ -179,7 +179,7 @@ function NotificationItem({
         onClick={handleItemClick}
         className={`flex items-center py-2.5 px-4 md:px-5 select-none touch-pan-y cursor-pointer transition-all duration-150 relative z-10 ${
           !notif.is_read
-            ? 'bg-[#0c0c0e] before:absolute before:inset-0 before:bg-gradient-to-r before:from-[#ef2950]/[0.03] before:to-transparent'
+            ? 'bg-[#0c0c0e] before:absolute before:inset-0 before:bg-gradient-to-r before:from-[#d9183b]/[0.03] before:to-transparent'
             : 'bg-[#0c0c0e]'
         }`}
       >
@@ -189,16 +189,16 @@ function NotificationItem({
             <div className="relative">
               <div className={`w-[36px] h-[36px] rounded-full flex items-center justify-center shadow-sm relative transition-colors ${
                 notif.iconColor === 'red'
-                  ? 'bg-rose-500/10 border border-rose-500/15 text-[#ef2950]'
+                  ? 'bg-rose-500/10 border border-rose-500/15 text-[#d9183b]'
                   : 'bg-blue-500/10 border border-blue-500/15 text-blue-400'
               }`}>
                 {notif.iconColor === 'red' ? (
-                  <AlertCircle className="size-4.5 text-[#ef2950]" strokeWidth={2.5} />
+                  <AlertCircle className="size-4.5 text-[#d9183b]" strokeWidth={2.5} />
                 ) : (
                   <ShieldCheck className="size-4.5 text-blue-400" strokeWidth={2} />
                 )}
               </div>
-              <span className="absolute -top-0.5 -right-0.5 size-2 bg-[#ef2950] rounded-full border border-[#0c0c0e] shadow-sm animate-pulse" />
+              <span className="absolute -top-0.5 -right-0.5 size-2 bg-[#d9183b] rounded-full border border-[#0c0c0e] shadow-sm animate-pulse" />
             </div>
           ) : (
             <div className="relative">
@@ -208,7 +208,7 @@ function NotificationItem({
               
               {/* Ultra-slick Miniature Activity Sub-badge (TikTok & Instagram signature UI) */}
               <div className={`absolute -bottom-1 -right-1 size-4 rounded-full flex items-center justify-center border border-[#0c0c0e] text-white shadow-md ${
-                notif.type === 'like' ? 'bg-[#ef2950]' :
+                notif.type === 'like' ? 'bg-[#d9183b]' :
                 notif.type === 'comment' ? 'bg-sky-500' :
                 notif.type === 'follow' ? 'bg-indigo-500' :
                 'bg-zinc-600'
@@ -243,8 +243,8 @@ function NotificationItem({
           </p>
 
           {notif.rejection_reason && (
-            <div className="mt-0.5 flex items-center gap-1 text-[10.5px] text-[#ef2950] font-black cursor-pointer hover:underline select-none">
-              <span className="size-1 bg-[#ef2950] rounded-full animate-ping" />
+            <div className="mt-0.5 flex items-center gap-1 text-[10.5px] text-[#d9183b] font-black cursor-pointer hover:underline select-none">
+              <span className="size-1 bg-[#d9183b] rounded-full animate-ping" />
               <span>View moderation details • Click here</span>
             </div>
           )}
@@ -263,7 +263,7 @@ function NotificationItem({
           {notif.type === 'follow' && (
             <button
               type="button"
-              className="h-6 px-3 bg-[#ef2950] hover:bg-[#ef2950]/90 active:scale-95 text-white font-black text-[10px] rounded-full tracking-wide shadow-sm transition-all"
+              className="h-6 px-3 bg-[#d9183b] hover:bg-[#d9183b]/90 active:scale-95 text-white font-black text-[10px] rounded-full tracking-wide shadow-sm transition-all"
               onClick={(e) => {
                 e.stopPropagation();
                 navigate('/profile');
@@ -278,12 +278,12 @@ function NotificationItem({
             <button 
               type="button"
               onClick={(e) => onToggleRead(notif.id, notif.is_read, e)}
-              className="p-1 rounded-full hover:bg-white/5 text-[#ef2950] transition-colors"
+              className="p-1 rounded-full hover:bg-white/5 text-[#d9183b] transition-colors"
               title="Mark as read"
             >
               <div className="relative size-1.5 flex items-center justify-center">
-                <span className="absolute size-2.5 bg-[#ef2950] rounded-full animate-ping opacity-75" />
-                <span className="size-1.5 bg-[#ef2950] rounded-full" />
+                <span className="absolute size-2.5 bg-[#d9183b] rounded-full animate-ping opacity-75" />
+                <span className="size-1.5 bg-[#d9183b] rounded-full" />
               </div>
             </button>
           )}
@@ -729,7 +729,7 @@ export default function Notifications() {
           {dbNotifications.some(n => !n.is_read) && (
             <button type="button"
               onClick={markAllAsRead}
-              className="text-xs font-bold text-[#ef2950] hover:text-[#f35775] transition-colors flex items-center gap-1 shrink-0"
+              className="text-xs font-bold text-[#d9183b] hover:text-[#f35775] transition-colors flex items-center gap-1 shrink-0"
             >
               <Check className="size-3.5" strokeWidth={2.5} />
               Mark all read
@@ -786,7 +786,7 @@ export default function Notifications() {
         {permission === 'default' && (
           <div className="mx-5 my-4 p-4 bg-zinc-900/80 border border-white/5 rounded-2xl flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="size-10 rounded-xl bg-[#ef2950]/15 flex items-center justify-center text-[#ef2950]">
+              <div className="size-10 rounded-xl bg-[#d9183b]/15 flex items-center justify-center text-[#d9183b]">
                 <Bell className="size-5" />
               </div>
               <div className="min-w-0">
@@ -796,7 +796,7 @@ export default function Notifications() {
             </div>
             <button type="button"
               onClick={requestPushPermission}
-              className="px-3.5 py-1.5 bg-[#ef2950] hover:bg-[#ef2950]/90 text-white rounded-lg text-xs font-semibold tracking-wide shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all shrink-0"
+              className="px-3.5 py-1.5 bg-[#d9183b] hover:bg-[#d9183b]/90 text-white rounded-lg text-xs font-semibold tracking-wide shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all shrink-0"
             >
               Enable
             </button>
@@ -805,7 +805,7 @@ export default function Notifications() {
 
         {loading ? (
           <div className="flex flex-col items-center justify-center p-12 text-zinc-500 text-sm h-full min-h-[300px]">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ef2950] mb-3"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#d9183b] mb-3"></div>
             Loading notifications...
           </div>
         ) : filteredNotifications.length === 0 ? (
@@ -817,7 +817,7 @@ export default function Notifications() {
             className="flex flex-col items-center justify-center py-20 text-center px-4 h-full min-h-[350px]"
           >
             <div className="relative mb-6">
-              <div className="absolute inset-0 bg-[#ef2950]/5 rounded-full blur-2xl transform scale-150 animate-pulse" />
+              <div className="absolute inset-0 bg-[#d9183b]/5 rounded-full blur-2xl transform scale-150 animate-pulse" />
               <div className="relative size-20 rounded-3xl bg-zinc-900 border border-white/5 flex items-center justify-center text-zinc-400 shadow-xl">
                 <BellOff className="size-9 text-zinc-500" strokeWidth={1.5} />
               </div>
@@ -878,7 +878,7 @@ export default function Notifications() {
               onClick={(e) => e.stopPropagation()}
               className="w-full max-w-md bg-[#121215] border border-white/10 rounded-[24px] overflow-hidden shadow-2xl p-6"
             >
-              <div className="flex items-center gap-3 mb-4 text-[#ef2950]">
+              <div className="flex items-center gap-3 mb-4 text-[#d9183b]">
                 <div className="size-10 rounded-xl bg-rose-500/10 flex items-center justify-center border border-rose-500/15">
                   <AlertCircle className="size-5" />
                 </div>
@@ -964,7 +964,7 @@ export default function Notifications() {
                 {/* Pop-over Top Left Icon Indicator based on type */}
                 <div className={`p-3 rounded-2xl ${
                   previewNotification.type === 'system'
-                    ? 'bg-rose-500/10 border border-rose-500/15 text-[#ef2950]'
+                    ? 'bg-rose-500/10 border border-rose-500/15 text-[#d9183b]'
                     : previewNotification.type === 'like'
                     ? 'bg-rose-500/10 border border-rose-500/15 text-rose-400'
                     : previewNotification.type === 'comment'
@@ -987,7 +987,7 @@ export default function Notifications() {
                 </div>
 
                 <div>
-                  <h4 className="text-[11px] font-semibold uppercase tracking-widest text-[#ef2950]">
+                  <h4 className="text-[11px] font-semibold uppercase tracking-widest text-[#d9183b]">
                     {previewNotification.type === 'system' ? 'System Notification' : `${previewNotification.type} Activity`}
                   </h4>
                   <h3 className="text-base font-bold text-white tracking-tight mt-0.5">
@@ -1043,14 +1043,14 @@ export default function Notifications() {
                         className="size-full object-cover" 
                         referrerPolicy="no-referrer"
                       />
-                      <div className="absolute inset-0 bg-[#ef2950]/10 flex items-center justify-center">
+                      <div className="absolute inset-0 bg-[#d9183b]/10 flex items-center justify-center">
                         <span className="size-2.5 bg-white rounded-full animate-pulse" />
                       </div>
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1 text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
-                      <Info className="size-3 text-[#ef2950]" /> Video Attachment
+                      <Info className="size-3 text-[#d9183b]" /> Video Attachment
                     </div>
                     <p className="text-xs font-semibold text-white truncate mt-1">
                       {parseVideoProduct(previewNotification.video.caption).captionText || 'Untitled Video'}
@@ -1082,7 +1082,7 @@ export default function Notifications() {
                     handleDeleteNotification(previewNotification.id, e);
                     setPreviewNotification(null);
                   }}
-                  className="py-3 px-4 bg-rose-500/10 hover:bg-rose-500/15 active:bg-rose-500/5 hover:border-rose-500/20 text-[#ef2950] border border-rose-500/10 rounded-xl font-semibold text-xs tracking-wider uppercase transition-all duration-200 flex items-center justify-center gap-2"
+                  className="py-3 px-4 bg-rose-500/10 hover:bg-rose-500/15 active:bg-rose-500/5 hover:border-rose-500/20 text-[#d9183b] border border-rose-500/10 rounded-xl font-semibold text-xs tracking-wider uppercase transition-all duration-200 flex items-center justify-center gap-2"
                 >
                   <Trash2 className="size-4" />
                   Delete

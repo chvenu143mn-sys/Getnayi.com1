@@ -112,7 +112,7 @@ export function SortableCategoryItem({
               <img src={cat.image_url} alt={cat.name} className="size-10 rounded-md object-cover border border-white/10 mx-1 shrink-0 bg-white/5" />
             ) : (
               <div className="size-10 rounded-md bg-white/5 border border-white/10 mx-1 shrink-0 flex items-center justify-center">
-                <ImagePlus className="size-4 text-zinc-600" />
+                <ImagePlus className="size-4 text-zinc-500" />
               </div>
             )}
             <div className="flex flex-col gap-1">

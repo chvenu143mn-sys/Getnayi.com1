@@ -82,7 +82,7 @@ export default function AdminSubscriptions() {
               placeholder="Search users..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-zinc-900 border border-white/10 rounded-lg py-2 pl-9 pr-4 text-sm focus:outline-none focus:border-[#ef2950]"
+              className="w-full bg-zinc-900 border border-white/10 rounded-lg py-2 pl-9 pr-4 text-sm focus:outline-none focus:border-[#d9183b]"
             />
           </div>
         </div>

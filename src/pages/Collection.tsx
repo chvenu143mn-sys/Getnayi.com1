@@ -131,7 +131,7 @@ export default function Collection() {
   if (loading) {
     return (
       <div className="flex-1 w-full bg-[#0c0c0e] text-white flex flex-col h-full items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-[#ef2950]" />
+        <Loader2 className="size-8 animate-spin text-[#d9183b]" />
       </div>
     );
   }
@@ -180,7 +180,7 @@ export default function Collection() {
                 {item.video.thumbnail_url || item.video.main_product_image_url ? (
                   <img src={item.video.thumbnail_url || item.video.main_product_image_url} alt="Video thumbnail" className="size-full object-cover" />
                 ) : (
-                  <div className="size-full flex items-center justify-center text-zinc-600 bg-zinc-800 text-xs">No img</div>
+                  <div className="size-full flex items-center justify-center text-zinc-500 bg-zinc-800 text-xs">No img</div>
                 )}
                 <div className="absolute inset-0 bg-[#0c0c0e]/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                   <Play className="size-8 fill-white/80 text-white/80" />
@@ -222,7 +222,7 @@ export default function Collection() {
                     <div 
                       key={item.video.id} 
                       onClick={() => toggleSelect(item.video.id)}
-                      className={`aspect-[3/4] bg-zinc-900 rounded-lg overflow-hidden relative cursor-pointer border-2 transition-colors ${isSelected ? 'border-[#ef2950]' : 'border-transparent'}`}
+                      className={`aspect-[3/4] bg-zinc-900 rounded-lg overflow-hidden relative cursor-pointer border-2 transition-colors ${isSelected ? 'border-[#d9183b]' : 'border-transparent'}`}
                     >
                       {item.video.thumbnail_url || item.video.main_product_image_url ? (
                         <img src={item.video.thumbnail_url || item.video.main_product_image_url} className="size-full object-cover"  alt="" />
@@ -230,7 +230,7 @@ export default function Collection() {
                         <div className="size-full bg-zinc-800" />
                       )}
                       
-                      <div className={`absolute top-2 right-2 size-5 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'border-[#ef2950] bg-[#ef2950]' : 'border-white/50 bg-[#0c0c0e]/20'}`}>
+                      <div className={`absolute top-2 right-2 size-5 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'border-[#d9183b] bg-[#d9183b]' : 'border-white/50 bg-[#0c0c0e]/20'}`}>
                         {isSelected && <Check className="size-3 text-white" strokeWidth={3} />}
                       </div>
                     </div>
@@ -247,7 +247,7 @@ export default function Collection() {
                 </button>
                 <button type="button" aria-label="button"  
                   onClick={handleShare}
-                  className="flex-1 py-3.5 rounded-xl font-semibold bg-[#ef2950] hover:bg-[#ff3b61] text-white transition-colors"
+                  className="flex-1 py-3.5 rounded-xl font-semibold bg-[#d9183b] hover:bg-[#f4284d] text-white transition-colors"
                 >
                   Create Link
                 </button>

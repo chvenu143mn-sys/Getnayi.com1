@@ -407,6 +407,7 @@ export default function Explore() {
           <div className="flex flex-col gap-8 pt-3 pb-8">
             
             {/* SECTION 2: FOR YOU (The largest section, 2-column product discovery grid) */}
+            <div className="h-2 w-full bg-[#151518] border-y border-white/5 my-4" />
             <section className="px-4">
                <div className="flex items-center justify-between mb-4">
                   <div>
@@ -468,7 +469,7 @@ export default function Explore() {
                                    <img src={isReal ? product.profiles?.avatar_url : product.creatorAvatar} className="size-5 rounded-full object-cover border border-white/20 shrink-0" alt="" />
                                    <div className="min-w-0">
                                      <span className="text-[10px] text-zinc-400 font-bold block truncate">{creatorName}</span>
-                                     <span className="text-[8px] text-zinc-600 block">{product.saves || (isReal ? product.saved_videos?.[0]?.count : '3.2k')} saves</span>
+                                     <span className="text-[8px] text-zinc-500 block">{product.saves || (isReal ? product.saved_videos?.[0]?.count : '3.2k')} saves</span>
                                    </div>
                                 </div>
 

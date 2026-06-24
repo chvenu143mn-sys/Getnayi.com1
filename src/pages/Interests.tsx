@@ -112,7 +112,7 @@ export default function Interests() {
               }}
               className={`px-5 py-3 rounded-full font-medium text-sm transition-all border ${
                 selected.size === categories.length 
-                  ? 'bg-[#ef2950] border-[#ef2950] text-white shadow-lg shadow-[#ef2950]/20' 
+                  ? 'bg-[#d9183b] border-[#d9183b] text-white shadow-lg shadow-[#d9183b]/20' 
                   : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10'
               } flex items-center gap-2`}
             >
@@ -129,7 +129,7 @@ export default function Interests() {
                 onClick={() => toggleCategory(cat.id)}
                 className={`px-5 py-3 rounded-full font-medium text-sm transition-all border ${
                   isSelected 
-                    ? 'bg-[#ef2950] border-[#ef2950] text-white shadow-lg shadow-[#ef2950]/20' 
+                    ? 'bg-[#d9183b] border-[#d9183b] text-white shadow-lg shadow-[#d9183b]/20' 
                     : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10'
                 } flex items-center gap-2`}
               >

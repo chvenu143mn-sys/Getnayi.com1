@@ -30,6 +30,7 @@
     "@types/node-cron": "^3.0.11",
     "@upstash/redis": "^1.38.0",
     "@vitejs/plugin-react": "^5.0.4",
+    "bcryptjs": "^3.0.3",
     "canvas-confetti": "^1.9.4",
     "cheerio": "^1.2.0",
     "clsx": "^2.1.1",
@@ -63,7 +64,6 @@
     "recharts": "^3.8.1",
     "sharp": "^0.34.5",
     "sonner": "^2.0.7",
-    "stripe": "^22.2.0",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.1.14",
     "tldts": "^7.4.0",
@@ -73,6 +73,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
+    "@types/bcryptjs": "^2.4.6",
     "@types/canvas-confetti": "^1.9.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",

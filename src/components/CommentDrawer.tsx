@@ -697,7 +697,7 @@ export function CommentDrawer({
 
           {loading ? (
             <div className="h-full flex flex-col items-center justify-center py-20 text-zinc-500 gap-2">
-              <Loader2 className="size-6 animate-spin text-[#ef2950]" />
+              <Loader2 className="size-6 animate-spin text-[#d9183b]" />
             </div>
           ) : rootComments.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center py-20 text-zinc-500 gap-2">
@@ -731,7 +731,7 @@ export function CommentDrawer({
                           </div>
                         )}
                         {comment.user_id === videoOwnerId && (
-                          <div className="absolute -bottom-0.5 -right-0.5 bg-[#ef2950] rounded-full p-[2px] border border-[#121212]">
+                          <div className="absolute -bottom-0.5 -right-0.5 bg-[#d9183b] rounded-full p-[2px] border border-[#121212]">
                             <Pin className="size-1.5 text-white fill-white" />
                           </div>
                         )}
@@ -749,19 +749,19 @@ export function CommentDrawer({
                             </span>
                           )}
                           {comment.user_id === videoOwnerId && (
-                            <span className="px-1 text-[8px] bg-[#ef2950]/20 text-[#ef2950] font-bold uppercase tracking-wider rounded">
+                            <span className="px-1 text-[8px] bg-[#d9183b]/20 text-[#d9183b] font-bold uppercase tracking-wider rounded">
                               Creator
                             </span>
                           )}
-                          <span className="text-[10px] text-white/40 font-medium">
+                          <span className="text-[10px] text-white/60 font-medium">
                             {new Date(comment.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                           </span>
                         </div>
 
                         {/* Pinned Indicator badge */}
                         {comment.is_pinned && (
-                          <div className="flex items-center gap-1 text-[#ef2950] font-bold text-[10px] pt-0.5 tracking-wide uppercase">
-                            <Pin className="size-2.5 fill-[#ef2950]" />
+                          <div className="flex items-center gap-1 text-[#d9183b] font-bold text-[10px] pt-0.5 tracking-wide uppercase">
+                            <Pin className="size-2.5 fill-[#d9183b]" />
                             <span>Pinned by creator</span>
                           </div>
                         )}
@@ -771,7 +771,7 @@ export function CommentDrawer({
                         </p>
 
                         {/* Action details bar */}
-                        <div className="flex items-center gap-4 text-[11px] font-bold text-white/40 pt-1 flex-wrap">
+                        <div className="flex items-center gap-4 text-[11px] font-bold text-white/60 pt-1 flex-wrap">
                           <button
                             type="button"
                             onClick={() => handleReplyClick(comment)}
@@ -784,9 +784,9 @@ export function CommentDrawer({
                             <button
                               type="button"
                               onClick={() => handlePinComment(comment.id)}
-                              className={`${comment.is_pinned ? 'text-[#ef2950]' : 'hover:text-white/80'} transition-colors flex items-center gap-0.5 cursor-pointer`}
+                              className={`${comment.is_pinned ? 'text-[#d9183b]' : 'hover:text-white/80'} transition-colors flex items-center gap-0.5 cursor-pointer`}
                             >
-                              <Pin className={`size-3 ${comment.is_pinned ? 'fill-[#ef2950]' : ''}`} />
+                              <Pin className={`size-3 ${comment.is_pinned ? 'fill-[#d9183b]' : ''}`} />
                               <span>{comment.is_pinned ? 'Unpin' : 'Pin'}</span>
                             </button>
                           )}
@@ -796,11 +796,11 @@ export function CommentDrawer({
                               type="button"
                               disabled={deletingCommentId !== null}
                               onClick={() => handleDeleteComment(comment.id)}
-                              className={`${confirmDeleteId === comment.id ? 'text-red-500 font-bold' : 'text-white/40 hover:text-red-400'} disabled:opacity-40 transition-colors flex items-center gap-1 cursor-pointer`}
+                              className={`${confirmDeleteId === comment.id ? 'text-red-500 font-bold' : 'text-white/60 hover:text-red-400'} disabled:opacity-40 transition-colors flex items-center gap-1 cursor-pointer`}
                             >
                               {deletingCommentId === comment.id ? (
                                 <span className="flex items-center gap-1">
-                                  <Loader2 className="size-3 animate-spin text-[#ef2950]" />
+                                  <Loader2 className="size-3 animate-spin text-[#d9183b]" />
                                   <span>Deleting...</span>
                                 </span>
                               ) : (
@@ -863,11 +863,11 @@ export function CommentDrawer({
                                         </span>
                                       )}
                                       {reply.user_id === videoOwnerId && (
-                                        <span className="px-1 text-[8px] bg-[#ef2950]/20 text-[#ef2950] font-bold uppercase tracking-wider rounded">
+                                        <span className="px-1 text-[8px] bg-[#d9183b]/20 text-[#d9183b] font-bold uppercase tracking-wider rounded">
                                           Creator
                                         </span>
                                       )}
-                                      <span className="text-[10px] text-white/40 font-medium">
+                                      <span className="text-[10px] text-white/60 font-medium">
                                         {new Date(reply.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                                       </span>
                                     </div>
@@ -881,7 +881,7 @@ export function CommentDrawer({
                                     </p>
 
                                     {/* Sub-reply features */}
-                                    <div className="flex items-center gap-4 text-[11px] font-bold text-white/40 pt-1">
+                                    <div className="flex items-center gap-4 text-[11px] font-bold text-white/60 pt-1">
                                       <button
                                         type="button"
                                         onClick={() => handleReplyClick(reply)}
@@ -895,11 +895,11 @@ export function CommentDrawer({
                                           type="button"
                                           disabled={deletingCommentId !== null}
                                           onClick={() => handleDeleteComment(reply.id)}
-                                          className={`${confirmDeleteId === reply.id ? 'text-red-500 font-bold' : 'text-white/40 hover:text-red-400'} disabled:opacity-40 transition-colors flex items-center gap-1 cursor-pointer`}
+                                          className={`${confirmDeleteId === reply.id ? 'text-red-500 font-bold' : 'text-white/60 hover:text-red-400'} disabled:opacity-40 transition-colors flex items-center gap-1 cursor-pointer`}
                                         >
                                           {deletingCommentId === reply.id ? (
                                             <span className="flex items-center gap-1">
-                                              <Loader2 className="size-3 animate-spin text-[#ef2950]" />
+                                              <Loader2 className="size-3 animate-spin text-[#d9183b]" />
                                               <span>Deleting...</span>
                                             </span>
                                           ) : (
@@ -966,7 +966,7 @@ export function CommentDrawer({
                     className="px-4 py-2 text-left text-[13.5px] font-sans text-white hover:bg-white/5 flex items-center justify-between transition-colors cursor-pointer group"
                   >
                     <span className="font-semibold text-white/90 group-hover:text-white">@{username}</span>
-                    <span className="text-[11px] text-[#ef2950] group-hover:text-[#ff3b61] font-semibold">Select</span>
+                    <span className="text-[11px] text-[#d9183b] group-hover:text-[#f4284d] font-semibold">Select</span>
                   </button>
                 ))}
               </div>
@@ -1016,7 +1016,7 @@ export function CommentDrawer({
                   setInputText('');
                   setSelectedMentions([]);
                 }}
-                className="text-white/40 hover:text-white size-6 flex items-center justify-center rounded-full bg-white/5 border border-white/10 active:scale-90 transition-all cursor-pointer"
+                className="text-white/60 hover:text-white size-6 flex items-center justify-center rounded-full bg-white/5 border border-white/10 active:scale-90 transition-all cursor-pointer"
                 title="Cancel reply"
               >
                 <X className="size-3.5" />
@@ -1051,7 +1051,7 @@ export function CommentDrawer({
               {selectedMentions.map((mention, index) => (
                 <div 
                   key={index}
-                  className="bg-[#ef2950]/15 text-[#ef2950] pl-2.5 pr-1 py-0.5 rounded-full text-xs font-bold flex items-center gap-1 shrink-0 border border-[#ef2950]/30 select-none font-sans"
+                  className="bg-[#d9183b]/15 text-[#d9183b] pl-2.5 pr-1 py-0.5 rounded-full text-xs font-bold flex items-center gap-1 shrink-0 border border-[#d9183b]/30 select-none font-sans"
                 >
                   <span>@{mention.username}</span>
                   <button 
@@ -1076,7 +1076,7 @@ export function CommentDrawer({
               <button
                 type="submit"
                 disabled={isSubmitting || (!inputText.trim() && selectedMentions.length === 0)}
-                className="p-1 text-[#ef2950] hover:text-[#ff3b61] disabled:text-white/20 transition-colors disabled:scale-100 active:scale-90 ml-auto"
+                className="p-1 text-[#d9183b] hover:text-[#f4284d] disabled:text-white/20 transition-colors disabled:scale-100 active:scale-90 ml-auto"
               >
                 {isSubmitting ? (
                   <Loader2 className="size-4 animate-spin" />

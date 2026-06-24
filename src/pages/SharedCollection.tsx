@@ -49,7 +49,7 @@ export default function SharedCollection() {
   if (loading) {
     return (
       <div className="flex-1 w-full bg-[#0c0c0e] text-white flex flex-col h-full items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-[#ef2950]" />
+        <Loader2 className="size-8 animate-spin text-[#d9183b]" />
       </div>
     );
   }
@@ -81,7 +81,7 @@ export default function SharedCollection() {
                 {video.thumbnail_url || video.main_product_image_url ? (
                   <img src={video.thumbnail_url || video.main_product_image_url} alt="Video thumbnail" className="size-full object-cover" />
                 ) : (
-                  <div className="size-full flex items-center justify-center text-zinc-600 bg-zinc-800 text-xs">No img</div>
+                  <div className="size-full flex items-center justify-center text-zinc-500 bg-zinc-800 text-xs">No img</div>
                 )}
                 <div className="absolute inset-0 bg-[#0c0c0e]/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                   <Play className="size-8 fill-white/80 text-white/80" />

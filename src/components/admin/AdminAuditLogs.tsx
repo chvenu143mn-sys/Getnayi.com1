@@ -50,7 +50,7 @@ export default function AdminAuditLogs({ auditLogs }: AdminAuditLogsProps) {
                 <tr key={log.id} className="hover:bg-white/[0.01] transition-all text-zinc-400">
                   <td className="py-4 px-5 text-white font-mono text-[11px]">
                     <span className="flex items-center gap-1.5 whitespace-nowrap">
-                      <Calendar className="size-3.5 text-zinc-600" />
+                      <Calendar className="size-3.5 text-zinc-500" />
                       {new Date(log.created_at).toLocaleString()}
                     </span>
                   </td>

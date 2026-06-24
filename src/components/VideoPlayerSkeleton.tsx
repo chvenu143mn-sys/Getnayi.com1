@@ -49,13 +49,13 @@ export function VideoPlayerSkeleton({ className }: { className?: string }) {
           {/* Tags / Store link */}
           <div className="mb-2 flex items-center gap-2">
             <div className="w-16 h-4 bg-white/10 rounded animate-pulse" />
-            <div className="w-20 h-4 bg-[#ef2950]/30 rounded animate-pulse" />
+            <div className="w-20 h-4 bg-[#d9183b]/30 rounded animate-pulse" />
           </div>
 
           {/* Username area */}
           <div className="flex items-center gap-2 mb-2">
             <div className="w-32 h-5 bg-white/10 rounded animate-pulse" />
-            <div className="w-16 h-5 bg-[#ef2950]/50 rounded-full animate-pulse ml-2" />
+            <div className="w-16 h-5 bg-[#d9183b]/50 rounded-full animate-pulse ml-2" />
           </div>
 
           {/* Caption text */}

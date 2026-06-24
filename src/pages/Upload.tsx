@@ -896,7 +896,7 @@ export default function Upload() {
   if (approvalStatus === 'loading') {
     return (
       <div className="flex-1 flex items-center justify-center p-8 bg-[#0c0c0e]">
-        <Loader2 className="w-8 h-8 animate-spin text-[#ef2950]" />
+        <Loader2 className="w-8 h-8 animate-spin text-[#d9183b]" />
       </div>
     );
   }
@@ -931,9 +931,9 @@ export default function Upload() {
       <div className="flex-1 overflow-y-auto w-full px-5 pb-16">
         
         {/* Upgrade Banner for Free Users */}
-        <div className="mb-6 rounded-xl bg-gradient-to-r from-zinc-900 to-[#1c1c1e] border border-[#ef2950]/30 p-3 flex items-center justify-between shadow-lg cursor-pointer" onClick={() => navigate('/subscription')}>
+        <div className="mb-6 rounded-xl bg-gradient-to-r from-zinc-900 to-[#1c1c1e] border border-[#d9183b]/30 p-3 flex items-center justify-between shadow-lg cursor-pointer" onClick={() => navigate('/subscription')}>
           <div className="flex items-center gap-3">
-            <div className="size-8 rounded-full bg-[#ef2950]/20 text-[#ef2950] flex items-center justify-center shrink-0">
+            <div className="size-8 rounded-full bg-[#d9183b]/20 text-[#d9183b] flex items-center justify-center shrink-0">
               <Zap className="size-4" />
             </div>
             <div>
@@ -1161,7 +1161,7 @@ export default function Upload() {
                 value={manualTags}
                 onChange={(e) => handleTagsInputChange(e.target.value)}
                 placeholder="tech, #gadget, review"
-                className="w-full bg-[#151518] text-white/90 placeholder-zinc-600 rounded-xl px-4 py-3.5 text-[15px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm"
+                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3.5 text-[15px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm"
               />
               <p className="text-[12px] text-zinc-500 mt-1 pl-1">Separate tags with commas.</p>
             </div>
@@ -1208,7 +1208,7 @@ export default function Upload() {
               </div>
               {isVerifyingUrl && (
                 <p className="text-zinc-500 text-[11px] mt-1 pl-1 font-sans animate-pulse flex items-center gap-1">
-                  <RefreshCw className="size-3 animate-spin text-[#ef2950]" /> Verifying website link & scraping metadata...
+                  <RefreshCw className="size-3 animate-spin text-[#d9183b]" /> Verifying website link & scraping metadata...
                 </p>
               )}
               {urlValidationError && !isVerifyingUrl && (
@@ -1403,7 +1403,7 @@ export default function Upload() {
              <button type="button" aria-label="button"  
                onClick={handleUpload}
                disabled={!file || !isUrlValid || !mainProductFile || !productName.trim() || !productPrice.trim() || isUploading}
-               className="flex-1 w-full bg-[#ef2950] hover:bg-[#ff3b61] disabled:opacity-50 active:scale-[0.98] text-white font-bold py-4 px-6 rounded-2xl transition-all flex items-center justify-center text-[16px] shadow-[0_4px_14px_rgba(239,41,80,0.5)] tracking-wide"
+               className="flex-1 w-full bg-[#d9183b] hover:bg-[#f4284d] disabled:opacity-50 active:scale-[0.98] text-white font-bold py-4 px-6 rounded-2xl transition-all flex items-center justify-center text-[16px] shadow-[0_4px_14px_rgba(239,41,80,0.5)] tracking-wide"
              >
                {isUploading ? <Loader2 className="size-5 animate-spin" /> : 'Publish Post'}
              </button>
@@ -1421,7 +1421,7 @@ export default function Upload() {
               <svg className="absolute inset-0 size-full -rotate-90 transform" viewBox="0 0 100 100">
                 <circle 
                   cx="50" cy="50" r="46" 
-                  className="fill-none stroke-[#ef2950] transition-all duration-300 ease-out"
+                  className="fill-none stroke-[#d9183b] transition-all duration-300 ease-out"
                   strokeWidth="8"
                   strokeLinecap="round"
                   strokeDasharray={`${progress * 2.89} 289`}
@@ -1434,7 +1434,7 @@ export default function Upload() {
             
             <div className="text-center flex flex-col items-center gap-1.5 w-full">
               <h3 className="text-lg font-bold text-white tracking-wide flex items-center gap-2">
-                 <Loader2 className="size-5 animate-spin text-[#ef2950]" /> 
+                 <Loader2 className="size-5 animate-spin text-[#d9183b]" /> 
                  {uploadStatusText}
               </h3>
               <p className="text-zinc-400 text-[13px] text-center max-w-[280px]">
@@ -1449,7 +1449,7 @@ export default function Upload() {
       {validationPopup && (
         <div className="fixed inset-0 bg-[#0c0c0e]/85 backdrop-blur-sm z-[100] flex items-center justify-center p-6 animate-fadeIn" onClick={(e) => { e.stopPropagation(); }}>
           <div className="bg-[#151518] border border-red-500/25 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl relative">
-            <div className="size-12 bg-red-500/10 text-[#ef2950] rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+            <div className="size-12 bg-red-500/10 text-[#d9183b] rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
               <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
@@ -1458,14 +1458,14 @@ export default function Upload() {
             <div className="gap-y-1.5 mb-6 text-zinc-400 text-xs leading-relaxed text-left max-h-[160px] overflow-y-auto pl-1 pr-1">
               {validationPopup.map((err, idx) => (
                 <p key={idx} className="flex items-start gap-2 text-zinc-300">
-                  <span className="text-[#ef2950] shrink-0 font-bold">•</span>
+                  <span className="text-[#d9183b] shrink-0 font-bold">•</span>
                   <span>{err}</span>
                 </p>
               ))}
             </div>
             <button type="button" aria-label="button" 
               onClick={(e) => { e.stopPropagation(); setValidationPopup(null); }}
-              className="w-full bg-[#ef2950] hover:bg-[#ff3b61] text-white font-bold py-3 px-4 rounded-xl transition-all shadow-[0_4px_10px_rgba(239,41,80,0.3)] hover:scale-[1.01]"
+              className="w-full bg-[#d9183b] hover:bg-[#f4284d] text-white font-bold py-3 px-4 rounded-xl transition-all shadow-[0_4px_10px_rgba(239,41,80,0.3)] hover:scale-[1.01]"
             >
               Understand & Adjust
             </button>
@@ -1532,7 +1532,7 @@ export default function Upload() {
                 {hashtags && (
                   <div className="mt-1.5 pointer-events-auto flex flex-wrap gap-1">
                     {hashtags.split(',').slice(0,3).map((tag, i) => (
-                      <span key={i} className="text-[#ef2950] font-semibold text-[13px] drop-shadow-md shadow-black font-sans">{tag.trim().startsWith('#') ? tag.trim() : '#' + tag.trim()}</span>
+                      <span key={i} className="text-[#d9183b] font-semibold text-[13px] drop-shadow-md shadow-black font-sans">{tag.trim().startsWith('#') ? tag.trim() : '#' + tag.trim()}</span>
                     ))}
                   </div>
                 )}
@@ -1559,7 +1559,7 @@ export default function Upload() {
                   <div className="size-[48px] rounded-full border-[1.5px] border-white/80 bg-zinc-800 overflow-hidden shrink-0 shadow-sm flex flex-col justify-center items-center">
                      <span className="text-white text-xl font-bold">{user?.user_metadata?.username ? user.user_metadata.username.charAt(0).toUpperCase() : 'U'}</span>
                   </div>
-                  <button type="button" title="Follow" className="absolute -bottom-2 left-1/2 -translate-x-1/2 size-6 rounded-full bg-[#ef2950] text-white flex items-center justify-center shadow-md border-[2px] border-black transition-transform active:scale-95 z-20">
+                  <button type="button" title="Follow" className="absolute -bottom-2 left-1/2 -translate-x-1/2 size-6 rounded-full bg-[#d9183b] text-white flex items-center justify-center shadow-md border-[2px] border-black transition-transform active:scale-95 z-20">
                      <Plus className="size-4" strokeWidth={3} />
                   </button>
                 </div>
@@ -1602,7 +1602,7 @@ export default function Upload() {
             <div className="flex flex-col gap-3">
               <button type="button" aria-label="button" 
                 onClick={(e) => { e.stopPropagation(); setShowLinkWarning(false); }}
-                className="w-full bg-[#ef2950] hover:bg-[#ff3b61] text-white font-bold py-3 px-4 rounded-xl transition-all shadow-[0_4px_10px_rgba(239,41,80,0.3)] hover:scale-[1.01]"
+                className="w-full bg-[#d9183b] hover:bg-[#f4284d] text-white font-bold py-3 px-4 rounded-xl transition-all shadow-[0_4px_10px_rgba(239,41,80,0.3)] hover:scale-[1.01]"
               >
                 Change Link
               </button>

@@ -202,7 +202,7 @@ export const ProfileImageCropper: React.FC<ProfileImageCropperProps> = ({
         <button
           type="button"
           onClick={handleApplyCrop}
-          className="h-10 px-4 flex items-center gap-1.5 text-xs font-bold text-[#ef2950] bg-[#ef2950]/10 hover:bg-[#ef2950]/20 active:scale-95 transition-all rounded-full border border-[#ef2950]/20 cursor-pointer"
+          className="h-10 px-4 flex items-center gap-1.5 text-xs font-bold text-[#d9183b] bg-[#d9183b]/10 hover:bg-[#d9183b]/20 active:scale-95 transition-all rounded-full border border-[#d9183b]/20 cursor-pointer"
         >
           <Check className="size-4" />
           <span>Done</span>
@@ -233,7 +233,7 @@ export const ProfileImageCropper: React.FC<ProfileImageCropperProps> = ({
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-          className="relative w-[280px] h-[280px] rounded-full overflow-hidden bg-zinc-900 border-2 border-[#ef2950]/40 shadow-inner cursor-move select-none"
+          className="relative w-[280px] h-[280px] rounded-full overflow-hidden bg-zinc-900 border-2 border-[#d9183b]/40 shadow-inner cursor-move select-none"
           style={{
             touchAction: 'none'
           }}
@@ -286,7 +286,7 @@ export const ProfileImageCropper: React.FC<ProfileImageCropperProps> = ({
               step={0.01}
               value={zoom}
               onChange={(e) => setZoom(parseFloat(e.target.value))}
-              className="flex-1 accent-[#ef2950] h-1.5 bg-zinc-800 rounded-lg cursor-pointer appearance-none"
+              className="flex-1 accent-[#d9183b] h-1.5 bg-zinc-800 rounded-lg cursor-pointer appearance-none"
             />
             <button
               type="button"

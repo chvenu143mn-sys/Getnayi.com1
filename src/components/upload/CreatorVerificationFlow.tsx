@@ -79,21 +79,21 @@ export function CreatorVerificationFlow({ approvalStatus, setApprovalStatus }: C
               <div className="absolute top-[18px] left-[30px] right-[30px] h-[1px] bg-zinc-800 -z-5" />
               
               <div className="flex flex-col items-center gap-2 animate-pulse">
-                <div className="size-[36px] rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center font-bold text-[14px] text-zinc-600">
+                <div className="size-[36px] rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center font-bold text-[14px] text-zinc-500">
                   1
                 </div>
                 <span className="text-[12px] font-medium tracking-wide text-zinc-500">Apply</span>
               </div>
 
               <div className="flex flex-col items-center gap-2 animate-pulse delay-75">
-                <div className="size-[36px] rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center font-bold text-[14px] text-zinc-600">
+                <div className="size-[36px] rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center font-bold text-[14px] text-zinc-500">
                   2
                 </div>
                 <span className="text-[12px] font-medium tracking-wide text-zinc-500">Review</span>
               </div>
 
               <div className="flex flex-col items-center gap-2 animate-pulse delay-150">
-                <div className="size-[36px] rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center font-bold text-[14px] text-zinc-600">
+                <div className="size-[36px] rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center font-bold text-[14px] text-zinc-500">
                   3
                 </div>
                 <span className="text-[12px] font-medium text-zinc-500 tracking-wide">Verified</span>
@@ -160,7 +160,7 @@ export function CreatorVerificationFlow({ approvalStatus, setApprovalStatus }: C
                 <div className={cn(
                   "size-[36px] rounded-full flex items-center justify-center font-bold text-[14px] transition-all duration-300",
                   (approvalStatus === 'unauthorized' || approvalStatus === 'rejected' || approvalStatus === 'pending')
-                    ? "bg-[#ef2950] text-white shadow-[0_0_15px_rgba(239,41,80,0.4)]"
+                    ? "bg-[#d9183b] text-white shadow-[0_0_15px_rgba(239,41,80,0.4)]"
                     : "bg-zinc-900 text-zinc-500 border border-zinc-800"
                 )}>
                   1
@@ -177,7 +177,7 @@ export function CreatorVerificationFlow({ approvalStatus, setApprovalStatus }: C
                 <div className={cn(
                   "size-[36px] rounded-full flex items-center justify-center font-bold text-[14px] transition-all duration-300",
                   approvalStatus === 'pending'
-                    ? "bg-[#ef2950] text-white shadow-[0_0_15px_rgba(239,41,80,0.4)]"
+                    ? "bg-[#d9183b] text-white shadow-[0_0_15px_rgba(239,41,80,0.4)]"
                     : "bg-[#161618] text-zinc-500 border border-zinc-800"
                 )}>
                   2
@@ -231,7 +231,7 @@ export function CreatorVerificationFlow({ approvalStatus, setApprovalStatus }: C
                       className={cn(
                         "flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-lg transition-all duration-300",
                         onboardingType === 'creator'
-                          ? "bg-[#ef2950] text-white shadow-md shadow-[#ef2950]/15"
+                          ? "bg-[#d9183b] text-white shadow-md shadow-[#d9183b]/15"
                           : "text-zinc-500 hover:text-zinc-300"
                       )}
                     >
@@ -280,7 +280,7 @@ export function CreatorVerificationFlow({ approvalStatus, setApprovalStatus }: C
                             <stop offset="100%" stopColor="#ea580c" />
                           </linearGradient>
                           <linearGradient id="redGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#ef2950" />
+                            <stop offset="0%" stopColor="#d9183b" />
                             <stop offset="100%" stopColor="#b91c1c" />
                           </linearGradient>
                         </defs>
@@ -304,8 +304,8 @@ export function CreatorVerificationFlow({ approvalStatus, setApprovalStatus }: C
                         'Agree to guidelines'
                       ].map((text, i) => (
                         <div key={i} className="flex items-center gap-3.5">
-                          <div className="size-[18px] rounded-full bg-[#ef2950]/15 border border-[#ef2950]/30 flex items-center justify-center shrink-0">
-                            <svg className="size-2.5 text-[#ef2950]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="4">
+                          <div className="size-[18px] rounded-full bg-[#d9183b]/15 border border-[#d9183b]/30 flex items-center justify-center shrink-0">
+                            <svg className="size-2.5 text-[#d9183b]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="4">
                               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                             </svg>
                           </div>
@@ -316,7 +316,7 @@ export function CreatorVerificationFlow({ approvalStatus, setApprovalStatus }: C
 
                     <button type="button" aria-label="button"  
                       onClick={() => setShowForm(true)}
-                      className="w-full mt-10 py-[17px] bg-[#ef2950] text-white font-semibold text-[15px] tracking-wide rounded-2.5xl flex items-center justify-center hover:bg-[#d61e40] transition-all duration-300 shadow-lg shadow-[#ef2950]/20 active:scale-[0.98]"
+                      className="w-full mt-10 py-[17px] bg-[#d9183b] text-white font-semibold text-[15px] tracking-wide rounded-2.5xl flex items-center justify-center hover:bg-[#d61e40] transition-all duration-300 shadow-lg shadow-[#d9183b]/20 active:scale-[0.98]"
                     >
                       Start Verification
                     </button>
@@ -344,7 +344,7 @@ export function CreatorVerificationFlow({ approvalStatus, setApprovalStatus }: C
                           value={appPortfolioUrl}
                           onChange={(e) => setAppPortfolioUrl(e.target.value)}
                           placeholder={onboardingType === 'creator' ? "https://example.com/portfolio-or-social" : "https://brandstorefront.com"}
-                          className="w-full bg-zinc-950 border border-zinc-900 text-white placeholder-zinc-600 rounded-xl focus:ring-2 focus:ring-[#ef2950] focus:border-transparent py-3.5 pl-11 pr-4 outline-none transition-all"
+                          className="w-full bg-zinc-950 border border-zinc-900 text-white placeholder-zinc-500 rounded-xl focus:ring-2 focus:ring-[#d9183b] focus:border-transparent py-3.5 pl-11 pr-4 outline-none transition-all"
                         />
                       </div>
                     </div>
@@ -363,7 +363,7 @@ export function CreatorVerificationFlow({ approvalStatus, setApprovalStatus }: C
                           value={appSocialUrl}
                           onChange={(e) => setAppSocialUrl(e.target.value)}
                           placeholder={onboardingType === 'creator' ? "https://instagram.com/username" : "https://instagram.com/brandname"}
-                          className="w-full bg-zinc-950 border border-zinc-900 text-white placeholder-zinc-600 rounded-xl focus:ring-2 focus:ring-[#ef2950] focus:border-transparent py-3.5 pl-11 pr-4 outline-none transition-all"
+                          className="w-full bg-zinc-950 border border-zinc-900 text-white placeholder-zinc-500 rounded-xl focus:ring-2 focus:ring-[#d9183b] focus:border-transparent py-3.5 pl-11 pr-4 outline-none transition-all"
                         />
                       </div>
                     </div>
@@ -382,7 +382,7 @@ export function CreatorVerificationFlow({ approvalStatus, setApprovalStatus }: C
                           onChange={(e) => setAppNotes(e.target.value)}
                           placeholder={onboardingType === 'creator' ? "Tell us about yourself, your favorite product categories, or what inspires your try-on videos..." : "Introduce your brand catalog size, product categories, and goals for partnering with creators..."}
                           rows={4}
-                          className="w-full bg-zinc-950 border border-zinc-900 text-white placeholder-zinc-600 rounded-xl focus:ring-2 focus:ring-[#ef2950] focus:border-transparent py-3.5 pl-11 pr-4 outline-none transition-all resize-none"
+                          className="w-full bg-zinc-950 border border-zinc-900 text-white placeholder-zinc-500 rounded-xl focus:ring-2 focus:ring-[#d9183b] focus:border-transparent py-3.5 pl-11 pr-4 outline-none transition-all resize-none"
                         />
                       </div>
                     </div>
@@ -404,7 +404,7 @@ export function CreatorVerificationFlow({ approvalStatus, setApprovalStatus }: C
                       <button aria-label="button" 
                         type="submit"
                         disabled={isSubmittingApp}
-                        className="flex-1 bg-[#ef2950] hover:bg-[#d61e40] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-[#ef2950]/20 flex justify-center items-center text-sm"
+                        className="flex-1 bg-[#d9183b] hover:bg-[#d61e40] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-[#d9183b]/20 flex justify-center items-center text-sm"
                       >
                         {isSubmittingApp ? <Loader2 className="size-5 animate-spin" /> : 'Request Access'}
                       </button>

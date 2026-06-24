@@ -191,7 +191,7 @@ export default function Saved() {
               {activeTab === tab && (
                 <motion.div
                   layoutId="activeTabBadgeSaved"
-                  className="absolute bottom-[-2px] left-0 right-0 h-[3px] bg-[#ef2950] rounded-t-full"
+                  className="absolute bottom-[-2px] left-0 right-0 h-[3px] bg-[#d9183b] rounded-t-full"
                   initial={false}
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 />
@@ -204,7 +204,7 @@ export default function Saved() {
       <div className="flex-1 overflow-y-auto no-scrollbar pt-5 px-5">
         {loading ? (
           <div className="py-20 flex flex-col items-center justify-center text-zinc-500 gap-y-3">
-            <Loader2 className="size-8 animate-spin text-[#ef2950]" />
+            <Loader2 className="size-8 animate-spin text-[#d9183b]" />
             <p className="text-sm font-medium">Loading saved items...</p>
           </div>
         ) : (
@@ -216,7 +216,7 @@ export default function Saved() {
                   <div className="py-16 text-center text-zinc-500 flex flex-col items-center">
                     <ShoppingBag className="size-12 text-zinc-700 mb-3" strokeWidth={1.5} />
                     <p className="text-sm font-medium">No saved products yet.</p>
-                    <p className="text-xs text-zinc-600 mt-1">Bookmark review videos to save their products.</p>
+                    <p className="text-xs text-zinc-500 mt-1">Bookmark review videos to save their products.</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-3.5 mb-6">
@@ -236,7 +236,7 @@ export default function Saved() {
                               target="_blank" 
                               rel="noopener noreferrer"
                               onClick={(e) => e.stopPropagation()}
-                              className="p-2.5 bg-[#ef2950] text-white rounded-full hover:bg-[#ff3b61] active:scale-95 transition-all shadow-lg"
+                              className="p-2.5 bg-[#d9183b] text-white rounded-full hover:bg-[#f4284d] active:scale-95 transition-all shadow-lg"
                             >
                               <ExternalLink className="size-4" />
                             </a>
@@ -246,7 +246,7 @@ export default function Saved() {
                            <h4 className="text-[14px] font-semibold text-white truncate tracking-tight">{product.name}</h4>
                            <span className="text-[11px] font-medium text-zinc-500 mt-0.5">by @{product.creator.toLowerCase()}</span>
                            <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-white/5">
-                             <span className="text-[12px] font-semibold text-[#ef2950] bg-[#ef2950]/10 px-2 py-0.5 rounded-md">{product.price}</span>
+                             <span className="text-[12px] font-semibold text-[#d9183b] bg-[#d9183b]/10 px-2 py-0.5 rounded-md">{product.price}</span>
                              <button type="button" aria-label="button"  onClick={() => navigate(`/video/${product.id}`)} className="text-[11px] text-zinc-400 hover:text-white flex items-center gap-0.5">
                                Watch <ChevronRight className="size-3" />
                              </button>
@@ -266,7 +266,7 @@ export default function Saved() {
                   <div className="py-16 text-center text-zinc-500 flex flex-col items-center">
                     <VideoIcon className="size-12 text-zinc-700 mb-3" strokeWidth={1.5} />
                     <p className="text-sm font-medium">No saved videos yet.</p>
-                    <p className="text-xs text-zinc-600 mt-1">Videos you bookmark from the home feed will show here.</p>
+                    <p className="text-xs text-zinc-500 mt-1">Videos you bookmark from the home feed will show here.</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-3 gap-2.5 mb-6">
@@ -285,7 +285,7 @@ export default function Saved() {
                         {item.video.thumbnail_url || item.video.main_product_image_url ? (
                           <img src={item.video.thumbnail_url || item.video.main_product_image_url} alt="Video thumbnail" className="size-full object-cover" />
                         ) : (
-                          <div className="size-full flex items-center justify-center bg-zinc-800 text-zinc-600">No Image</div>
+                          <div className="size-full flex items-center justify-center bg-zinc-800 text-zinc-500">No Image</div>
                         )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-85 pointer-events-none" />
                         <div className="absolute bottom-2 left-2 flex items-center shadow-sm">
@@ -308,7 +308,7 @@ export default function Saved() {
                   <div className="py-16 text-center text-zinc-500 flex flex-col items-center">
                     <svg className="size-12 text-zinc-700 mb-3" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
                     <p className="text-sm font-medium">No followed creators yet.</p>
-                    <p className="text-xs text-zinc-600 mt-1">Creators you follow will appear here.</p>
+                    <p className="text-xs text-zinc-500 mt-1">Creators you follow will appear here.</p>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-y-3 mb-6">
@@ -322,7 +322,7 @@ export default function Saved() {
                           {profile.avatar_url ? (
                             <img src={profile.avatar_url} alt={profile.username} className="size-full object-cover" />
                           ) : (
-                            <div className="size-full flex items-center justify-center text-white/40 bg-zinc-800 text-lg uppercase font-semibold">
+                            <div className="size-full flex items-center justify-center text-white/60 bg-zinc-800 text-lg uppercase font-semibold">
                               {profile.username?.charAt(0)}
                             </div>
                           )}
@@ -331,7 +331,7 @@ export default function Saved() {
                           <h4 className="font-semibold text-white text-[15px] tracking-tight">{profile.username}</h4>
                           {profile.bio && <p className="text-zinc-500 text-[13px] truncate whitespace-nowrap overflow-hidden pr-2 mt-0.5">{profile.bio}</p>}
                         </div>
-                        <ChevronRight className="size-5 text-zinc-600 group-hover:text-white transition-colors" />
+                        <ChevronRight className="size-5 text-zinc-500 group-hover:text-white transition-colors" />
                       </button>
                     ))}
                   </div>
@@ -353,7 +353,7 @@ export default function Saved() {
                         {collection.image_url ? (
                           <img src={collection.image_url} alt={collection.name} className="size-full object-cover" />
                         ) : (
-                          <div className="size-full flex items-center justify-center bg-[#151518] text-zinc-600">
+                          <div className="size-full flex items-center justify-center bg-[#151518] text-zinc-500">
                              <Bookmark className="size-8 text-zinc-700" strokeWidth={1.5} />
                           </div>
                         )}
@@ -415,8 +415,8 @@ export default function Saved() {
                   }}
                   className="w-full flex items-center p-4 bg-white/5 hover:bg-white/10 rounded-2xl transition-colors border border-white/10 border-dashed"
                 >
-                  <div className="size-12 rounded-xl bg-[#ef2950]/20 flex items-center justify-center mr-4">
-                    <Plus className="size-6 text-[#ef2950]" />
+                  <div className="size-12 rounded-xl bg-[#d9183b]/20 flex items-center justify-center mr-4">
+                    <Plus className="size-6 text-[#d9183b]" />
                   </div>
                   <span className="font-semibold text-white/90">Create New Collection</span>
                 </button>
@@ -433,7 +433,7 @@ export default function Saved() {
                         <img src={col.image_url} alt={col.name} className="size-full object-cover" />
                       ) : (
                         <div className="size-full flex items-center justify-center">
-                          <Bookmark className="size-5 text-zinc-600" />
+                          <Bookmark className="size-5 text-zinc-500" />
                         </div>
                       )}
                     </div>

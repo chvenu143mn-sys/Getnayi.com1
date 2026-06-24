@@ -78,7 +78,7 @@ export function BottomNav() {
             {/* Left Cyan Border */}
             <div className="absolute left-0 rounded-lg size-full bg-[#20D5EC] -translate-x-[3px]" />
             {/* Right Pink Border */}
-            <div className="absolute right-0 rounded-lg size-full bg-[#EF2950] translate-x-[3px]" />
+            <div className="absolute right-0 rounded-lg size-full bg-[#d9183b] translate-x-[3px]" />
             {/* Center White */}
             <div className="absolute rounded-lg size-full bg-white flex items-center justify-center z-10 transition-transform active:scale-95">
               <Plus className="size-[18px] text-black" strokeWidth={3} />
@@ -90,13 +90,13 @@ export function BottomNav() {
           to="/notifications"
           className={cn(
             "flex-1 flex flex-col items-center justify-center gap-y-1 transition-colors relative",
-            location.pathname === '/notifications' ? "text-[#ef2950]" : "text-white/60 hover:text-white"
+            location.pathname === '/notifications' ? "text-[#d9183b]" : "text-white/60 hover:text-white"
           )}
         >
           <div className="relative">
             <MessageSquare className="size-[22px] mb-0.5" strokeWidth={location.pathname === '/notifications' ? 2.5 : 2} />
             {hasUnread && (
-               <div className="absolute top-0 right-0 size-2 bg-[#ef2950] rounded-full border border-black transform translate-x-1/3 -translate-y-1/4 animate-pulse"></div>
+               <div className="absolute top-0 right-0 size-2 bg-[#d9183b] rounded-full border border-black transform translate-x-1/3 -translate-y-1/4 animate-pulse"></div>
             )}
           </div>
           <span className="text-[10px] font-sans font-medium">Inbox</span>

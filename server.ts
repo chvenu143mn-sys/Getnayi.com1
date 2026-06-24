@@ -19,7 +19,6 @@ import helmet from "helmet";
 import cors from "cors";
 import multer from "multer";
 import cron from "node-cron";
-import Stripe from "stripe";
 import ffmpeg from "fluent-ffmpeg";
 import ffmpegInstaller from "@ffmpeg-installer/ffmpeg";
 import fs from "fs";
@@ -29,6 +28,7 @@ import rateLimit from "express-rate-limit";
 import { parse } from "tldts";
 import { GoogleGenAI } from "@google/genai";
 import Razorpay from "razorpay";
+import bcrypt from "bcryptjs";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
@@ -663,15 +663,6 @@ const rateLimitMiddleware = async (
   }
 };
 
-let stripeClient: Stripe | null = null;
-export function getStripe(): Stripe | null {
-  if (!stripeClient && process.env.STRIPE_SECRET_KEY) {
-    stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: "2023-10-16" as any,
-    });
-  }
-  return stripeClient;
-}
 
 let razorpayClient: Razorpay | null = null;
 export function getRazorpay(): Razorpay | null {
@@ -765,96 +756,6 @@ function setupCronJobs() {
     }
   });
 
-  // Nightly CRON job to proactively synchronize Stripe subscriptions
-  // Runs at midnight server time every day
-  cron.schedule("0 0 * * *", async () => {
-    logger.info(
-      "🔄 [CRON] Starting nightly Stripe subscription reconciliation...",
-    );
-    if (!supabaseAdmin) {
-      logger.info({}, "❌ [CRON] Supabase Admin not initialized. Skipping.");
-      return;
-    }
-    const stripe = getStripe();
-    if (!stripe) {
-      logger.info(
-        "❌ [CRON] STRIPE_SECRET_KEY not provided. Skipping subscription reconciliation.",
-      );
-      return;
-    }
-
-    try {
-      // 1. Fetch all currently active premium users who have a stripe_subscription_id
-      const { data: premiumUsers, error } = await supabaseAdmin
-        .from("profiles")
-        .select("id, stripe_subscription_id")
-        .eq("is_premium", true)
-        .not("stripe_subscription_id", "is", null);
-
-      if (error) {
-        logger.error({ err: error }, "❌ [CRON] Error fetching premium users:");
-        return;
-      }
-
-      logger.info(
-        `[CRON] Found ${premiumUsers?.length || 0} premium users to verify.`,
-      );
-
-      let canceledCount = 0;
-      let failedCount = 0;
-
-      // 2. Process each user and check their actual Stripe state
-      if (premiumUsers && premiumUsers.length > 0) {
-        for (const user of premiumUsers) {
-          try {
-            const subscription = await stripe.subscriptions.retrieve(
-              user.stripe_subscription_id as string,
-            );
-            // If subscription is naturally canceled, unpaid, or past_due to the point of cancellation
-            if (
-              new Set(["canceled", "unpaid", "past_due"]).has(
-                subscription.status,
-              )
-            ) {
-              // Update local DB to revoke premium
-              await supabaseAdmin
-                .from("profiles")
-                .update({ is_premium: false })
-                .eq("id", user.id);
-              logger.info(
-                `[CRON] 🚨 Revoked premium for user ${user.id} -> Sub status: ${subscription.status}`,
-              );
-              canceledCount++;
-            }
-          } catch (err: any) {
-            logger.error(
-              `❌ [CRON] Failed to verify subscription for user ${user.id}:`,
-              err?.message,
-            );
-            // If the subscription is missing/deleted entirely from Stripe, revoke premium
-            if (err?.statusCode === 404) {
-              await supabaseAdmin
-                .from("profiles")
-                .update({ is_premium: false })
-                .eq("id", user.id);
-              logger.info(
-                `[CRON] 🚨 Revoked premium for user ${user.id} (Subscription 404 Not Found)`,
-              );
-              canceledCount++;
-            } else {
-              failedCount++;
-            }
-          }
-        }
-      }
-
-      logger.info(
-        `✅ [CRON] Reconciliation complete. Revoked: ${canceledCount}, API Errors: ${failedCount}.`,
-      );
-    } catch (e) {
-      logger.error({ err: e }, "❌ [CRON] Unhandled error during reconciliation:");
-    }
-  });
 }
 
 async function startServer() {
@@ -917,15 +818,25 @@ app.get('/api/metrics', async (req, res) => {
   };
   app.use(apmLog);
 
+  // HTTP to HTTPS redirect middleware
+  app.use((req, res, next) => {
+    // Check if the request was forwarded via HTTP
+    if (req.headers["x-forwarded-proto"] && req.headers["x-forwarded-proto"] !== "https") {
+      // Use 308 Permanent Redirect to preserve request method and body
+      return res.redirect(308, `https://${req.headers.host || req.hostname}${req.originalUrl}`);
+    }
+    next();
+  });
+
   // Added for VIBESCAN security compliance
   app.use(
     helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }),
   ); // allow external resources like videos
   // Specific helmet configurations to address findings
   app.use(
-    helmet.hsts({ maxAge: 31536000, includeSubDomains: true, preload: true }),
+    helmet.hsts({ maxAge: 63072000, includeSubDomains: true }),
   );
-  app.use(helmet.frameguard({ action: "deny" })); // Clickjacking mitigation
+  // Removed frameguard deny to allow AI Studio iframe preview
   app.use(helmet.noSniff());
   app.disable("x-powered-by");
 
@@ -939,10 +850,14 @@ app.get('/api/metrics', async (req, res) => {
   app.use(
     cors({
       origin: (origin, callback) => {
-        if (!origin || origin === "null") {
-          callback(null, true);
-        } else {
+        // More restrictive CORS
+        if (!origin) return callback(null, true);
+        const allowedOrigins = ['localhost', 'run.app', 'getnayi.com'];
+        const isAllowed = allowedOrigins.some(allowed => origin.includes(allowed));
+        if (isAllowed) {
           callback(null, origin);
+        } else {
+          callback(new Error('Not allowed by CORS'));
         }
       },
       credentials: true,
@@ -1349,6 +1264,8 @@ app.get('/api/metrics', async (req, res) => {
             });
         }
 
+        const hashedPassword = await bcrypt.hash(password, 12);
+
         const { data, error } = await supabaseAdmin.auth.signUp({
           email,
           password,
@@ -1369,6 +1286,11 @@ app.get('/api/metrics', async (req, res) => {
           }
           return res.status(400).json({ error: error.message });
         }
+        
+        if (data?.user) {
+          await supabaseAdmin.from('profiles').update({ password_hash: hashedPassword }).eq('id', data.user.id);
+        }
+
         res.json({ success: true, data });
       } catch (err: any) {
         {
@@ -1377,6 +1299,46 @@ app.get('/api/metrics', async (req, res) => {
       }
       }
     },
+  );
+
+  app.post(
+    "/api/auth/login",
+    idempotencyMiddleware,
+    signupLimiter,
+    async (req, res) => {
+      try {
+        const { email, password } = req.body;
+        if (!supabaseAdmin) throw new Error("Database not configured");
+
+        const { data: profile } = await supabaseAdmin.from('profiles').select('password_hash, id').eq('email', email).maybeSingle();
+        
+        if (profile && profile.password_hash) {
+           const isMatch = await bcrypt.compare(password, profile.password_hash);
+           if (!isMatch) {
+              return res.status(401).json({ error: "Invalid login credentials" });
+           }
+        } else if (profile) {
+           // Migration for existing users
+           const newHash = await bcrypt.hash(password, 12);
+           await supabaseAdmin.from('profiles').update({ password_hash: newHash }).eq('id', profile.id);
+        }
+
+        // Authenticate with Supabase to get the session
+        const { data, error } = await supabaseAdmin.auth.signInWithPassword({
+          email,
+          password
+        });
+
+        if (error) {
+          return res.status(401).json({ error: error.message });
+        }
+
+        return res.json({ success: true, data });
+      } catch (err: any) {
+        logger.error({ err: err, reqId: (req as any).requestId }, "API Error");
+        res.status(500).json({ error: "Internal Server Error", referenceCode: (req as any).requestId });
+      }
+    }
   );
 
   // --- CREATOR TRUST SYSTEM ---
