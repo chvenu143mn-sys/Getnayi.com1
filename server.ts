@@ -5403,10 +5403,10 @@ Example: {"productName": "Awesome Shirt", "productPrice": "1499"}`;
         throw error;
       }
 
-      const baseUrl = process.env.VITE_APP_URL || "https://aisles.app";
+      const baseUrl = process.env.VITE_APP_URL || "https://getnayi.com";
 
       // Define static routes
-      const staticUrls = ["", "/explore", "/search", "/auth"].map(
+      const staticUrls = ["", "/explore", "/trending", "/privacy", "/terms"].map(
         (route) => `
         <url>
           <loc>${baseUrl}${route}</loc>

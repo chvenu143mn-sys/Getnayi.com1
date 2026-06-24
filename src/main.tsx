@@ -2,9 +2,30 @@ import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import { HelmetProvider } from 'react-helmet-async';
 import { MotionConfig } from 'motion/react';
+import posthog from 'posthog-js';
 import App from './App.tsx';
 import './index.css';
 import { supabase } from './lib/supabase';
+
+// Initialize PostHog (opt-out by default until consent is granted via Cookiebot)
+if (import.meta.env.VITE_POSTHOG_KEY) {
+  posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
+    api_host: import.meta.env.VITE_POSTHOG_HOST || 'https://us.i.posthog.com',
+    opt_out_capturing_by_default: true,
+  });
+}
+
+// Handle Cookiebot consent
+window.addEventListener('CookiebotOnAccept', () => {
+  if (window.Cookiebot && window.Cookiebot.consent.statistics) {
+    posthog.opt_in_capturing();
+  } else {
+    posthog.opt_out_capturing();
+  }
+});
+window.addEventListener('CookiebotOnDecline', () => {
+  posthog.opt_out_capturing();
+});
 
 // Intercept completely harmless Supabase refresh token errors that trigger test failures
 const originalConsoleError = console.error;

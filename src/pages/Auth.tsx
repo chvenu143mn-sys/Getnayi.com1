@@ -4,6 +4,7 @@ import DOMPurify from 'dompurify';
 import { motion, AnimatePresence } from 'motion/react';
 import { Mail, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import posthog from 'posthog-js';
 
 export default function AuthPage() {
   const navigate = useNavigate();
@@ -70,6 +71,11 @@ export default function AuthPage() {
               access_token: result.data.session.access_token,
               refresh_token: result.data.session.refresh_token
            });
+           
+           if (result.data.user) {
+             posthog.identify(result.data.user.id, { email });
+             posthog.capture('user_logged_in');
+           }
         }
       } else {
         const response = await fetch('/api/auth/signup', {
@@ -88,6 +94,11 @@ export default function AuthPage() {
         
         const { data } = result;
         
+        if (data.user) {
+          posthog.identify(data.user.id, { email, username: DOMPurify.sanitize(username.trim()) });
+          posthog.capture('user_signed_up');
+        }
+
         if (data.user && (!data.session || data.session === null)) {
           setSuccess('Success! Please check your email for a confirmation link.');
         }
