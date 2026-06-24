@@ -832,8 +832,14 @@ async function startServer() {
   const authRateLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 5,
-    keyGenerator: (req) => req.ip || 'unknown',
-    message: { error: 'Too many requests, please try again later.' },
+    keyGenerator: (req) => {
+      const ip = req.headers['x-forwarded-for'] || req.ip || 'unknown';
+      return Array.isArray(ip) ? ip[0] : ip;
+    },
+    handler: (req, res) => {
+      res.setHeader('Retry-After', '60');
+      res.status(429).json({ error: 'Too many attempts. Please try again in a minute.' });
+    },
     standardHeaders: true,
     legacyHeaders: false,
   });
@@ -843,9 +849,16 @@ async function startServer() {
     max: 10,
     keyGenerator: (req) => {
       const authHeader = req.headers.authorization;
-      return authHeader ? authHeader : (req.ip || 'unknown');
+      if (authHeader) {
+        return Array.isArray(authHeader) ? authHeader[0] : authHeader;
+      }
+      const ip = req.headers['x-forwarded-for'] || req.ip || 'unknown';
+      return Array.isArray(ip) ? ip[0] : ip;
     },
-    message: { error: 'Too many requests, please try again later.' },
+    handler: (req, res) => {
+      res.setHeader('Retry-After', '60');
+      res.status(429).json({ error: 'Too many requests to AI endpoint. Please try again in a minute.' });
+    },
     standardHeaders: true,
     legacyHeaders: false,
   });
@@ -855,9 +868,16 @@ async function startServer() {
     max: 10,
     keyGenerator: (req) => {
       const authHeader = req.headers.authorization;
-      return authHeader ? authHeader : (req.ip || 'unknown');
+      if (authHeader) {
+        return Array.isArray(authHeader) ? authHeader[0] : authHeader;
+      }
+      const ip = req.headers['x-forwarded-for'] || req.ip || 'unknown';
+      return Array.isArray(ip) ? ip[0] : ip;
     },
-    message: { error: 'Too many requests, please try again later.' },
+    handler: (req, res) => {
+      res.setHeader('Retry-After', '60');
+      res.status(429).json({ error: 'Too many requests to payment checkout. Please try again in a minute.' });
+    },
     standardHeaders: true,
     legacyHeaders: false,
   });
@@ -865,7 +885,10 @@ async function startServer() {
   app.use('/api/auth/login', authRateLimiter);
   app.use('/api/auth/signup', authRateLimiter);
   app.use('/api/auth/password-reset', authRateLimiter);
+  app.use('/api/auth/reset-password', authRateLimiter);
+  app.use('/api/ai/chat', aiRateLimiter);
   app.use('/api/ai', aiRateLimiter);
+  app.use('/api/payment/checkout', paymentRateLimiter);
   app.use('/api/payment', paymentRateLimiter);
 
   await ensureUserPasswordsTable();
