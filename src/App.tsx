@@ -29,8 +29,6 @@ const CategoryFeed = React.lazy(() => import('./pages/CategoryFeed'));
 const ShortUrlRedirect = React.lazy(() => import('./pages/ShortUrlRedirect'));
 const UpdatePasswordPage = React.lazy(() => import('./pages/UpdatePassword'));
 const Interests = React.lazy(() => import('./pages/Interests'));
-const PrivacyPolicy = React.lazy(() => import('./pages/PrivacyPolicy'));
-const TermsOfService = React.lazy(() => import('./pages/TermsOfService'));
 
 import { isSupabaseConfigured } from './lib/supabase';
 import { Database } from 'lucide-react';
@@ -54,21 +52,14 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-import { Footer } from './components/Footer';
-
 function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-full w-full bg-[#0c0c0e] overflow-hidden">
       <Sidebar />
       <div className="flex-1 relative w-full h-full flex flex-col justify-center">
         <div className="w-full h-full xl:max-w-[1024px] lg:max-w-[800px] md:max-w-[600px] mx-auto relative flex flex-col md:border-x md:border-white/10 bg-[#0c0c0e] shadow-2xl">
-          <div className="flex-1 overflow-y-auto w-full relative no-scrollbar pb-[calc(60px+env(safe-area-bottom))] md:pb-0">
-            <div className="min-h-full flex flex-col">
-              <div className="flex-1">
-                {children}
-              </div>
-              <Footer />
-            </div>
+          <div className="flex-1 overflow-y-auto w-full relative no-scrollbar pb-[calc(60px+env(safe-area-inset-bottom))] md:pb-0">
+            {children}
           </div>
         </div>
       </div>
@@ -205,8 +196,6 @@ function AppContent() {
               </ProtectedRoute>
             } 
           />
-          <Route path="/privacy" element={<MainLayout><PrivacyPolicy /></MainLayout>} />
-          <Route path="/terms" element={<MainLayout><TermsOfService /></MainLayout>} />
           <Route path="*" element={
             <MainLayout>
               <div className="flex flex-col items-center justify-center p-8 text-center h-[50vh]">

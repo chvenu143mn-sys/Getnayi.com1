@@ -28,7 +28,6 @@ import rateLimit from "express-rate-limit";
 import { parse } from "tldts";
 import { GoogleGenAI } from "@google/genai";
 import Razorpay from "razorpay";
-import bcrypt from "bcryptjs";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
@@ -761,16 +760,6 @@ function setupCronJobs() {
 async function startServer() {
   const app = express();
 
-  // Enforce HTTPS in production
-  app.use((req, res, next) => {
-    if (process.env.NODE_ENV === "production") {
-      if (req.headers["x-forwarded-proto"] !== "https" && !req.secure) {
-        return res.redirect(301, `https://${req.headers.host}${req.url}`);
-      }
-    }
-    next();
-  });
-
 app.use((req, res, next) => {
   (req as any).requestId = req.headers['x-request-id'] || crypto.randomUUID();
   res.setHeader('x-request-id', (req as any).requestId);
@@ -793,7 +782,7 @@ app.get('/api/metrics', async (req, res) => {
       process.env.COOKIE_SECRET || crypto.randomBytes(32).toString("hex"),
     ),
   );
-  const PORT = 3000;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
   // Setup Observability (APM) and structured request logging (e.g. for Datadog ingestion)
   const apmLog = (
@@ -828,25 +817,14 @@ app.get('/api/metrics', async (req, res) => {
   };
   app.use(apmLog);
 
-  // HTTP to HTTPS redirect middleware
-  app.use((req, res, next) => {
-    // Check if the request was forwarded via HTTP
-    if (req.headers["x-forwarded-proto"] && req.headers["x-forwarded-proto"] !== "https") {
-      // Use 308 Permanent Redirect to preserve request method and body
-      return res.redirect(308, `https://${req.headers.host || req.hostname}${req.originalUrl}`);
-    }
-    next();
-  });
-
   // Added for VIBESCAN security compliance
   app.use(
     helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }),
   ); // allow external resources like videos
   // Specific helmet configurations to address findings
-  app.use((req, res, next) => {
-    res.setHeader("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
-    next();
-  });
+  app.use(
+    helmet.hsts({ maxAge: 31536000, includeSubDomains: true, preload: true }),
+  );
   // Removed frameguard deny to allow AI Studio iframe preview
   app.use(helmet.noSniff());
   app.disable("x-powered-by");
@@ -1275,8 +1253,6 @@ app.get('/api/metrics', async (req, res) => {
             });
         }
 
-        const hashedPassword = await bcrypt.hash(password, 12);
-
         const { data, error } = await supabaseAdmin.auth.signUp({
           email,
           password,
@@ -1297,11 +1273,6 @@ app.get('/api/metrics', async (req, res) => {
           }
           return res.status(400).json({ error: error.message });
         }
-        
-        if (data?.user) {
-          await supabaseAdmin.from('profiles').update({ password_hash: hashedPassword }).eq('id', data.user.id);
-        }
-
         res.json({ success: true, data });
       } catch (err: any) {
         {
@@ -1310,46 +1281,6 @@ app.get('/api/metrics', async (req, res) => {
       }
       }
     },
-  );
-
-  app.post(
-    "/api/auth/login",
-    idempotencyMiddleware,
-    signupLimiter,
-    async (req, res) => {
-      try {
-        const { email, password } = req.body;
-        if (!supabaseAdmin) throw new Error("Database not configured");
-
-        const { data: profile } = await supabaseAdmin.from('profiles').select('password_hash, id').eq('email', email).maybeSingle();
-        
-        if (profile && profile.password_hash) {
-           const isMatch = await bcrypt.compare(password, profile.password_hash);
-           if (!isMatch) {
-              return res.status(401).json({ error: "Invalid login credentials" });
-           }
-        } else if (profile) {
-           // Migration for existing users
-           const newHash = await bcrypt.hash(password, 12);
-           await supabaseAdmin.from('profiles').update({ password_hash: newHash }).eq('id', profile.id);
-        }
-
-        // Authenticate with Supabase to get the session
-        const { data, error } = await supabaseAdmin.auth.signInWithPassword({
-          email,
-          password
-        });
-
-        if (error) {
-          return res.status(401).json({ error: error.message });
-        }
-
-        return res.json({ success: true, data });
-      } catch (err: any) {
-        logger.error({ err: err, reqId: (req as any).requestId }, "API Error");
-        res.status(500).json({ error: "Internal Server Error", referenceCode: (req as any).requestId });
-      }
-    }
   );
 
   // --- CREATOR TRUST SYSTEM ---
@@ -5414,10 +5345,10 @@ Example: {"productName": "Awesome Shirt", "productPrice": "1499"}`;
         throw error;
       }
 
-      const baseUrl = process.env.VITE_APP_URL || "https://getnayi.com";
+      const baseUrl = process.env.VITE_APP_URL || "https://aisles.app";
 
       // Define static routes
-      const staticUrls = ["", "/explore", "/trending", "/privacy", "/terms"].map(
+      const staticUrls = ["", "/explore", "/search", "/auth"].map(
         (route) => `
         <url>
           <loc>${baseUrl}${route}</loc>

@@ -1,9 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /admin
-Disallow: /auth
-Disallow: /settings
-Disallow: /creator-dashboard
-Disallow: /update-password
-
-Sitemap: https://getnayi.com/sitemap.xml

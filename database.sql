@@ -21,7 +21,6 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS tiktok text;
 
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email text;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone text;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS password_hash text;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS revenue numeric default 0;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS trust_score numeric default 50.0 not null;
 

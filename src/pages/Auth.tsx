@@ -4,7 +4,6 @@ import DOMPurify from 'dompurify';
 import { motion, AnimatePresence } from 'motion/react';
 import { Mail, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import posthog from 'posthog-js';
 
 export default function AuthPage() {
   const navigate = useNavigate();
@@ -56,27 +55,11 @@ export default function AuthPage() {
       }
       
       if (isLogin) {
-        const response = await fetch('/api/auth/login', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
         });
-        
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || 'Failed to log in');
-        
-        if (result.data?.session) {
-           await supabase.auth.setSession({
-              access_token: result.data.session.access_token,
-              refresh_token: result.data.session.refresh_token
-           });
-           
-           if (result.data.user) {
-             posthog.identify(result.data.user.id, { email });
-             posthog.capture('user_logged_in');
-           }
-        }
+        if (error) throw error;
       } else {
         const response = await fetch('/api/auth/signup', {
           method: 'POST',
@@ -94,11 +77,6 @@ export default function AuthPage() {
         
         const { data } = result;
         
-        if (data.user) {
-          posthog.identify(data.user.id, { email, username: DOMPurify.sanitize(username.trim()) });
-          posthog.capture('user_signed_up');
-        }
-
         if (data.user && (!data.session || data.session === null)) {
           setSuccess('Success! Please check your email for a confirmation link.');
         }

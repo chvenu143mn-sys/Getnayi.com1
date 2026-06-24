@@ -7,7 +7,6 @@ export default defineConfig(() => {
   return {
     plugins: [react(), tailwindcss()],
     build: {
-      outDir: 'dist',
       sourcemap: false, // Explicitly disable sourcemaps to prevent exposing code to clients
       minify: true, // Ensure minification is active (it is by default in Vite)
     },
