@@ -92,7 +92,7 @@ export default function PrivacyPolicy() {
               We never sell your behavioral analytics or profile data to brokers or third-party advertisers. We only share specific data structures with highly secure, industry-standard service providers who operate strictly as processors:
             </p>
             <ul className="list-disc list-inside space-y-2 text-zinc-400 pl-2">
-              <li><strong>Stripe:</strong> Payment credentials and subscription billing data are processed directly through Stripe's certified PCI-compliant gateway. GetNayi never holds or stores raw credit card details on our servers.</li>
+              <li><strong>Razorpay:</strong> Payment credentials and subscription billing data are processed directly through Razorpay's certified PCI-compliant gateway. GetNayi never holds or stores raw credit card details on our servers.</li>
               <li><strong>Google Cloud & Firebase / Database:</strong> Secure cloud storage facilities host our user-generated metadata, video collections, and system log systems securely.</li>
               <li><strong>Google Analytics / Tag Manager:</strong> Tracks anonymized viewport interactions, screen usage lengths, and performance errors. All user IP addresses passed to Google Analytics are heavily anonymized to shield your identity.</li>
               <li><strong>Google OAuth Services:</strong> Facilitates standard single sign-on access parameters without storing external profile passwords.</li>

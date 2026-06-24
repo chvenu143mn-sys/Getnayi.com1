@@ -47,8 +47,8 @@ export default function TermsOfService() {
           <div className="bg-[#121214] border border-white/5 rounded-2xl p-4 flex flex-col gap-y-2">
             <CreditCard className="size-5 text-blue-400 shrink-0" />
             <div>
-              <h3 className="text-sm font-semibold text-zinc-200">Stripe Billing</h3>
-              <p className="text-zinc-400 text-xs mt-1">All payments, pricing adjustments, and cancelations are managed securely by Stripe.</p>
+              <h3 className="text-sm font-semibold text-zinc-200">Razorpay Billing</h3>
+              <p className="text-zinc-400 text-xs mt-1">All payments, pricing adjustments, and cancelations are managed securely by Razorpay.</p>
             </div>
           </div>
         </div>
@@ -105,10 +105,10 @@ export default function TermsOfService() {
               <span className="text-purple-500">4.</span> Premium Tiers & Payments
             </h2>
             <p className="mb-2">
-              Specific, highly curated collection tools and dashboard customizers inside GetNayi may require standard subscription payments. All transactional logic, invoices, and credit card processing are handled entirely by Stripe.
+              Specific, highly curated collection tools and dashboard customizers inside GetNayi may require standard subscription payments. All transactional logic, invoices, and credit card processing are handled entirely by Razorpay.
             </p>
             <p className="text-zinc-400">
-              By initiating a premium tier purchase, you authorize Stripe to charge your nominated bank card. All pricing scales and refund thresholds are detailed in your checkout view. You can manage, update, or cancel active subscription tiers inside the settings menu.
+              By initiating a premium tier purchase, you authorize Razorpay to charge your nominated bank card. All pricing scales and refund thresholds are detailed in your checkout view. You can manage, update, or cancel active subscription tiers inside the settings menu.
             </p>
           </section>
 
@@ -144,7 +144,7 @@ export default function TermsOfService() {
               These Terms of Service are governed and interpreted under the legislation of the United States. Any disputes arising here shall fall under the jurisdiction of those state courts.
             </p>
             <p className="mb-3">
-              If you have any feedback or clarification requests regarding user code of conduct, Stripe transactions, or asset licenses, reach out directly to:
+              If you have any feedback or clarification requests regarding user code of conduct, Razorpay transactions, or asset licenses, reach out directly to:
             </p>
             <div className="p-3.5 bg-purple-500/10 border border-purple-500/20 text-purple-400 rounded-xl font-mono text-center font-bold text-xs">
               chvenu143mn@gmail.com

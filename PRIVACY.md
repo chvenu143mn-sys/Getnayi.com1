@@ -19,7 +19,7 @@ GetNayi (owned and operated by Aisles Platform, based in the United States) valu
 
 ## 3. Who We Share Your Data With
 We never sell your behavioral analytics or profile data to brokers or third-party advertisers. We only share specific data structures with highly secure, industry-standard service providers:
-* **Stripe:** Payment credentials and subscription billing data. GetNayi never holds or stores raw credit card details on our servers.
+* **Razorpay:** Payment credentials and subscription billing data. GetNayi never holds or stores raw credit card details on our servers.
 * **Google Cloud & Firebase:** Secure cloud storage facilities for user-generated metadata.
 * **Google Analytics:** Tracks anonymized viewport interactions. All user IP addresses are heavily anonymized.
 * **Google OAuth Services:** Facilitates standard single sign-on access parameters.

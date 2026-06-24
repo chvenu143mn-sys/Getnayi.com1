@@ -19,7 +19,7 @@ GetNayi is designed to allow members to discover real products through content c
 * No intellectual property of other creators, developers, or Aisles Platform is cloned or published without clear written authorization.
 
 ## 4. Premium Tiers & Payments
-Specific, highly curated collection tools and dashboard customizers inside GetNayi may require standard subscription payments. All transactional logic, invoices, and credit card processing are handled entirely by Stripe. By initiating a premium tier purchase, you authorize Stripe to charge your nominated bank card. All pricing scales and refund thresholds are detailed in your checkout view. You can manage, update, or cancel active subscription tiers inside the settings menu.
+Specific, highly curated collection tools and dashboard customizers inside GetNayi may require standard subscription payments. All transactional logic, invoices, and credit card processing are handled entirely by Razorpay. By initiating a premium tier purchase, you authorize Razorpay to charge your nominated bank card. All pricing scales and refund thresholds are detailed in your checkout view. You can manage, update, or cancel active subscription tiers inside the settings menu.
 
 ## 5. Disclaimer of Warranties
 THE SERVICES AND ALL PRODUCT DISCOVERY MEDIA ARE PROVIDED ON AN "AS IS" AND "AS AVAILABLE" BASIS. AISLES PLATFORM DISCLAIMS ALL WARRANTIES, BOTH EXPRESS AND IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, SECURITY CORRECTION, ACCURACY, AND PERFORMANCE STABILITY.
@@ -30,5 +30,5 @@ IN NO EVENT SHALL AISLES PLATFORM, ITS DIRECTORS, OR ITS OUTSOURCED ASSOCIATES B
 ## 7. Governance & Contact Info
 These Terms of Service are governed and interpreted under the legislation of the United States. Any disputes arising here shall fall under the jurisdiction of those state courts.
 
-If you have any feedback or clarification requests regarding user code of conduct, Stripe transactions, or asset licenses, reach out directly to:
+If you have any feedback or clarification requests regarding user code of conduct, Razorpay transactions, or asset licenses, reach out directly to:
 **chvenu143mn@gmail.com**
