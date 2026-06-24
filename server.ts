@@ -827,6 +827,47 @@ async function ensureUserPasswordsTable() {
 
 async function startServer() {
   const app = express();
+  
+  // Rate Limiters
+  const authRateLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 5,
+    keyGenerator: (req) => req.ip || 'unknown',
+    message: { error: 'Too many requests, please try again later.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  const aiRateLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 10,
+    keyGenerator: (req) => {
+      const authHeader = req.headers.authorization;
+      return authHeader ? authHeader : (req.ip || 'unknown');
+    },
+    message: { error: 'Too many requests, please try again later.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  const paymentRateLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 10,
+    keyGenerator: (req) => {
+      const authHeader = req.headers.authorization;
+      return authHeader ? authHeader : (req.ip || 'unknown');
+    },
+    message: { error: 'Too many requests, please try again later.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  app.use('/api/auth/login', authRateLimiter);
+  app.use('/api/auth/signup', authRateLimiter);
+  app.use('/api/auth/password-reset', authRateLimiter);
+  app.use('/api/ai', aiRateLimiter);
+  app.use('/api/payment', paymentRateLimiter);
+
   await ensureUserPasswordsTable();
 
   // Redirect HTTP to HTTPS at the application layer

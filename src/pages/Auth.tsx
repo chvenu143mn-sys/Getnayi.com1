@@ -61,39 +61,28 @@ export default function AuthPage() {
       }
       
       if (isLogin) {
-        const response = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
+        const { error, data } = await supabase.auth.signInWithPassword({
+          email,
+          password
         });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || 'Failed to log in');
-
-        if (result.session) {
-          const { error } = await supabase.auth.setSession({
-            access_token: result.session.access_token,
-            refresh_token: result.session.refresh_token,
-          });
-          if (error) throw error;
-        } else {
+        
+        if (error) throw new Error(error.message || 'Failed to log in');
+        
+        if (!data.session) {
           throw new Error('Authentication failed: no session returned');
         }
       } else {
-        const response = await fetch('/api/auth/signup', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email,
-            password,
-            username: DOMPurify.sanitize(username.trim())
-          })
+        const { error, data } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              username: DOMPurify.sanitize(username.trim())
+            }
+          }
         });
         
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || 'Failed to sign up');
-        
-        const { data } = result;
+        if (error) throw new Error(error.message || 'Failed to sign up');
         
         if (data.user && (!data.session || data.session === null)) {
           setSuccess('Success! Please check your email for a confirmation link.');
