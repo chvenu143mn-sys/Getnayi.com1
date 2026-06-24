@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Profile, Video } from '../types';
 import { parseVideoProduct } from '../utils/videoUtils';
-import { Loader2, Settings, Play, Edit3, X, ImagePlus, Instagram, Link2, Trash2, Moon, SunMoon, Lock, Bell, Shield, Palette, HelpCircle, ChevronRight, Bookmark, TrendingUp, MoreVertical } from 'lucide-react';
+import { Loader2, Settings, Play, Edit3, X, ImagePlus, Instagram, Link2, Trash2, Moon, SunMoon, Lock, Bell, Shield, Palette, HelpCircle, ChevronRight, Bookmark, TrendingUp, MoreVertical, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { GuestGate } from '../components/GuestGate';
@@ -1000,13 +1000,30 @@ export default function ProfilePage() {
                     <ChevronRight className="size-[18px] text-zinc-500 group-hover:text-white/70 transition-colors" />
                   </button>
 
-                  <button type="button" aria-label="button"  onClick={() => alert('Privacy module coming soon')} className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5">
+                  <button type="button" aria-label="button"  onClick={() => {
+                        setIsSettingsModalOpen(false);
+                        navigate('/privacy');
+                    }} className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5">
                     <div className="size-[42px] rounded-full bg-[#1c1c1e] shrink-0 mr-4 flex items-center justify-center border border-white/5 group-hover:bg-zinc-800 transition-colors">
                       <Lock className="size-5 text-zinc-400" strokeWidth={1.5} />
                     </div>
                     <div className="flex-1 mr-2">
                        <h4 className="text-[15px] font-medium text-white tracking-wide mb-0.5">Privacy</h4>
                        <p className="text-[13px] text-zinc-400 tracking-wide">Security, hidden accounts</p>
+                    </div>
+                    <ChevronRight className="size-[18px] text-zinc-500 group-hover:text-white/70 transition-colors" />
+                  </button>
+
+                  <button type="button" aria-label="button"  onClick={() => {
+                        setIsSettingsModalOpen(false);
+                        navigate('/terms');
+                    }} className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5">
+                    <div className="size-[42px] rounded-full bg-[#1c1c1e] shrink-0 mr-4 flex items-center justify-center border border-white/5 group-hover:bg-zinc-800 transition-colors">
+                      <FileText className="size-5 text-zinc-400" strokeWidth={1.5} />
+                    </div>
+                    <div className="flex-1 mr-2">
+                       <h4 className="text-[15px] font-medium text-white tracking-wide mb-0.5">Terms of Service</h4>
+                       <p className="text-[13px] text-zinc-400 tracking-wide">Standard platform use terms</p>
                     </div>
                     <ChevronRight className="size-[18px] text-zinc-500 group-hover:text-white/70 transition-colors" />
                   </button>

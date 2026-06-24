@@ -30,6 +30,8 @@ const CategoryFeed = React.lazy(() => import('./pages/CategoryFeed'));
 const ShortUrlRedirect = React.lazy(() => import('./pages/ShortUrlRedirect'));
 const UpdatePasswordPage = React.lazy(() => import('./pages/UpdatePassword'));
 const Interests = React.lazy(() => import('./pages/Interests'));
+const PrivacyPolicy = React.lazy(() => import('./pages/PrivacyPolicy'));
+const TermsOfService = React.lazy(() => import('./pages/TermsOfService'));
 
 import { isSupabaseConfigured } from './lib/supabase';
 import { Database } from 'lucide-react';
@@ -197,6 +199,8 @@ function AppContent() {
               </ProtectedRoute>
             } 
           />
+          <Route path="/privacy" element={<MainLayout><PrivacyPolicy /></MainLayout>} />
+          <Route path="/terms" element={<MainLayout><TermsOfService /></MainLayout>} />
           <Route path="*" element={
             <MainLayout>
               <div className="flex flex-col items-center justify-center p-8 text-center h-[50vh]">
