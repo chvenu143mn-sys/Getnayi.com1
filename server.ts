@@ -1,3 +1,4 @@
+// Main Express entry point for the application.
 import express from "express";
 import client from "prom-client";
 import pino from "pino";

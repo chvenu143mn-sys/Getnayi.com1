@@ -8,6 +8,7 @@ import { supabase } from './lib/supabase';
 import { initPostHog } from './lib/posthog';
 
 // Initialize PostHog Product Analytics
+// (Added to trigger GitHub commit sync)
 initPostHog();
 
 // Intercept completely harmless Supabase refresh token errors that trigger test failures
