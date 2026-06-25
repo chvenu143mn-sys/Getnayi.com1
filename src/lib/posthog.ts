@@ -7,12 +7,7 @@ export const initPostHog = () => {
   if (typeof window !== 'undefined' && POSTHOG_KEY) {
     posthog.init(POSTHOG_KEY, {
       api_host: POSTHOG_HOST,
-      person_profiles: 'identified_only',
-      loaded: (ph) => {
-        if (import.meta.env.DEV) {
-          ph.debug();
-        }
-      }
+      person_profiles: 'identified_only'
     });
   }
 };

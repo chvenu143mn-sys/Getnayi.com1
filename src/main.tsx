@@ -7,6 +7,29 @@ import './index.css';
 import { supabase } from './lib/supabase';
 import { initPostHog } from './lib/posthog';
 
+// Secure JSON.stringify against circular structures (common with analytics SDKs & error boundary logging)
+const originalStringify = JSON.stringify;
+JSON.stringify = function (value, replacer, space) {
+  const seen = new WeakSet();
+  const safeReplacer = function (key: string, val: any) {
+    if (typeof val === 'object' && val !== null) {
+      if (seen.has(val)) {
+        return '[Circular]';
+      }
+      seen.add(val);
+    }
+    if (replacer) {
+      return replacer(key, val);
+    }
+    return val;
+  };
+  try {
+    return originalStringify(value, safeReplacer, space);
+  } catch (err) {
+    return '"[Circular or Unserializable]"';
+  }
+};
+
 // Initialize PostHog Product Analytics
 // (Added to trigger GitHub commit sync)
 initPostHog();
