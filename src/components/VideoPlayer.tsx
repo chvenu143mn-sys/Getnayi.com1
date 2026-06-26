@@ -76,6 +76,66 @@ function resolveProductUrlByPlatform(urlStr: string | null | undefined): string 
   }
 }
 
+interface ParsedThingsToKnow {
+  pros: string[];
+  cons: string[];
+  general: string[];
+}
+
+function parseThingsToKnow(text: string | null | undefined): ParsedThingsToKnow {
+  const result: ParsedThingsToKnow = {
+    pros: [],
+    cons: [],
+    general: []
+  };
+
+  if (!text) return result;
+
+  const lines = text.split(/\r?\n/);
+  let currentSection: 'pros' | 'cons' | 'general' = 'general';
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    // Detect explicit section headers (e.g. "Pros:", "Cons:", "Things to know:")
+    if (/^(pros|pro|advantages|pros\s*and\s*cons):/i.test(line)) {
+      currentSection = 'pros';
+      const content = line.substring(line.indexOf(':') + 1).trim();
+      const clean = content.replace(/^[-•*+]\s*/, '').trim();
+      if (clean) result.pros.push(clean);
+      continue;
+    }
+    if (/^(cons|con|disadvantages):/i.test(line)) {
+      currentSection = 'cons';
+      const content = line.substring(line.indexOf(':') + 1).trim();
+      const clean = content.replace(/^[-•*+]\s*/, '').trim();
+      if (clean) result.cons.push(clean);
+      continue;
+    }
+    if (/^(things\s+to\s+know|things_know|important|notes|tips|insider\s+tips):/i.test(line)) {
+      currentSection = 'general';
+      const content = line.substring(line.indexOf(':') + 1).trim();
+      const clean = content.replace(/^[-•*+]\s*/, '').trim();
+      if (clean) result.general.push(clean);
+      continue;
+    }
+
+    // If it's a bullet point, clean up prefix bullet characters
+    const cleanLine = line.replace(/^[-•*+]\s*/, '').trim();
+    if (cleanLine) {
+      if (currentSection === 'pros') {
+        result.pros.push(cleanLine);
+      } else if (currentSection === 'cons') {
+        result.cons.push(cleanLine);
+      } else {
+        result.general.push(cleanLine);
+      }
+    }
+  }
+
+  return result;
+}
 
 interface VideoPlayerProps {
   video: Video;
@@ -1549,24 +1609,27 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                    </div>
                  )}
 
-                 {/* Structured Specifications Lists: Uses, Specs, Benefits */}
+                 {/* Redesigned Product Information & Use Cases */}
                  {(parsedProduct.productUses.length > 0 || parsedProduct.keySpecifications.length > 0 || parsedProduct.benefits.length > 0) && (
-                   <div className="mt-8 border-t border-zinc-900 pt-6 gap-y-6">
-                     <h3 className="text-[16px] font-bold text-white mb-2 tracking-wide font-sans">Product Information & Use Cases</h3>
+                   <div className="mt-8 border-t border-zinc-900 pt-6 space-y-6">
+                     <div className="flex items-center gap-2 mb-2">
+                       <ShoppingBag className="size-5 text-[#ff5a36]" />
+                       <h3 className="text-[16px] font-bold text-white tracking-wide font-sans">Product Information & Use Cases</h3>
+                     </div>
                      
                      {/* Product Uses Block */}
                      {parsedProduct.productUses.length > 0 && (
-                       <div className="gap-y-2.5">
+                       <div className="space-y-3">
                          <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest block font-sans">Tested Use Cases</span>
-                         <div className="text-[14px] text-zinc-300 leading-relaxed gap-y-2 pl-0.5">
+                         <div className="grid grid-cols-1 gap-3 pl-0.5">
                            {parsedProduct.productUses.map((line, idx) => (
-                             <div key={idx} className="flex items-start gap-2.5">
-                               <div className="size-[18px] rounded-full bg-[#ff5a36]/10 border border-[#ff5a36]/20 flex items-center justify-center shrink-0 mt-0.5">
-                                 <svg className="size-2.5 text-[#ff5a36]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="4">
+                             <div key={idx} className="bg-[#151518]/60 border border-white/5 rounded-2xl p-4 flex items-start gap-3.5 hover:border-white/10 transition-colors">
+                               <div className="size-6 rounded-full bg-[#ff5a36]/10 border border-[#ff5a36]/20 flex items-center justify-center shrink-0 mt-0.5">
+                                 <svg className="size-3 text-[#ff5a36]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="4">
                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                  </svg>
                                </div>
-                               <span>{line.replace(/^•\s*/, '')}</span>
+                               <span className="text-[14px] text-zinc-200 leading-relaxed font-sans font-medium">{line.replace(/^•\s*/, '')}</span>
                              </div>
                            ))}
                          </div>
@@ -1575,13 +1638,13 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
 
                      {/* Key Specifications Table/List */}
                      {parsedProduct.keySpecifications.length > 0 && (
-                       <div className="gap-y-2.5 pt-4 border-t border-zinc-900">
+                       <div className="space-y-3 pt-4 border-t border-zinc-900">
                          <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest block font-sans">Product Tech Specifications</span>
-                         <div className="bg-[#151518]/50 rounded-xl p-3 divide-y divide-zinc-900 text-[13.5px] text-zinc-300">
+                         <div className="bg-[#151518]/50 rounded-2xl p-4 divide-y divide-zinc-900 text-[13.5px] text-zinc-350 border border-white/5">
                            {parsedProduct.keySpecifications.map((spec, idx) => (
-                             <div key={idx} className="py-2.5 first:pt-1 last:pb-1 flex items-start gap-2 text-zinc-300 leading-relaxed">
-                               <span className="text-zinc-650 shrink-0 font-bold text-[#ff5a36]">𐃏</span>
-                               <span>{spec.replace(/^•\s*/, '')}</span>
+                             <div key={idx} className="py-3 first:pt-1 last:pb-1 flex items-start gap-3 text-zinc-350 leading-relaxed font-sans">
+                               <span className="text-xs shrink-0 font-bold text-[#ff5a36] mt-1">✦</span>
+                               <span className="font-medium">{spec.replace(/^•\s*/, '')}</span>
                              </div>
                            ))}
                          </div>
@@ -1590,13 +1653,13 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
 
                      {/* Key Benefits */}
                      {parsedProduct.benefits.length > 0 && (
-                       <div className="gap-y-2.5 pt-4 border-t border-zinc-900">
+                       <div className="space-y-3 pt-4 border-t border-zinc-900">
                          <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest block font-sans">Primary Benefits</span>
-                         <div className="bg-emerald-500/5 rounded-2xl p-4 border border-emerald-500/10 text-[14px] text-zinc-300 leading-relaxed gap-y-2">
+                         <div className="bg-emerald-500/5 rounded-2xl p-4 border border-emerald-500/10 text-[14px] text-zinc-300 leading-relaxed space-y-3">
                            {parsedProduct.benefits.map((benefit, idx) => (
-                             <div key={idx} className="flex items-start gap-2.5">
+                             <div key={idx} className="flex items-start gap-3">
                                <span className="text-emerald-400 shrink-0 font-bold font-sans">✓</span>
-                               <span>{benefit.replace(/^•\s*/, '')}</span>
+                               <span className="text-zinc-200 font-sans font-medium">{benefit.replace(/^•\s*/, '')}</span>
                              </div>
                            ))}
                          </div>
@@ -1606,33 +1669,110 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                  )}
 
                  {/* Bento specifications: Best For, What I Liked, Things to Know */}
-                 {(parsedProduct.bestFor || parsedProduct.whatILiked || parsedProduct.thingsToKnow) && (
-                   <div className="mt-8 border-t border-zinc-900 pt-6 grid grid-cols-2 gap-4">
-                     {parsedProduct.bestFor && (
-                       <div className="bg-[#151518]/45 border border-white/5 rounded-xl p-3.5 col-span-1">
-                         <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">Recommended Best For</span>
-                         <span className="text-[13px] text-zinc-200 font-sans font-semibold leading-snug">{parsedProduct.bestFor}</span>
-                       </div>
-                     )}
+                 {(() => {
+                   const parsedThings = parseThingsToKnow(parsedProduct.thingsToKnow);
+                   const hasParsedSections = parsedThings.pros.length > 0 || parsedThings.cons.length > 0 || parsedThings.general.length > 0;
 
-                     {parsedProduct.whatILiked && (
-                       <div className="bg-[#151518]/45 border border-white/5 rounded-xl p-3.5 col-span-1">
-                         <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">Creator Fave Option</span>
-                         <span className="text-[13px] text-zinc-200 font-sans font-semibold leading-snug">{parsedProduct.whatILiked}</span>
-                       </div>
-                     )}
+                   if (!parsedProduct.bestFor && !parsedProduct.whatILiked && !parsedProduct.thingsToKnow) {
+                     return null;
+                   }
 
-                     {parsedProduct.thingsToKnow && (
-                       <div className="bg-amber-500/5 border border-amber-500/10 rounded-xl p-3.5 col-span-2">
-                         <span className="text-[11px] font-bold text-amber-500 uppercase tracking-widest block mb-1 flex items-center gap-1.5">
-                           <AlertOctagon className="size-3.5" />
-                           Things to Know
-                         </span>
-                         <p className="text-[12.5px] text-zinc-300 leading-relaxed font-sans mt-1">{parsedProduct.thingsToKnow}</p>
+                   return (
+                     <div className="mt-8 border-t border-zinc-900 pt-6 space-y-4">
+                       <div className="grid grid-cols-2 gap-4">
+                         {parsedProduct.bestFor && (
+                           <div className="bg-[#151518]/60 border border-white/5 rounded-2xl p-4 col-span-1 shadow-sm hover:border-white/10 transition-colors">
+                             <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">Recommended Best For</span>
+                             <span className="text-[13px] text-[#ff5a36] font-sans font-bold leading-snug">{parsedProduct.bestFor}</span>
+                           </div>
+                         )}
+
+                         {parsedProduct.whatILiked && (
+                           <div className="bg-[#151518]/60 border border-white/5 rounded-2xl p-4 col-span-1 shadow-sm hover:border-white/10 transition-colors">
+                             <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">Creator Fave Option</span>
+                             <span className="text-[13px] text-zinc-100 font-sans font-semibold leading-snug flex items-center gap-1">
+                               <span className="text-rose-500 text-sm">❤️</span> {parsedProduct.whatILiked}
+                             </span>
+                           </div>
+                         )}
                        </div>
-                     )}
-                   </div>
-                 )}
+
+                       {/* Redesigned Things to Know: High-Fidelity Pros, Cons, and Insider Insights layout */}
+                       {parsedProduct.thingsToKnow && (
+                         <div className="space-y-4">
+                           {hasParsedSections ? (
+                             <div className="space-y-4">
+                               {/* PROS SECTION */}
+                               {parsedThings.pros.length > 0 && (
+                                 <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-4 shadow-sm">
+                                   <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-widest block mb-2.5 flex items-center gap-1.5 font-sans">
+                                     <span className="size-4.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-[10px] text-emerald-400 font-bold font-sans">✓</span>
+                                     Pros
+                                   </span>
+                                   <ul className="space-y-2 text-[13px] text-zinc-300 leading-relaxed font-sans font-medium pl-0.5">
+                                     {parsedThings.pros.map((pro, i) => (
+                                       <li key={i} className="flex items-start gap-2">
+                                         <span className="text-emerald-400 mt-0.5 shrink-0 font-bold">•</span>
+                                         <span>{pro}</span>
+                                       </li>
+                                     ))}
+                                   </ul>
+                                 </div>
+                               )}
+
+                               {/* CONS SECTION */}
+                               {parsedThings.cons.length > 0 && (
+                                 <div className="bg-rose-500/5 border border-rose-500/10 rounded-2xl p-4 shadow-sm">
+                                   <span className="text-[11px] font-bold text-rose-400 uppercase tracking-widest block mb-2.5 flex items-center gap-1.5 font-sans">
+                                     <span className="size-4.5 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-[10px] text-rose-400 font-bold font-sans">✗</span>
+                                     Cons
+                                   </span>
+                                   <ul className="space-y-2 text-[13px] text-zinc-300 leading-relaxed font-sans font-medium pl-0.5">
+                                     {parsedThings.cons.map((con, i) => (
+                                       <li key={i} className="flex items-start gap-2">
+                                         <span className="text-rose-400 mt-0.5 shrink-0 font-bold">•</span>
+                                         <span>{con}</span>
+                                       </li>
+                                     ))}
+                                   </ul>
+                                 </div>
+                               )}
+
+                               {/* GENERAL INSIGHTS SECTION */}
+                               {parsedThings.general.length > 0 && (
+                                 <div className="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-4 shadow-sm">
+                                   <span className="text-[11px] font-bold text-amber-500 uppercase tracking-widest block mb-2.5 flex items-center gap-1.5 font-sans">
+                                     <AlertOctagon className="size-4" />
+                                     Things to Know
+                                   </span>
+                                   <ul className="space-y-2 text-[13px] text-zinc-300 leading-relaxed font-sans font-medium pl-0.5">
+                                     {parsedThings.general.map((tip, i) => (
+                                       <li key={i} className="flex items-start gap-2">
+                                         <span className="text-amber-500 mt-0.5 shrink-0 font-bold">•</span>
+                                         <span>{tip}</span>
+                                       </li>
+                                     ))}
+                                   </ul>
+                                 </div>
+                               )}
+                             </div>
+                           ) : (
+                             // Fallback simple view if not structured with tags
+                             <div className="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-4.5 shadow-sm">
+                               <span className="text-[11px] font-bold text-amber-500 uppercase tracking-widest block mb-2 flex items-center gap-1.5 font-sans">
+                                 <AlertOctagon className="size-4" />
+                                 Things to Know
+                                </span>
+                               <p className="text-[13px] text-zinc-300 leading-relaxed font-sans font-medium whitespace-pre-line mt-1">
+                                 {parsedProduct.thingsToKnow}
+                               </p>
+                             </div>
+                           )}
+                         </div>
+                       )}
+                     </div>
+                   );
+                 })()}
 
                </div>
             </div>

@@ -406,17 +406,17 @@ export default function Feed() {
               aria-label="Trending Feed"
               onClick={() => setActiveTab("trending")}
               className={cn(
-                "relative py-2 font-sans transition-all duration-200 cursor-pointer",
+                "relative py-2 font-display transition-all duration-200 cursor-pointer",
                 activeTab === "trending"
-                  ? "text-white font-bold text-[17px]"
-                  : "text-white/70 font-semibold text-[16px] hover:text-white/90",
+                  ? "text-[#f8fafc] font-bold text-[18px]"
+                  : "text-zinc-400 font-medium text-[16px] hover:text-[#f8fafc]",
               )}
             >
-              <span className="drop-shadow-sm font-sans">Trending</span>
+              <span className="drop-shadow-sm">Trending</span>
               {activeTab === "trending" && (
                 <motion.div
                   layoutId="tab-indicator"
-                  className="absolute bottom-0 left-[20%] right-[20%] h-[3px] bg-white rounded-full shadow-[0_0_8px_rgba(255,255,255,0.4)]"
+                  className="absolute bottom-0 left-[25%] right-[25%] h-[3px] bg-[#ff5a36] rounded-full shadow-sm"
                 />
               )}
             </button>
@@ -426,17 +426,17 @@ export default function Feed() {
               aria-label="For You Feed"
               onClick={() => setActiveTab("for_you")}
               className={cn(
-                "relative py-2 font-sans transition-all duration-200 cursor-pointer",
+                "relative py-2 font-display transition-all duration-200 cursor-pointer",
                 activeTab === "for_you"
-                  ? "text-white font-bold text-[17px]"
-                  : "text-white/70 font-semibold text-[16px] hover:text-white/90",
+                  ? "text-[#f8fafc] font-bold text-[18px]"
+                  : "text-zinc-400 font-medium text-[16px] hover:text-[#f8fafc]",
               )}
             >
-              <span className="drop-shadow-sm font-sans">For You</span>
+              <span className="drop-shadow-sm">For You</span>
               {activeTab === "for_you" && (
                 <motion.div
                   layoutId="tab-indicator"
-                  className="absolute bottom-0 left-[20%] right-[20%] h-[3px] bg-white rounded-full shadow-[0_0_8px_rgba(255,255,255,0.4)]"
+                  className="absolute bottom-0 left-[25%] right-[25%] h-[3px] bg-[#ff5a36] rounded-full shadow-sm"
                 />
               )}
             </button>

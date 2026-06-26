@@ -2,30 +2,20 @@
 @import "tailwindcss";
 
 @theme {
-  --color-black: var(--theme-bg);
-  --color-zinc-900: var(--theme-zinc-900);
-  --color-zinc-800: var(--theme-zinc-800);
-  --color-zinc-950: var(--theme-zinc-950);
+  --color-brand-primary: #ff5a36;
+  --color-bg-base: #0c0c0e;
+  --color-surface-1: #18181b;
+  --color-surface-2: #27272a;
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #a1a1aa;
+  --color-border-subtle: rgba(255, 255, 255, 0.05);
 
-  --color-brand: #ff5a36;
-  --color-gold: #ffb800;
-
-  --font-sans: "Inter", system-ui, sans-serif;
-  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
-  --theme-bg: #050505;
-  --theme-zinc-900: #111111;
-  --theme-zinc-800: #1a1a1a;
-  --theme-zinc-950: #080808;
-}
-
-:root.theme-dark-grey {
-  --theme-bg: #0a0a0a;
-  --theme-zinc-900: #171717;
-  --theme-zinc-800: #222222;
-  --theme-zinc-950: #050505;
+  --theme-bg: #0c0c0e;
 }
 
 @layer utilities {
@@ -85,15 +75,29 @@ body,
   margin: 0;
   padding: 0;
   background-color: var(--theme-bg);
-  color: #fff;
+  color: var(--color-text-primary);
   overscroll-behavior-y: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  
+  /* Disable text selection across the entire app */
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+}
+
+/* Ensure user can still select/edit text inside inputs, textareas and editable elements */
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
 }
 
 /* Focus styles for accessibility */
 *:focus-visible {
-  outline: 2px solid var(--color-brand);
+  outline: 2px solid var(--color-brand-primary);
   outline-offset: 2px;
 }
 

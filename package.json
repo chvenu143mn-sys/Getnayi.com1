@@ -13,6 +13,8 @@
     "test": "playwright test",
     "audit:security": "tsx security_audit.ts",
     "audit:security:hacker": "tsx security_audit.ts hacker",
+    "loadtester": "node loadtester.js",
+    "loadtester.js": "node loadtester.js",
     "mobile:build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs && npx cap sync",
     "mobile:open": "npx cap open android"
   },

@@ -45,7 +45,6 @@ import { motion, AnimatePresence } from "motion/react";
 import { extractStoreName } from "../utils/videoUtils";
 import { CreatorVerificationFlow } from "../components/upload/CreatorVerificationFlow";
 import { UploadSuccessState } from "../components/upload/UploadSuccessState";
-import { UploadAccordion } from "../components/upload/UploadAccordion";
 import { useSubscriptionStatus } from "../hooks/useSubscriptionStatus";
 import { toast } from "sonner";
 
@@ -83,9 +82,9 @@ export default function Upload() {
     "loading" | "unauthorized" | "pending" | "rejected" | "approved"
   >(() => {
     try {
-      const supabaseKey = safeStorage.getKeys().find(
-        (key) => key.startsWith("sb-") && key.endsWith("-auth-token"),
-      );
+      const supabaseKey = safeStorage
+        .getKeys()
+        .find((key) => key.startsWith("sb-") && key.endsWith("-auth-token"));
       if (supabaseKey) {
         const authDataStr = safeStorage.getItem(supabaseKey);
         if (authDataStr) {
@@ -189,6 +188,31 @@ export default function Upload() {
 
   const [expandedSection, setExpandedSection] = useState<string | null>("core");
   const currentUploadVideoIdRef = useRef<string | null>(null);
+
+  // Defensive helper to revoke Object URLs and prevent memory leaks
+  const revokeIfBlob = (url: string | null) => {
+    if (url && url.startsWith("blob:")) {
+      try {
+        console.log(`[UploadPage] Revoking Object URL: ${url}`);
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        console.warn("[UploadPage] Failed to revoke object URL:", url, e);
+      }
+    }
+  };
+
+  // Safe formatting to prevent calling .toFixed() on NaN or non-finite values
+  const formatSeconds = (val: number | null | undefined): string => {
+    if (val === null || val === undefined || isNaN(val) || !isFinite(val)) {
+      return "0.0";
+    }
+    return val.toFixed(1);
+  };
+
+  // Keep hashtags in sync with manualTags for card preview tag overlay
+  useEffect(() => {
+    setHashtags(manualTags);
+  }, [manualTags]);
 
   // Clean up if component unmounts or page reloads mid-upload
   useEffect(() => {
@@ -338,6 +362,9 @@ export default function Upload() {
                 type: blob.type,
               });
               setMainProductFile(file);
+              const blobUrl = URL.createObjectURL(file);
+              revokeIfBlob(mainProductPreview);
+              setMainProductPreview(blobUrl);
             }
           } catch (err) {
             console.warn("Failed to fetch product image blob", err);
@@ -361,47 +388,57 @@ export default function Upload() {
     if (preview && videoDuration > 0) {
       let isMounted = true;
       const generateFilmstrip = async () => {
-        const video = document.createElement("video");
-        video.src = preview;
-        video.muted = true;
-        video.playsInline = true;
+        try {
+          console.log("[generateFilmstrip] Starting filmstrip generation for preview:", preview);
+          const video = document.createElement("video");
+          video.src = preview;
+          video.muted = true;
+          video.playsInline = true;
 
-        await new Promise((resolve, reject) => {
-          video.onloadeddata = resolve;
-          video.onerror = reject;
-        });
-
-        const frames: string[] = [];
-        const count = 7;
-        const interval = videoDuration / (count + 1);
-
-        const canvas = document.createElement("canvas");
-
-        for (let i = 1; i <= count; i++) {
-          if (!isMounted) break;
-          video.currentTime = interval * i;
-          await new Promise<void>((resolve) => {
-            const onSeeked = () => {
-              video.removeEventListener("seeked", onSeeked);
-              resolve();
-            };
-            video.addEventListener("seeked", onSeeked);
+          await new Promise((resolve, reject) => {
+            video.onloadeddata = resolve;
+            video.onerror = () => reject(new Error("Video element failed to load for filmstrip extraction"));
           });
-          if (i === 1) {
-            canvas.width = 60; // low res for filmstrip thumbnail
-            canvas.height = 60 * (video.videoHeight / video.videoWidth);
+
+          const frames: string[] = [];
+          const count = 7;
+          const interval = videoDuration / (count + 1);
+
+          const canvas = document.createElement("canvas");
+
+          for (let i = 1; i <= count; i++) {
+            if (!isMounted) break;
+            video.currentTime = interval * i;
+            await new Promise<void>((resolve) => {
+              const onSeeked = () => {
+                video.removeEventListener("seeked", onSeeked);
+                resolve();
+              };
+              video.addEventListener("seeked", onSeeked);
+            });
+            if (i === 1) {
+              const vWidth = video.videoWidth || 60;
+              const vHeight = video.videoHeight || 100;
+              canvas.width = 60;
+              // Safe round division preventing non-finite or 0 values for canvas.height
+              canvas.height = Math.round(60 * (vHeight / vWidth)) || 100;
+              console.log(`[generateFilmstrip] Configured canvas dimension: ${canvas.width}x${canvas.height} (video dimensions: ${vWidth}x${vHeight})`);
+            }
+            const ctx = canvas.getContext("2d");
+            if (ctx) {
+              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+              frames.push(canvas.toDataURL("image/jpeg", 0.5));
+            }
           }
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            frames.push(canvas.toDataURL("image/jpeg", 0.5));
+          if (isMounted) {
+            console.log(`[generateFilmstrip] Extracted ${frames.length} frames successfully.`);
+            setFilmstripFrames(frames);
           }
-        }
-        if (isMounted) {
-          setFilmstripFrames(frames);
+        } catch (err) {
+          console.error("[generateFilmstrip] Unhandled exception in filmstrip generator:", err);
         }
       };
-      generateFilmstrip().catch((err) => console.log("filmstrip error", err));
+      generateFilmstrip().catch((err) => console.error("[generateFilmstrip] Uncaught rejection:", err));
       return () => {
         isMounted = false;
       };
@@ -412,12 +449,20 @@ export default function Upload() {
 
   useEffect(() => {
     async function fetchCategories() {
-      const { data } = await supabase
-        .from("categories")
-        .select("id, name")
-        .order("created_at", { ascending: true });
-      if (data) {
-        setCategories(data);
+      try {
+        const { data, error } = await supabase
+          .from("categories")
+          .select("id, name")
+          .order("created_at", { ascending: true });
+        if (error) {
+          console.error("[fetchCategories] Error:", error);
+          return;
+        }
+        if (data) {
+          setCategories(data);
+        }
+      } catch (err) {
+        console.error("[fetchCategories] Unexpected error:", err);
       }
     }
     fetchCategories();
@@ -558,79 +603,119 @@ export default function Upload() {
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (subscriptionPlan === "free" && uploadedCount >= 1) {
-      toast.info(
-        "Free plan limit reached (1 video). Upgrade to Pro to upload more videos.",
-      );
-      navigate("/subscription");
-      return;
-    }
-    if (subscriptionPlan === "pro" && uploadedCount >= 10) {
-      toast.info(
-        "Pro plan limit reached (10 videos). Upgrade to Creator plan for unlimited videos.",
-      );
-      navigate("/subscription");
-      return;
-    }
-
-    const selected = e.target.files?.[0];
-    if (selected) {
-      const errs: string[] = [];
-      const MAX_SIZE = 50 * 1024 * 1024;
-      const MAX_DURATION = 60;
-
-      if (!selected.type.startsWith("video/")) {
-        errs.push("File must be a valid video format (mp4, mov, etc.).");
+    try {
+      console.log("[handleFileChange] Started file selection", e.target.files);
+      if (subscriptionPlan === "free" && uploadedCount >= 1) {
+        console.warn("[handleFileChange] Free plan limit reached");
+        toast.info(
+          "Free plan limit reached (1 video). Upgrade to Pro to upload more videos.",
+        );
+        navigate("/subscription");
+        return;
+      }
+      if (subscriptionPlan === "pro" && uploadedCount >= 10) {
+        console.warn("[handleFileChange] Pro plan limit reached");
+        toast.info(
+          "Pro plan limit reached (10 videos). Upgrade to Creator plan for unlimited videos.",
+        );
+        navigate("/subscription");
+        return;
       }
 
-      const tempUrl = URL.createObjectURL(selected);
-      const videoElement = document.createElement("video");
-      videoElement.preload = "metadata";
+      const selected = e.target.files?.[0];
+      if (selected) {
+        console.log("[handleFileChange] Selected file:", selected.name, selected.type, selected.size);
+        const errs: string[] = [];
+        const MAX_SIZE = 50 * 1024 * 1024;
+        const MAX_DURATION = 60;
 
-      const checkAndShowErrors = (duration?: number) => {
-        if (selected.size > MAX_SIZE) {
-          errs.push("Video must be less than 50MB.");
+        if (!selected.type.startsWith("video/")) {
+          console.error("[handleFileChange] Invalid file type:", selected.type);
+          errs.push("File must be a valid video format (mp4, mov, etc.).");
         }
 
-        if (duration !== undefined && duration > MAX_DURATION) {
-          errs.push("Video duration exceeds 60 seconds maximum limit.");
-        }
+        const tempUrl = URL.createObjectURL(selected);
+        const videoElement = document.createElement("video");
+        videoElement.preload = "metadata";
 
-        if (errs.length > 0) {
-          setValidationPopup(errs);
-          return false;
-        }
-        return true;
-      };
+        const checkAndShowErrors = (duration?: number) => {
+          if (selected.size > MAX_SIZE) {
+            errs.push("Video must be less than 50MB.");
+          }
 
-      videoElement.onloadedmetadata = () => {
-        if (checkAndShowErrors(videoElement.duration)) {
-          setValidationPopup(null);
-          setFile(selected);
-          setPreview(tempUrl);
-          setVideoDuration(videoElement.duration);
-          setTrimStart(0);
-          setTrimEnd(videoElement.duration);
-          setError(null);
-        } else {
-          URL.revokeObjectURL(tempUrl);
-        }
-      };
+          if (duration !== undefined) {
+            if (isNaN(duration) || !isFinite(duration) || duration <= 0) {
+              errs.push("Unable to determine video duration. The video file may be corrupted or in an unsupported format.");
+            } else if (duration > MAX_DURATION) {
+              errs.push("Video duration exceeds 60 seconds maximum limit.");
+            }
+          } else {
+            errs.push("Could not read video duration or metadata.");
+          }
 
-      videoElement.onerror = () => {
-        URL.revokeObjectURL(tempUrl);
-        if (selected.type.startsWith("video/")) {
-          errs.push("Invalid video file or failed to read duration metadata.");
-        }
-        checkAndShowErrors(undefined);
-      };
+          if (errs.length > 0) {
+            console.warn("[handleFileChange] Validation errors:", errs);
+            setValidationPopup(errs);
+            return false;
+          }
+          return true;
+        };
 
-      videoElement.src = tempUrl;
+        videoElement.onloadedmetadata = () => {
+          console.log("[handleFileChange] Metadata loaded. Duration:", videoElement.duration);
+          try {
+            if (checkAndShowErrors(videoElement.duration)) {
+              setValidationPopup(null);
+              revokeIfBlob(preview); // Clean up the old video preview object URL
+              setFile(selected);
+              setPreview(tempUrl);
+              setVideoDuration(videoElement.duration);
+              setTrimStart(0);
+              setTrimEnd(videoElement.duration);
+              setError(null);
+            } else {
+              URL.revokeObjectURL(tempUrl);
+            }
+          } catch (metaErr) {
+            console.error("[handleFileChange] Error in onloadedmetadata:", metaErr);
+            URL.revokeObjectURL(tempUrl);
+          }
+        };
+
+        videoElement.onerror = (errorEvent) => {
+          console.error("[handleFileChange] Error loading video metadata:", errorEvent);
+          try {
+            URL.revokeObjectURL(tempUrl);
+            if (selected.type.startsWith("video/")) {
+              errs.push("Invalid video file or failed to read duration metadata.");
+            }
+            checkAndShowErrors(undefined);
+          } catch (errEventErr) {
+            console.error("[handleFileChange] Error handling video error:", errEventErr);
+          }
+        };
+
+        videoElement.src = tempUrl;
+      } else {
+        console.log("[handleFileChange] No file was selected from input");
+      }
+    } catch (err) {
+      console.error("[handleFileChange] Unexpected error:", err);
+      toast.error("Failed to process selected file");
     }
   };
 
   const removeVideo = () => {
-    if (preview) URL.revokeObjectURL(preview);
+    try {
+      console.log("[UploadPage] Removing selected video and clearing all object previews...");
+      revokeIfBlob(preview);
+      revokeIfBlob(thumbnailPreview);
+      revokeIfBlob(mainProductPreview);
+      revokeIfBlob(realLifePreview);
+    } catch (e) {
+      console.error("[UploadPage] Error during removeVideo revoking:", e);
+    }
+
     setFile(null);
     setPreview(null);
     setThumbnailFile(null);
@@ -648,27 +733,37 @@ export default function Upload() {
   };
 
   const captureFrame = () => {
-    if (!previewVideoRef.current) return;
-    const video = previewVideoRef.current;
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob(
-        (blob) => {
-          if (blob) {
-            const frameFile = new File([blob], "frame.jpg", {
-              type: "image/jpeg",
-            });
-            setThumbnailFile(frameFile);
-            setThumbnailPreview(URL.createObjectURL(frameFile));
-          }
-        },
-        "image/jpeg",
-        0.8,
-      );
+    try {
+      if (!previewVideoRef.current) return;
+      const video = previewVideoRef.current;
+      const canvas = document.createElement("canvas");
+      
+      const vWidth = video.videoWidth || 640;
+      const vHeight = video.videoHeight || 360;
+      canvas.width = vWidth;
+      canvas.height = vHeight;
+      
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const frameFile = new File([blob], "frame.jpg", {
+                type: "image/jpeg",
+              });
+              revokeIfBlob(thumbnailPreview);
+              setThumbnailFile(frameFile);
+              setThumbnailPreview(URL.createObjectURL(frameFile));
+              console.log("[captureFrame] Frame captured successfully as blob and thumbnailPreview updated");
+            }
+          },
+          "image/jpeg",
+          0.8,
+        );
+      }
+    } catch (e) {
+      console.error("[captureFrame] Failed to capture frame from video:", e);
     }
   };
 
@@ -694,42 +789,63 @@ export default function Upload() {
   };
 
   const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0];
-    if (selected) {
-      if (selected.size > 5 * 1024 * 1024) {
-        setValidationPopup(["Thumbnail file size exceeds 5MB maximum limit."]);
-        return;
+    try {
+      const selected = e.target.files?.[0];
+      if (selected) {
+        console.log("[handleThumbnailChange] Selected file:", selected.name, selected.size);
+        if (selected.size > 5 * 1024 * 1024) {
+          console.warn("[handleThumbnailChange] File size exceeds 5MB limit");
+          setValidationPopup(["Thumbnail file size exceeds 5MB maximum limit."]);
+          return;
+        }
+        revokeIfBlob(thumbnailPreview);
+        setThumbnailFile(selected);
+        setThumbnailPreview(URL.createObjectURL(selected));
       }
-      setThumbnailFile(selected);
-      setThumbnailPreview(URL.createObjectURL(selected));
+    } catch (err) {
+      console.error("[handleThumbnailChange] Unexpected error:", err);
     }
   };
 
   const handleMainProductChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0];
-    if (selected) {
-      if (selected.size > 5 * 1024 * 1024) {
-        setValidationPopup([
-          "Official Pic file size exceeds 5MB maximum limit.",
-        ]);
-        return;
+    try {
+      const selected = e.target.files?.[0];
+      if (selected) {
+        console.log("[handleMainProductChange] Selected file:", selected.name, selected.size);
+        if (selected.size > 5 * 1024 * 1024) {
+          console.warn("[handleMainProductChange] File size exceeds 5MB limit");
+          setValidationPopup([
+            "Official Pic file size exceeds 5MB maximum limit.",
+          ]);
+          return;
+        }
+        revokeIfBlob(mainProductPreview);
+        setMainProductFile(selected);
+        setMainProductPreview(URL.createObjectURL(selected));
       }
-      setMainProductFile(selected);
-      setMainProductPreview(URL.createObjectURL(selected));
+    } catch (err) {
+      console.error("[handleMainProductChange] Unexpected error:", err);
     }
   };
 
   const handleRealLifeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0];
-    if (selected) {
-      if (selected.size > 5 * 1024 * 1024) {
-        setValidationPopup([
-          "Creator Pic file size exceeds 5MB maximum limit.",
-        ]);
-        return;
+    try {
+      const selected = e.target.files?.[0];
+      if (selected) {
+        console.log("[handleRealLifeChange] Selected file:", selected.name, selected.size);
+        if (selected.size > 5 * 1024 * 1024) {
+          console.warn("[handleRealLifeChange] File size exceeds 5MB limit");
+          setValidationPopup([
+            "Creator Pic file size exceeds 5MB maximum limit.",
+          ]);
+          return;
+        }
+        revokeIfBlob(realLifePreview);
+        setRealLifeFile(selected);
+        setRealLifePreview(URL.createObjectURL(selected));
       }
-      setRealLifeFile(selected);
-      setRealLifePreview(URL.createObjectURL(selected));
+    } catch (err) {
+      console.error("[handleRealLifeChange] Unexpected error:", err);
     }
   };
 
@@ -769,8 +885,11 @@ export default function Upload() {
     forceUnverified: boolean = false,
   ) => {
     if (e) e.preventDefault();
-    if (!file || !user || !isUrlValid || !mainProductFile || isUploading)
+    console.log("[handleUpload] Initiating upload flow...");
+    if (!file || !user || !isUrlValid || !mainProductFile || isUploading) {
+      console.warn("[handleUpload] Pre-conditions failed. file:", !!file, "user:", !!user, "isUrlValid:", isUrlValid, "mainProductFile:", !!mainProductFile, "isUploading:", isUploading);
       return;
+    }
 
     if (!forceUnverified) {
       let cleanProductUrl = productUrl.trim();
@@ -826,6 +945,7 @@ export default function Upload() {
     }
 
     setIsUploading(true);
+    console.log("[handleUpload] Pre-conditions passed, updating state to uploading...");
     setUploadStatusText("Initializing upload...");
     setProgress(5);
     setError(null);
@@ -1079,12 +1199,23 @@ export default function Upload() {
     }
   }, [preview]);
 
+  const queryParams = new URLSearchParams(window.location.search);
+  const isOnboarding = queryParams.get("onboarding") === "true";
+
+  useEffect(() => {
+    if (
+      user &&
+      approvalStatus !== "loading" &&
+      approvalStatus !== "approved" &&
+      !isOnboarding
+    ) {
+      navigate("/subscription");
+    }
+  }, [user, approvalStatus, isOnboarding, navigate]);
+
   if (!user) {
     return <GuestGate type="upload" />;
   }
-
-  const queryParams = new URLSearchParams(window.location.search);
-  const isOnboarding = queryParams.get("onboarding") === "true";
 
   if (approvalStatus === "loading") {
     return (
@@ -1093,12 +1224,6 @@ export default function Upload() {
       </div>
     );
   }
-
-  useEffect(() => {
-    if (user && approvalStatus !== "loading" && approvalStatus !== "approved" && !isOnboarding) {
-      navigate("/subscription");
-    }
-  }, [user, approvalStatus, isOnboarding, navigate]);
 
   if (approvalStatus !== "approved" && !isOnboarding) {
     return null;
@@ -1212,12 +1337,7 @@ export default function Upload() {
               />
               <button
                 type="button"
-                onClick={() => {
-                  setFile(null);
-                  setPreview(null);
-                  setThumbnailFile(null);
-                  setThumbnailPreview(null);
-                }}
+                onClick={removeVideo}
                 className="absolute top-3 right-3 bg-black/60 p-2 rounded-full text-white/80 hover:text-white transition-colors z-10"
               >
                 <Trash2 className="size-4" />
@@ -1259,7 +1379,7 @@ export default function Upload() {
             <span className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide flex justify-between items-center">
               Trim Video
               <span className="text-zinc-400 font-normal text-xs bg-black/20 px-2 py-1 rounded">
-                {(trimEnd - trimStart).toFixed(1)}s length
+                {formatSeconds(trimEnd - trimStart)}s length
               </span>
             </span>
             <div className="flex gap-4">
@@ -1267,7 +1387,7 @@ export default function Upload() {
                 <label className="text-[11px] text-zinc-400 uppercase font-bold tracking-wider mb-1 flex justify-between">
                   Start{" "}
                   <span className="text-purple-400">
-                    {trimStart.toFixed(1)}s
+                    {formatSeconds(trimStart)}s
                   </span>
                 </label>
                 <input
@@ -1290,7 +1410,7 @@ export default function Upload() {
               <div className="flex-1 flex flex-col gap-1">
                 <label className="text-[11px] text-zinc-400 uppercase font-bold tracking-wider mb-1 flex justify-between">
                   End{" "}
-                  <span className="text-purple-400">{trimEnd.toFixed(1)}s</span>
+                  <span className="text-purple-400">{formatSeconds(trimEnd)}s</span>
                 </label>
                 <input
                   type="range"
@@ -1733,6 +1853,36 @@ export default function Upload() {
               </div>
             </div>
 
+            {/* Tested Use Cases */}
+            <div className="flex flex-col mt-4">
+              <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1 flex justify-between items-center">
+                <span>Tested Use Cases (Optional)</span>
+                <span className="text-[11px] text-zinc-500 font-normal">One per line or separated by bullets</span>
+              </label>
+              <textarea
+                value={productUses}
+                onChange={(e) => setProductUses(e.target.value)}
+                placeholder="• Stunning festive design with a graceful silhouette&#10;• Crafted from premium fabric with beautiful detailing&#10;• Perfect outfit for weddings, Diwali, and festive celebrations"
+                rows={3}
+                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm leading-relaxed"
+              />
+            </div>
+
+            {/* Things to Know (Pros & Cons) */}
+            <div className="flex flex-col mt-4">
+              <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1 flex justify-between items-center">
+                <span>Things to Know / Pros & Cons (Optional)</span>
+                <span className="text-[11px] text-zinc-500 font-normal">Use Pros:, Cons:, Things to know: headings</span>
+              </label>
+              <textarea
+                value={thingsToKnow}
+                onChange={(e) => setThingsToKnow(e.target.value)}
+                placeholder="Pros:&#10;- Beautiful festive design with a dreamy, elegant flow.&#10;- Lightweight and comfortable to wear for long events.&#10;&#10;Cons:&#10;- Delicate embroidery requires careful handling and dry cleaning.&#10;- Sizing may require minor alterations for a perfect fit.&#10;&#10;Things to know:&#10;- Best paired with statement traditional jewelry and heels to elevate the look."
+                rows={8}
+                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm leading-relaxed font-mono text-xs"
+              />
+            </div>
+
             {/* Promo Coupon */}
             <div className="flex flex-col mt-4">
               <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1">
@@ -2039,7 +2189,7 @@ export default function Upload() {
                       </span>
                       <span className="text-[12px] font-sans text-rose-450 font-bold mt-0.5">
                         {productPrice
-                          ? `₹${parseFloat(productPrice).toLocaleString("en-IN")}`
+                          ? `₹${productPrice}`
                           : "Price"}
                       </span>
                     </div>

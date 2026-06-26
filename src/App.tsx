@@ -261,6 +261,43 @@ function AppContent() {
 }
 
 export default function App() {
+  React.useEffect(() => {
+    const blockClipboard = (e: ClipboardEvent) => {
+      // Allow copy inside input, textarea or contenteditable elements
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+      e.preventDefault();
+    };
+
+    const blockSelectStart = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+      e.preventDefault();
+    };
+
+    document.addEventListener('copy', blockClipboard, { capture: true });
+    document.addEventListener('cut', blockClipboard, { capture: true });
+    document.addEventListener('selectstart', blockSelectStart, { capture: true });
+
+    return () => {
+      document.removeEventListener('copy', blockClipboard, { capture: true });
+      document.removeEventListener('cut', blockClipboard, { capture: true });
+      document.removeEventListener('selectstart', blockSelectStart, { capture: true });
+    };
+  }, []);
+
   if (!isSupabaseConfigured) {
     return <SetupScreen />;
   }
