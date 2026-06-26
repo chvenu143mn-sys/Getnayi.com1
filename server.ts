@@ -954,6 +954,14 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Universal Loader.io Domain Verification endpoint
+app.get('/loaderio-:token', (req, res) => {
+  const token = req.params.token;
+  const cleanToken = token.replace(/\.(txt|html)$/i, '').replace(/\/$/, '');
+  res.setHeader('Content-Type', 'text/plain');
+  res.send(`loaderio-${cleanToken}`);
+});
+
 app.get('/sitemap.xml', async (req, res) => {
   const host = req.get("host") || "";
   const proto = req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
