@@ -50,7 +50,7 @@ export function GuestGate({ type, title, description, onClose }: GuestGateProps)
              transition={{ delay: 0.1, duration: 0.5 }}
              className="mb-6 size-[56px] rounded-2xl flex items-center justify-center border border-white/15 bg-gradient-to-br from-white/10 to-transparent backdrop-blur-md shrink-0 shadow-[0_0_30px_rgba(239,41,80,0.15)] relative overflow-hidden box-border"
           >
-            <div className="absolute inset-0 bg-gradient-to-tr from-[#d9183b]/20 to-transparent opacity-50" />
+            <div className="absolute inset-0 bg-gradient-to-tr from-[#ff5a36]/20 to-transparent opacity-50" />
             <Crown className="size-7 text-white drop-shadow-md z-10" strokeWidth={1.5} />
           </motion.div>
 
@@ -107,7 +107,7 @@ export function GuestGate({ type, title, description, onClose }: GuestGateProps)
         >
           <button type="button" aria-label="button" 
             onClick={() => navigate('/auth')}
-            className="w-full py-[15px] px-4 flex justify-center items-center bg-[#d9183b] text-white font-bold font-sans rounded-xl hover:bg-[#f4284d] transition-all active:scale-[0.98] shadow-lg text-[15px] tracking-wide"
+            className="w-full py-[15px] px-4 flex justify-center items-center bg-[#ff5a36] text-white font-bold font-sans rounded-xl hover:bg-[#f4284d] transition-all active:scale-[0.98] shadow-lg text-[15px] tracking-wide"
           >
              Join Getnayi
           </button>

@@ -476,7 +476,7 @@ export default function ProfilePage() {
         </header>
 
         {/* Profile Info Skeleton matches layout styles perfectly */}
-        <div className="px-5 pt-4 pb-8 flex flex-col items-start w-full">
+        <div className="px-5 md:px-8 pt-4 pb-8 flex flex-col items-start w-full">
           {/* Top Row: Avatar & Name */}
           <div className="flex items-center w-full mb-6">
             <div className="size-[84px] rounded-full bg-zinc-900 animate-pulse border-[1.5px] border-white/10 shrink-0" />
@@ -521,7 +521,7 @@ export default function ProfilePage() {
         <div className="h-2 w-full bg-[#151518] border-y border-white/5" />
 
         {/* Video Grid Skeleton matching real 3x grid aspect */}
-        <div className="grid grid-cols-3 gap-0.5 mt-0.5">
+        <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-0.5 md:gap-1 mt-0.5 md:mt-1">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
             <div key={i} className="aspect-[9/16] bg-zinc-900/85 animate-pulse relative overflow-hidden border border-white/5 rounded-sm">
               <div className="absolute bottom-2 left-2 w-10 h-3.5 bg-white/10 rounded animate-pulse" />
@@ -539,10 +539,10 @@ export default function ProfilePage() {
   const profileSchema = profile ? {
     '@context': 'https://schema.org',
     '@type': 'Person',
-    name: profile.username || 'Aisles Creator',
-    description: profile.bio || 'Check out my profile on Aisles.',
-    image: profile.avatar_url || 'https://aisles.app/og-image.jpg',
-    url: `https://aisles.app/creator/${profile.username || profile.id}`,
+    name: profile.username || 'Getnayi Creator',
+    description: profile.bio || 'Check out my profile on Getnayi.',
+    image: profile.avatar_url || 'https://getnayi.app/og-image.jpg',
+    url: `https://getnayi.app/creator/${profile.username || profile.id}`,
     sameAs: [
       profile.instagram ? `https://instagram.com/${profile.instagram}` : null,
       profile.tiktok ? `https://tiktok.com/@${profile.tiktok}` : null
@@ -553,17 +553,17 @@ export default function ProfilePage() {
     <div className="flex-1 w-full bg-[#0c0c0e] text-white font-sans selection:bg-white/20 h-full flex flex-col">
       {profile && (
         <SEO 
-          title={`${profile.username || 'Creator'} | Aisles Profile`}
-          description={profile.bio || `Watch amazing videos from ${profile.username || 'this creator'} on Aisles.`}
+          title={`${profile.username || 'Creator'} | Getnayi Profile`}
+          description={profile.bio || `Watch amazing videos from ${profile.username || 'this creator'} on Getnayi.`}
           image={profile.avatar_url}
           type="profile"
-          url={`https://aisles.app/creator/${profile.username || profile.id}`}
+          url={`https://getnayi.app/creator/${profile.username || profile.id}`}
           structuredData={profileSchema}
         />
       )}
       
       {/* Header */}
-      <header className="sticky top-0 z-20 flex items-center justify-between px-6 py-4 pt-6 bg-[#0c0c0e]">
+      <header className="sticky top-0 z-20 flex items-center justify-between px-6 md:px-8 py-4 pt-6 bg-[#0c0c0e]">
         <GlobalBackButton className="p-2 bg-transparent hover:bg-white/5 border-transparent -ml-3" />
         <div className="flex items-center gap-x-2.5 -mr-3">
           <button type="button" aria-label="button"  
@@ -583,7 +583,7 @@ export default function ProfilePage() {
       </header>
 
       {/* Profile Info */}
-      <div className="px-5 pt-3 pb-8 flex flex-col items-start relative">
+      <div className="px-5 md:px-8 pt-3 pb-8 flex flex-col items-start relative">
          {/* Top Row: Avatar & Name */}
          <div className="flex items-center w-full mb-6 relative">
             <motion.div 
@@ -593,7 +593,7 @@ export default function ProfilePage() {
                className="size-[84px] rounded-full overflow-hidden shrink-0 border-[1.5px] border-white/20"
             >
               {profile?.avatar_url ? (
-                <img src={profile.avatar_url} alt="Profile" className="size-full object-cover" />
+                <img src={profile.avatar_url} alt="Profile" className="size-full object-cover" loading="lazy" decoding="async" />
               ) : (
                 <div className="size-full bg-zinc-800 flex items-center justify-center text-white/60 font-serif italic text-2xl font-bold">
                   {profile?.username?.charAt(0)?.toLowerCase() || 'u'}
@@ -668,7 +668,7 @@ export default function ProfilePage() {
         <div className="flex w-full gap-x-3 mb-4">
            <button type="button" aria-label="button"  
              onClick={() => setIsEditModalOpen(true)}
-             className="flex-1 bg-[#d9183b] hover:bg-[#f4284d] active:scale-[0.98] text-white font-bold py-3.5 rounded-[12px] transition-all text-[15px] shadow-[0_4px_14px_rgba(239,41,80,0.3)] tracking-wide"
+             className="flex-1 bg-[#ff5a36] hover:bg-[#f4284d] active:scale-[0.98] text-white font-bold py-3.5 rounded-[12px] transition-all text-[15px] shadow-[0_4px_14px_rgba(239,41,80,0.3)] tracking-wide"
            >
              Edit Profile
            </button>
@@ -689,15 +689,15 @@ export default function ProfilePage() {
             onClick={() => navigate('/creator-dashboard')}
             className="flex-1 bg-[#1c1c1e] hover:bg-white/10 active:scale-[0.98] text-white font-medium py-3 rounded-[12px] transition-all border border-white/5 flex flex-col items-center justify-center gap-y-1 tracking-wide group"
           >
-            <TrendingUp className="size-[18px] text-[#d9183b] group-hover:scale-110 transition-transform" />
+            <TrendingUp className="size-[18px] text-[#ff5a36] group-hover:scale-110 transition-transform" />
             <span className="text-[12px] text-zinc-300">Creator Dashboard</span>
           </button>
           <button type="button" aria-label="button"  
             onClick={() => navigate('/settings/subscription')}
-            className="flex-1 bg-gradient-to-br from-[#d9183b]/10 to-transparent hover:bg-white/10 active:scale-[0.98] text-white font-medium py-3 rounded-[12px] transition-all border border-[#d9183b]/30 flex flex-col items-center justify-center gap-y-1 tracking-wide group"
+            className="flex-1 bg-gradient-to-br from-[#ff5a36]/10 to-transparent hover:bg-white/10 active:scale-[0.98] text-white font-medium py-3 rounded-[12px] transition-all border border-[#ff5a36]/30 flex flex-col items-center justify-center gap-y-1 tracking-wide group"
           >
-            <Shield className="size-[18px] text-[#d9183b] group-hover:scale-110 transition-transform" />
-            <span className="text-[12px] text-[#d9183b] font-semibold">Upgrade / Plan</span>
+            <Shield className="size-[18px] text-[#ff5a36] group-hover:scale-110 transition-transform" />
+            <span className="text-[12px] text-[#ff5a36] font-semibold">Upgrade / Plan</span>
           </button>
           
           {profile?.is_admin && (
@@ -705,7 +705,7 @@ export default function ProfilePage() {
               onClick={() => navigate('/admin')}
               className="flex-1 bg-[#1c1c1e] hover:bg-white/10 active:scale-[0.98] text-white font-medium py-3 rounded-[12px] transition-all border border-white/5 flex flex-col items-center justify-center gap-y-1 tracking-wide group"
             >
-              <Shield className="size-[18px] text-[#d9183b] group-hover:scale-110 transition-transform" />
+              <Shield className="size-[18px] text-[#ff5a36] group-hover:scale-110 transition-transform" />
               <span className="text-[12px] text-zinc-300">Admin Panel</span>
             </button>
           )}
@@ -722,9 +722,9 @@ export default function ProfilePage() {
 
       {/* Video Grid */}
       <div className="flex-1 w-full p-2">
-        <div className="grid grid-cols-3 gap-2 bg-[#0c0c0e]">
+        <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-0.5 md:gap-1 bg-[#0c0c0e]">
           {videos.length === 0 ? (
-             <div className="col-span-3 py-10 flex flex-col items-center justify-center text-zinc-500">
+             <div className="col-span-3 py-10 flex flex-col items-center justify-center text-zinc-400">
                <p className="text-sm font-medium">No posts yet.</p>
              </div>
           ) : (
@@ -733,9 +733,9 @@ export default function ProfilePage() {
                return (
                  <div key={video.id} className="aspect-[3/4] bg-zinc-900 overflow-hidden relative rounded-xl border border-white/5 group cursor-pointer" onClick={() => navigate(`/video/${video.id}`)}>
                    {video.thumbnail_url || video.main_product_image_url ? (
-                     <img src={video.thumbnail_url || video.main_product_image_url} alt="Video thumbnail" className="size-full object-cover" />
+                     <img src={video.thumbnail_url || video.main_product_image_url} alt="Video thumbnail" className="size-full object-cover" loading="lazy" decoding="async" />
                    ) : (
-                     <div className="size-full flex items-center justify-center bg-zinc-800 text-zinc-500">No Image</div>
+                     <div className="size-full flex items-center justify-center bg-zinc-800 text-zinc-400">No Image</div>
                    )}
                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80 pointer-events-none" />
                    
@@ -836,7 +836,7 @@ export default function ProfilePage() {
             >
               <button type="button" aria-label="button"  
                 onClick={() => setIsEditModalOpen(false)}
-                className="absolute top-5 right-5 text-zinc-500 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-full p-1.5"
+                className="absolute top-5 right-5 text-zinc-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-full p-1.5"
                 disabled={isSaving}
               >
                 <X className="size-4" />
@@ -851,11 +851,11 @@ export default function ProfilePage() {
                     onClick={() => fileInputRef.current?.click()}
                   >
                     {avatarObj?.preview ? (
-                      <img src={avatarObj.preview} alt="Avatar" className="size-full object-cover" />
+                      <img src={avatarObj.preview} alt="Avatar" className="size-full object-cover" loading="lazy" decoding="async" />
                     ) : profile?.avatar_url ? (
-                      <img src={profile.avatar_url} alt="Avatar" className="size-full object-cover" />
+                      <img src={profile.avatar_url} alt="Avatar" className="size-full object-cover" loading="lazy" decoding="async" />
                     ) : (
-                      <ImagePlus className="size-8 text-zinc-500 group-hover:text-white transition-colors" strokeWidth={1.5} />
+                      <ImagePlus className="size-8 text-zinc-400 group-hover:text-white transition-colors" strokeWidth={1.5} />
                     )}
                     <div className="absolute inset-0 bg-[#0c0c0e]/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                       <ImagePlus className="size-6 text-white" />
@@ -864,7 +864,7 @@ export default function ProfilePage() {
                   
                   {/* Photo Standard Dimensions & Crop Notice */}
                   <div className="mt-4 text-center max-w-[280px]">
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-[#d9183b] block mb-1">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-[#ff5a36] block mb-1">
                       Instagram Recommended
                     </span>
                     <p className="text-[11px] text-zinc-400 font-medium leading-normal">
@@ -887,35 +887,35 @@ export default function ProfilePage() {
                     onChange={(e) => setEditBio(e.target.value)}
                     placeholder="Add a bio..."
                     maxLength={150}
-                    className="w-full bg-zinc-900 text-white rounded-xl py-3 px-4 min-h-[100px] border border-white/5 focus:outline-none focus:border-white/30 resize-none text-sm placeholder:text-zinc-500 transition-colors"
+                    className="w-full bg-zinc-900 text-white rounded-xl py-3 px-4 min-h-[100px] border border-white/5 focus:outline-none focus:border-white/30 resize-none text-sm placeholder:text-zinc-400 transition-colors"
                   />
-                  <div className="text-right text-[11px] text-zinc-500 mt-1 font-medium tracking-wide">
+                  <div className="text-right text-[11px] text-zinc-400 mt-1 font-medium tracking-wide">
                     {editBio.length} / 150
                   </div>
                 </div>
 
                 <div>
                   <div className="flex items-center bg-zinc-900 rounded-xl border border-white/5 focus-within:border-white/30 px-4 transition-colors">
-                    <Instagram className="size-4 text-zinc-500 mr-3" strokeWidth={1.5} />
+                    <Instagram className="size-4 text-zinc-400 mr-3" strokeWidth={1.5} />
                     <input
                       type="text"
                       value={editInstagram}
                       onChange={(e) => setEditInstagram(e.target.value)}
                       placeholder="Instagram username"
-                      className="w-full bg-transparent text-white py-3.5 focus:outline-none text-sm placeholder:text-zinc-500 font-sans"
+                      className="w-full bg-transparent text-white py-3.5 focus:outline-none text-sm placeholder:text-zinc-400 font-sans"
                     />
                   </div>
                 </div>
 
                 <div>
                   <div className="flex items-center bg-zinc-900 rounded-xl border border-white/5 focus-within:border-white/30 px-4 transition-colors">
-                    <Link2 className="size-4 text-zinc-500 mr-3" strokeWidth={1.5} />
+                    <Link2 className="size-4 text-zinc-400 mr-3" strokeWidth={1.5} />
                     <input
                       type="text"
                       value={editTiktok}
                       onChange={(e) => setEditTiktok(e.target.value)}
                       placeholder="TikTok username"
-                      className="w-full bg-transparent text-white py-3.5 focus:outline-none text-sm placeholder:text-zinc-500 font-sans"
+                      className="w-full bg-transparent text-white py-3.5 focus:outline-none text-sm placeholder:text-zinc-400 font-sans"
                     />
                   </div>
                 </div>
@@ -969,7 +969,7 @@ export default function ProfilePage() {
                   <button type="button" aria-label="button"  onClick={() => alert('Account module coming soon')} className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5">
                     <div className="size-[42px] rounded-full overflow-hidden bg-zinc-800 shrink-0 mr-4 border border-white/10">
                       {profile?.avatar_url ? (
-                         <img src={profile.avatar_url} alt="Profile" className="size-full object-cover" />
+                         <img src={profile.avatar_url} alt="Profile" className="size-full object-cover" loading="lazy" decoding="async" />
                       ) : (
                          <div className="size-full bg-zinc-800 flex items-center justify-center text-white/60 font-serif italic text-lg font-bold">
                            {profile?.username?.charAt(0)?.toLowerCase() || 'u'}
@@ -980,7 +980,7 @@ export default function ProfilePage() {
                        <h4 className="text-[15px] font-medium text-white tracking-wide mb-0.5">Account</h4>
                        <p className="text-[13px] text-zinc-400 tracking-wide">Edit profile, username, email</p>
                     </div>
-                    <ChevronRight className="size-[18px] text-zinc-500 group-hover:text-white/70 transition-colors" />
+                    <ChevronRight className="size-[18px] text-zinc-400 group-hover:text-white/70 transition-colors" />
                   </button>
 
                   <button type="button" aria-label="button"  
@@ -991,13 +991,13 @@ export default function ProfilePage() {
                     className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5"
                   >
                     <div className="size-[42px] rounded-full bg-[#1c1c1e] shrink-0 mr-4 flex items-center justify-center border border-white/5 group-hover:bg-zinc-800 transition-colors">
-                      <Bookmark className="size-5 text-[#d9183b]" strokeWidth={2.0} />
+                      <Bookmark className="size-5 text-[#ff5a36]" strokeWidth={2.0} />
                     </div>
                     <div className="flex-1 mr-2">
                        <h4 className="text-[15px] font-medium text-white tracking-wide mb-0.5">Saved Items</h4>
                        <p className="text-[13px] text-zinc-400 tracking-wide">My bookmarked videos, products & collections</p>
                     </div>
-                    <ChevronRight className="size-[18px] text-zinc-500 group-hover:text-white/70 transition-colors" />
+                    <ChevronRight className="size-[18px] text-zinc-400 group-hover:text-white/70 transition-colors" />
                   </button>
 
                   <button type="button" aria-label="button"  onClick={() => {
@@ -1011,7 +1011,7 @@ export default function ProfilePage() {
                        <h4 className="text-[15px] font-medium text-white tracking-wide mb-0.5">Privacy</h4>
                        <p className="text-[13px] text-zinc-400 tracking-wide">Security, hidden accounts</p>
                     </div>
-                    <ChevronRight className="size-[18px] text-zinc-500 group-hover:text-white/70 transition-colors" />
+                    <ChevronRight className="size-[18px] text-zinc-400 group-hover:text-white/70 transition-colors" />
                   </button>
 
                   <button type="button" aria-label="button"  onClick={() => {
@@ -1025,7 +1025,7 @@ export default function ProfilePage() {
                        <h4 className="text-[15px] font-medium text-white tracking-wide mb-0.5">Terms of Service</h4>
                        <p className="text-[13px] text-zinc-400 tracking-wide">Standard platform use terms</p>
                     </div>
-                    <ChevronRight className="size-[18px] text-zinc-500 group-hover:text-white/70 transition-colors" />
+                    <ChevronRight className="size-[18px] text-zinc-400 group-hover:text-white/70 transition-colors" />
                   </button>
 
                   <button type="button" aria-label="button"  onClick={() => alert('Notifications module coming soon')} className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5">
@@ -1036,7 +1036,7 @@ export default function ProfilePage() {
                        <h4 className="text-[15px] font-medium text-white tracking-wide mb-0.5">Notifications</h4>
                        <p className="text-[13px] text-zinc-400 tracking-wide">Push, email preferences</p>
                     </div>
-                    <ChevronRight className="size-[18px] text-zinc-500 group-hover:text-white/70 transition-colors" />
+                    <ChevronRight className="size-[18px] text-zinc-400 group-hover:text-white/70 transition-colors" />
                   </button>
 
                   <button type="button" aria-label="button"  onClick={() => {
@@ -1044,13 +1044,13 @@ export default function ProfilePage() {
                         navigate('/creator-verification');
                     }} className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5">
                     <div className="size-[42px] rounded-full bg-[#1c1c1e] shrink-0 mr-4 flex items-center justify-center border border-white/5 group-hover:bg-zinc-800 transition-colors">
-                      <Shield className="size-5 text-zinc-500" strokeWidth={1.5} />
+                      <Shield className="size-5 text-zinc-400" strokeWidth={1.5} />
                     </div>
                     <div className="flex-1 mr-2">
                        <h4 className="text-[15px] font-medium text-white tracking-wide mb-0.5">Creator Verification</h4>
                        <p className="text-[13px] text-zinc-400 tracking-wide">Apply for verification badge</p>
                     </div>
-                    <ChevronRight className="size-[18px] text-zinc-500 group-hover:text-white/70 transition-colors" />
+                    <ChevronRight className="size-[18px] text-zinc-400 group-hover:text-white/70 transition-colors" />
                   </button>
 
                   <button type="button" aria-label="button"  onClick={toggleTheme} className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5">
@@ -1061,7 +1061,7 @@ export default function ProfilePage() {
                        <h4 className="text-[15px] font-medium text-white tracking-wide mb-0.5">Theme</h4>
                        <p className="text-[13px] text-zinc-400 tracking-wide">Dark</p>
                     </div>
-                    <ChevronRight className="size-[18px] text-zinc-500 group-hover:text-white/70 transition-colors" />
+                    <ChevronRight className="size-[18px] text-zinc-400 group-hover:text-white/70 transition-colors" />
                   </button>
 
                   <button type="button" aria-label="button"  onClick={() => alert('Help & Support module coming soon')} className="w-full p-4 bg-[#151518] hover:bg-white/5 transition-colors rounded-[20px] flex items-center group text-left border border-white/5">
@@ -1072,7 +1072,7 @@ export default function ProfilePage() {
                        <h4 className="text-[15px] font-medium text-white tracking-wide mb-0.5">Help & Support</h4>
                        <p className="text-[13px] text-zinc-400 tracking-wide">FAQs, reporting, contact us</p>
                     </div>
-                    <ChevronRight className="size-[18px] text-zinc-500 group-hover:text-white/70 transition-colors" />
+                    <ChevronRight className="size-[18px] text-zinc-400 group-hover:text-white/70 transition-colors" />
                   </button>
                 </div>
                 
@@ -1150,7 +1150,7 @@ export default function ProfilePage() {
             >
               <button type="button" aria-label="Close"  
                 onClick={() => setVideoToEdit(null)}
-                className="absolute top-5 right-5 text-zinc-500 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-full p-1.5"
+                className="absolute top-5 right-5 text-zinc-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-full p-1.5"
                 disabled={isEditingVideo}
               >
                 <X className="size-4" />
@@ -1167,7 +1167,7 @@ export default function ProfilePage() {
                     placeholder="Enter new caption..."
                     className="w-full bg-[#151518] border border-white/5 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-white/20 transition-colors h-24 resize-none"
                   />
-                  <div className="text-right text-xs text-zinc-500 mt-1">
+                  <div className="text-right text-xs text-zinc-400 mt-1">
                     {editVideoCaptionText.length} characters
                   </div>
                 </div>

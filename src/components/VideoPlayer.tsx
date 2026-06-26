@@ -3,7 +3,7 @@ import { useInView } from 'react-intersection-observer';
 import debounce from 'lodash/debounce';
 import throttle from 'lodash/throttle';
 import DOMPurify from 'dompurify';
-import { ShoppingBag, ShoppingCart, Play, Volume2, VolumeX, Heart, Share2, Flag, X, AlertOctagon, MessageCircle, Send, BadgeCheck, ShieldCheck, Trash2, Loader2, ChevronRight, ArrowLeft, ShieldAlert, Bookmark, Disc, Plus, ChevronLeft, MoreHorizontal, Star, Link as LinkIcon, Tag, Maximize2 } from 'lucide-react';
+import { ShoppingBag, ShoppingCart, Play, Volume2, VolumeX, Heart, Share2, Flag, X, AlertOctagon, MessageCircle, Send, BadgeCheck, ShieldCheck, Trash2, Loader2, ChevronRight, ArrowLeft, ShieldAlert, Bookmark, Disc, Plus, ChevronLeft, MoreHorizontal, Star, Link as LinkIcon, Tag, Maximize2, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Hls from 'hls.js';
 import { Video } from '../types';
@@ -769,8 +769,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
   return (
     <div ref={setRefs} className="relative w-full h-[100dvh] snap-start snap-always bg-zinc-900 group shrink-0 overflow-hidden">
       {/* Video Element */}
-      {isNearView ? (
-        resolvedVideoUrl && !hasError ? (
+      {resolvedVideoUrl && !hasError ? (
           <>
           <video
             ref={videoRef}
@@ -778,7 +777,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
             loop
             playsInline
             muted={isMuted}
-            className={cn("size-full object-cover transition-opacity duration-300", isBuffering ? "opacity-0" : "opacity-100")}
+            className={cn("size-full object-cover md:object-contain transition-opacity duration-300", isBuffering ? "opacity-0" : "opacity-100")}
             onClick={handleVideoClick}
             onError={(e) => {
               console.warn('Native video error:', e);
@@ -804,11 +803,11 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
           {/* Skeleton Loader / Poster */}
           {isBuffering && (
             <div className="absolute inset-0 z-0 bg-zinc-900 flex items-center justify-center pointer-events-auto">
-              <img 
+              <img  
                 src={video.thumbnail_url || resolvedVideoUrl.replace('/playlist.m3u8', '/thumbnail.jpg')}
                 alt="Thumbnail"
-                className="absolute inset-0 size-full object-cover opacity-50 blur-[2px]"
-              />
+                className="absolute inset-0 size-full object-cover md:object-contain opacity-50 blur-[2px]"
+              loading="lazy" decoding="async" />
               <div className="absolute inset-0 bg-zinc-900/30 animate-pulse pointer-events-none" />
               <div className="relative z-10 flex flex-col items-center gap-6">
                 {!showSlowConnectionToast ? (
@@ -846,19 +845,18 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
         </>
       ) : (
         <div className="absolute inset-0 z-0 bg-zinc-900 flex flex-col items-center justify-center pointer-events-auto">
-          <img 
+          <img  
             src={video.thumbnail_url || resolvedVideoUrl?.replace('/playlist.m3u8', '/thumbnail.jpg') || ''}
             alt="Thumbnail"
-            className="absolute inset-0 size-full object-cover opacity-30 blur-[4px]"
-          />
+            className="absolute inset-0 size-full object-cover md:object-contain opacity-30 blur-[4px]"
+          loading="lazy" decoding="async" />
           <div className="absolute inset-0 bg-zinc-900/40 pointer-events-none" />
           <div className="relative z-10 flex flex-col items-center gap-y-3">
              {retryCount >= 3 ? (
                <>
                  <AlertOctagon className="size-10 text-white/60 mb-2" />
                  <p className="text-sm font-medium text-white/80 tracking-wide drop-shadow-md">Video unavailable</p>
-                 <button type="button" aria-label="button"  
-                    onClick={(e) => {
+                 <button type="button" aria-label="Perform Action" onClick={(e) => {
                       e.stopPropagation();
                       setRetryCount(0);
                       setHasError(false);
@@ -877,27 +875,17 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
              )}
           </div>
         </div>
-      )) : (
-        <div className="absolute inset-0 z-0 bg-zinc-900">
-          <img 
-            src={video.thumbnail_url || resolvedVideoUrl.replace('/playlist.m3u8', '/thumbnail.jpg')}
-            alt="Thumbnail"
-            className="size-full object-cover opacity-50"
-          />
-        </div>
       )}
 
       {/* Play/Pause Overlay */}
       {!isPlaying && !isBuffering && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10 gap-4">
-          <button type="button" aria-label="button"  
-            onClick={(e) => { e.stopPropagation(); toggleMute(e); }}
+          <button type="button" aria-label="Toggle Mute" onClick={(e) => { e.stopPropagation(); toggleMute(e); }}
             className="size-12 shrink-0 bg-[#0c0c0e]/40 backdrop-blur-md rounded-full text-white/90 hover:bg-[#0c0c0e]/60 transition-colors pointer-events-auto cursor-pointer flex items-center justify-center shadow-[0_0_20px_rgba(0,0,0,0.5)] border border-white/10"
           >
             {isMuted ? <VolumeX className="size-5" /> : <Volume2 className="size-5" />}
           </button>
-          <button type="button" aria-label="button"  
-            onClick={(e) => { e.stopPropagation(); togglePlay(); }}
+          <button type="button" aria-label="Toggle Play" onClick={(e) => { e.stopPropagation(); togglePlay(); }}
             className="size-12 shrink-0 bg-[#0c0c0e]/40 backdrop-blur-md rounded-full text-white/90 hover:bg-[#0c0c0e]/60 transition-colors pointer-events-auto cursor-pointer flex items-center justify-center shadow-[0_0_20px_rgba(0,0,0,0.5)] border border-white/10"
           >
             <Play className="size-6 text-white/90 fill-white/90 ml-1" />
@@ -933,14 +921,14 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
           {!isExpanded && (
             <div className="text-left pointer-events-auto">
               <div className="flex items-center flex-wrap gap-y-1 mb-1">
-                <span className="text-white font-sans font-bold text-[15px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                <span className="text-white font-sans font-bold text-[17px] tracking-tight drop-shadow-md">
                   @{video.profiles?.username || (video as any).public_profiles?.username || 'user'}
                 </span>
                 {(video.profiles?.is_brand || (video as any).public_profiles?.is_brand) && (
-                  <BadgeCheck className="size-[15px] text-[#3897f0] ml-1 shrink-0 drop-shadow-sm inline-block align-middle" fill="currentColor" strokeWidth={0} />
+                  <BadgeCheck className="size-4 text-[#3897f0] ml-1 shrink-0 drop-shadow-sm inline-block align-middle" fill="currentColor" strokeWidth={0} />
                 )}
                 {user && video.user_id === user.id && (
-                  <span className="ml-2 px-1 py-0.5 bg-white/10 text-white/70 rounded text-[9px] font-bold uppercase tracking-wider border border-white/5 inline-block align-middle">
+                  <span className="ml-2 px-1.5 py-0.5 bg-white/20 text-white rounded text-[10px] font-bold uppercase tracking-wider border border-white/10 inline-block align-middle drop-shadow-sm">
                     You
                   </span>
                 )}
@@ -948,7 +936,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
               {parsedProduct.captionText && (
                 <div className="text-left leading-normal">
                   <span 
-                    className="text-white/95 text-[14px] font-sans drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] font-normal pr-1 inline"
+                    className="text-white/95 text-[15px] font-sans drop-shadow-md font-medium pr-1 inline leading-snug"
                     dangerouslySetInnerHTML={{ 
                       __html: DOMPurify.sanitize(
                         parsedProduct.captionText.length > 60 
@@ -961,9 +949,9 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                     <button 
                       type="button"
                       onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
-                      className="text-white/80 font-bold text-[13.5px] hover:text-white cursor-pointer ml-1 inline-block bg-transparent border-none p-0 align-baseline"
+                      className="text-white font-bold text-[14px] drop-shadow-md hover:text-white/80 cursor-pointer ml-1 inline-block bg-transparent border-none p-0 align-baseline transition-colors"
                     >
-                      ...more
+                      more
                     </button>
                   )}
                 </div>
@@ -972,9 +960,9 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                 <button 
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
-                  className="text-white/80 font-bold text-[13px] hover:text-white cursor-pointer mt-1"
+                  className="text-white font-bold text-[14px] drop-shadow-md hover:text-white/80 cursor-pointer mt-1 transition-colors"
                 >
-                  ...more
+                  more
                 </button>
               )}
             </div>
@@ -989,14 +977,14 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                 className="overflow-hidden flex flex-col gap-y-2 pointer-events-auto"
               >
                 <div className="flex items-center flex-wrap gap-y-1 mb-0.5">
-                  <span className="text-white font-sans font-bold text-[15px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                  <span className="text-white font-sans font-bold text-[17px] tracking-tight drop-shadow-md">
                     @{video.profiles?.username || (video as any).public_profiles?.username || 'user'}
                   </span>
                   {(video.profiles?.is_brand || (video as any).public_profiles?.is_brand) && (
-                    <BadgeCheck className="size-[15px] text-[#3897f0] ml-1 shrink-0 drop-shadow-sm inline-block align-middle" fill="currentColor" strokeWidth={0} />
+                    <BadgeCheck className="size-4 text-[#3897f0] ml-1 shrink-0 drop-shadow-sm inline-block align-middle" fill="currentColor" strokeWidth={0} />
                   )}
                   {user && video.user_id === user.id && (
-                    <span className="ml-2 px-1 py-0.5 bg-white/10 text-white/70 rounded text-[9px] font-bold uppercase tracking-wider border border-white/5 inline-block align-middle">
+                    <span className="ml-2 px-1.5 py-0.5 bg-white/20 text-white rounded text-[10px] font-bold uppercase tracking-wider border border-white/10 inline-block align-middle drop-shadow-sm">
                       You
                     </span>
                   )}
@@ -1028,7 +1016,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                           const storeName = extractStoreName(video.product_url);
                           navigate(`/store/${encodeURIComponent(storeName)}`);
                         }}
-                        className="px-2 py-0.5 bg-[#d9183b] border border-[#d9183b] text-white text-[10px] font-bold uppercase tracking-wider shadow-sm flex items-center rounded cursor-pointer hover:bg-[#ff3d63] hover:scale-[1.02] active:scale-[0.98] transition-all max-w-[140px]"
+                        className="px-2 py-0.5 bg-[#ff5a36] border border-[#ff5a36] text-white text-[10px] font-bold uppercase tracking-wider shadow-sm flex items-center rounded cursor-pointer hover:bg-[#ff7b5c] hover:scale-[1.02] active:scale-[0.98] transition-all max-w-[140px]"
                       >
                         <ShoppingBag className="size-3 mr-1 shrink-0" />
                         <span className="truncate">{extractStoreName(video.product_url)}</span>
@@ -1041,7 +1029,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                 {parsedProduct.captionText && (
                   <div className="mt-1 text-left">
                     <p 
-                      className="text-white/95 text-[14px] font-sans drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] leading-[1.3] font-normal pr-2 whitespace-pre-wrap animate-fadeIn text-left"
+                      className="text-white/95 text-[15px] md:text-base font-sans drop-shadow-md leading-snug font-medium pr-2 whitespace-pre-wrap animate-fade-in text-left"
                       dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(parsedProduct.captionText) }}
                     />
                   </div>
@@ -1060,7 +1048,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                              to={`/explore?q=${encodeURIComponent(cleanTag)}`}
                              onClick={(e) => e.stopPropagation()}
                              className={cn(
-                               "px-2 py-0.5 rounded-md text-[11px] font-medium tracking-wide shadow-sm backdrop-blur-md border transition-colors cursor-pointer bg-purple-500/20 text-purple-200 border-purple-500/30 hover:bg-purple-500/30"
+                               "px-2 py-0.5 rounded-md text-[11px] font-medium tracking-wide shadow-sm backdrop-blur-md border transition-colors cursor-pointer bg-white/10 text-white/90 border-white/15 hover:bg-white/20 hover:text-white"
                              )}
                            >
                              {displayTag}
@@ -1092,18 +1080,30 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                   setDetailsActiveSection('main');
                   setShowProductDetails(true);
                 }}
-                className="group flex items-center bg-[#0c0c0e]/45 hover:bg-[#0c0c0e]/60 backdrop-blur-md rounded-xl p-1.5 pr-4 w-fit border border-white/10 transition-colors shadow-md text-left"
+                className="group flex items-center bg-black/60 hover:bg-black/80 backdrop-blur-xl rounded-xl p-2 pr-4 w-fit border border-white/15 transition-all shadow-[0_8px_30px_rgb(0,0,0,0.12)] text-left"
               >
-                <div className="size-10 rounded-lg bg-zinc-900 overflow-hidden shrink-0 flex items-center justify-center mr-3 border border-white/5">
-                   <img src={video.main_product_image_url || video.thumbnail_url || "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=150&q=80"} alt="Product" className="size-full object-cover animate-fadeIn" />
+                <div className="size-[42px] rounded-lg bg-zinc-900 overflow-hidden shrink-0 flex items-center justify-center mr-3 shadow-inner">
+                   <img  src={video.main_product_image_url || video.thumbnail_url || "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=150&q=80"} alt="Product" className="size-full object-cover animate-fade-in" loading="lazy" decoding="async" />
                 </div>
                 <div className="flex flex-col items-start justify-center max-w-[170px]">
-                   <span className="text-[13px] font-sans font-semibold text-white/95 leading-tight truncate w-full">
+                   <span className="text-[13px] font-sans font-semibold text-white/95 leading-tight truncate w-full group-hover:text-white transition-colors">
                      {parsedProduct.productName || "Linked Product"}
                    </span>
-                   <span className="text-[12px] font-sans text-rose-450 font-bold mt-0.5">
-                     {parsedProduct.productPrice ? `₹${parsedProduct.productPrice.toLocaleString('en-IN')}` : "View Details"}
+                   <span className="text-[12px] font-sans text-white/80 font-medium mt-0.5 flex items-center gap-1.5">
+                     <span className="text-white font-bold tracking-tight bg-white/10 px-1.5 py-0.5 rounded-[4px]">
+                       {parsedProduct.productPrice ? `₹${parsedProduct.productPrice.toLocaleString('en-IN')}` : "Details"}
+                     </span>
+                     <span className="truncate flex items-center text-[10px] text-white/60">
+                       <ShoppingBag className="size-2.5 mr-1 shrink-0" />
+                       <span className="truncate">{extractStoreName(video.product_url)}</span>
+                       {(video.profiles?.is_brand || (video as any).public_profiles?.is_brand) && (
+                         <BadgeCheck className="size-3 text-[#3897f0] ml-1 shrink-0 drop-shadow-sm" fill="currentColor" strokeWidth={0} />
+                       )}
+                     </span>
                    </span>
+                </div>
+                <div className="ml-4 p-1.5 rounded-full bg-white text-black group-hover:scale-105 transition-transform shrink-0 flex items-center justify-center shadow-sm">
+                  <ExternalLink className="size-[14px]" strokeWidth={2.5} />
                 </div>
               </motion.button>
 
@@ -1115,7 +1115,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                     setDetailsActiveSection('coupon');
                     setShowProductDetails(true);
                   }}
-                  className="flex items-center gap-1.5 bg-emerald-500/15 hover:bg-emerald-555/20 backdrop-blur-md text-emerald-400 font-bold border border-emerald-500/25 px-2.5 py-1 rounded-lg w-fit text-[11px] uppercase tracking-wider shadow-sm transition-all animate-fadeIn"
+                  className="flex items-center gap-1.5 bg-emerald-500/15 hover:bg-emerald-555/20 backdrop-blur-md text-emerald-400 font-bold border border-emerald-500/25 px-2.5 py-1 rounded-lg w-fit text-[11px] uppercase tracking-wider shadow-sm transition-all animate-fade-in"
                 >
                   <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
@@ -1134,13 +1134,13 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
       </div>
 
       {/* Right Side Action Buttons */}
-      <div className="absolute bottom-[calc(90px+env(safe-area-inset-bottom))] right-3 w-14 flex flex-col items-center gap-y-[20px] z-20 pointer-events-auto">
+      <div className="absolute bottom-[calc(90px+env(safe-area-inset-bottom))] right-3 w-[52px] flex flex-col items-center gap-y-[18px] z-20 pointer-events-auto">
         
         {/* Avatar */}
-        <div className="relative mb-1">
-          <div className="size-[42px] rounded-full border-[1.5px] border-white/80 bg-[#1c1c1e] overflow-hidden shrink-0 shadow-sm flex flex-col justify-center items-center">
+        <div className="relative mb-2">
+          <div className="size-[44px] rounded-full border-[1.5px] border-white bg-zinc-900 overflow-hidden shrink-0 shadow-[0_4px_12px_rgba(0,0,0,0.5)] flex flex-col justify-center items-center active:scale-95 transition-transform cursor-pointer">
             {video.profiles?.avatar_url ? (
-              <img src={video.profiles.avatar_url} alt={video.profiles.username} className="size-full object-cover relative z-10" />
+              <img  src={video.profiles.avatar_url} alt={video.profiles.username} className="size-full object-cover relative z-10" loading="lazy" decoding="async" />
             ) : (
               <div className="size-full flex items-center justify-center text-white font-serif italic text-[14px] font-medium bg-zinc-800 relative z-10">
                 {video.profiles?.username?.charAt(0).toLowerCase() || 'v'}
@@ -1149,10 +1149,9 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
           </div>
           {/* Follow toggle on avatar: only show if uploader !== viewer and is not following */}
           {(!user || video.user_id !== user.id) && !isFollowing && (
-            <button type="button" aria-label="button" 
-              onClick={handleFollowToggle}
+            <button type="button" aria-label="Toggle Follow" onClick={handleFollowToggle}
               disabled={isFollowingLoading}
-              className="absolute -bottom-1 left-1/2 -translate-x-1/2 size-5 rounded-full bg-[#d9183b] text-white flex items-center justify-center shadow-md border-[1.5px] border-black transition-transform active:scale-95 z-20"
+              className="absolute -bottom-1 left-1/2 -translate-x-1/2 size-5 rounded-full bg-[#ff5a36] text-white flex items-center justify-center shadow-md border-[1.5px] border-black transition-transform active:scale-95 z-20"
             >
                <Plus className="size-3" strokeWidth={3} />
             </button>
@@ -1160,14 +1159,11 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
         </div>
 
         {/* Like Button */}
-        <button type="button" aria-label="button"  
-          onClick={handleLikeToggle}
-          className="flex flex-col items-center group active:scale-95 transition-transform"
+        <button type="button" aria-label="Like Video" onClick={handleLikeToggle}
+          className="flex flex-col items-center justify-center min-w-[44px] min-h-[44px] group active:scale-95 transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 rounded-xl"
         >
-          <svg width="28" height="28" viewBox="0 0 24 24" fill={isLiked ? "#d9183b" : "white"} className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]">
-            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-          </svg>
-          <span className="text-white font-sans text-[12px] font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] mt-0.5 tracking-tight text-center w-full">
+          <Heart className="size-8 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]" fill={isLiked ? "#ff5a36" : "transparent"} strokeWidth={isLiked ? 0 : 2} stroke={isLiked ? "#ff5a36" : "currentColor"} />
+          <span className="text-white font-sans text-[13px] font-bold drop-shadow-md mt-1 tracking-tight text-center w-full">
             {likesCount >= 1000000 ? (likesCount / 1000000).toFixed(1) + 'M' : likesCount >= 1000 ? (likesCount / 1000).toFixed(1) + 'K' : likesCount}
           </span>
         </button>
@@ -1175,54 +1171,45 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
         {/* Comment Button */}
         <button type="button" aria-label="Comment"  
           onClick={() => setShowCommentDrawer(true)}
-          className="flex flex-col items-center group active:scale-95 transition-transform"
+          className="flex flex-col items-center justify-center min-w-[44px] min-h-[44px] group active:scale-95 transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 rounded-xl"
         >
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="white" className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]">
-            <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM9 11H7V9h2v2zm4 0h-2V9h2v2zm4 0h-2V9h2v2z"/>
-          </svg>
-          <span className="text-white font-sans text-[12px] font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] mt-0.5 tracking-tight text-center w-full">
+          <MessageCircle className="size-8 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]" fill="transparent" strokeWidth={2} />
+          <span className="text-white font-sans text-[13px] font-bold drop-shadow-md mt-1 tracking-tight text-center w-full">
             {commentsCount >= 1000000 ? (commentsCount / 1000000).toFixed(1) + 'M' : commentsCount >= 1000 ? (commentsCount / 1000).toFixed(1) + 'K' : commentsCount}
           </span>
         </button>
 
         {/* Save/Bookmark Button */}
-        <button type="button" aria-label="button"  
-          onClick={handleBookmarkToggle}
-          className="flex flex-col items-center group active:scale-95 transition-transform"
+        <button type="button" aria-label="Save Video" onClick={handleBookmarkToggle}
+          className="flex flex-col items-center justify-center min-w-[44px] min-h-[44px] group active:scale-95 transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 rounded-xl"
         >
-          <svg width="28" height="28" viewBox="0 0 24 24" fill={isSaved ? "#facc15" : "white"} className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]">
-            <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/>
-          </svg>
-          <span className="text-white font-sans text-[12px] font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] mt-0.5 tracking-tight text-center w-full">
+          <Bookmark className="size-8 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]" fill={isSaved ? "#facc15" : "transparent"} strokeWidth={isSaved ? 0 : 2} stroke={isSaved ? "#facc15" : "currentColor"} />
+          <span className="text-white font-sans text-[13px] font-bold drop-shadow-md mt-1 tracking-tight text-center w-full">
             {savesCount >= 1000000 ? (savesCount / 1000000).toFixed(1) + 'M' : savesCount >= 1000 ? (savesCount / 1000).toFixed(1) + 'K' : savesCount}
           </span>
         </button>
 
         {/* Share Button */}
-        <button type="button" aria-label="button"  
-          onClick={handleShare}
-          className="flex flex-col items-center group active:scale-95 transition-transform"
+        <button type="button" aria-label="Share Video" onClick={handleShare}
+          className="flex flex-col items-center justify-center min-w-[44px] min-h-[44px] group active:scale-95 transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 rounded-xl"
           disabled={isSharing}
         >
           {isSharing ? (
-            <Loader2 className="size-7 text-white animate-spin drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]" />
+            <Loader2 className="size-8 text-white animate-spin drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]" />
           ) : (
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="white" className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]">
-               <path d="M21 12l-7-7v4C7 10 4 15 3 20c2.5-3.5 6-5.1 11-5.1V19l7-7z"/>
-            </svg>
+            <Share2 className="size-8 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]" strokeWidth={2} />
           )}
-          <span className="text-white font-sans text-[12px] font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] mt-0.5 tracking-tight text-center w-full">
+          <span className="text-white font-sans text-[13px] font-bold drop-shadow-md mt-1 tracking-tight text-center w-full">
             {isSharing ? 'Wait...' : 'Share'}
           </span>
         </button>
 
         {/* Report Button */}
-        <button type="button" aria-label="button"  
-          onClick={handleReport}
-          className="flex flex-col items-center group active:scale-95 transition-transform"
+        <button type="button" aria-label="Report Video" onClick={handleReport}
+          className="flex flex-col items-center justify-center min-w-[44px] min-h-[44px] group active:scale-95 transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 rounded-xl"
         >
-          <Flag className="size-7 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)] p-[1px]" fill="currentColor" />
-          <span className="text-white font-sans text-[12px] font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] mt-0.5 tracking-tight text-center w-full">
+          <Flag className="size-[28px] text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]" fill="transparent" strokeWidth={2} />
+          <span className="text-white font-sans text-[13px] font-bold drop-shadow-md mt-1 tracking-tight text-center w-full">
             Report
           </span>
         </button>
@@ -1231,8 +1218,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
       {/* Report Modal */}
       <AnimatePresence>
         {showReportModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
+          <motion.div             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[#0c0c0e]/60 backdrop-blur-sm pointer-events-auto"
@@ -1247,9 +1233,8 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
             >
               {/* Header */}
               <div className="flex items-center p-4 pt-6 shrink-0 relative">
-                <button type="button" aria-label="button"  
-                  onClick={() => setShowReportModal(false)}
-                  className="absolute left-4 p-2 -ml-2 text-white/90 hover:text-white transition-colors"
+                <button type="button" aria-label="Close Report Modal" onClick={() => setShowReportModal(false)}
+                  className="absolute left-4 p-3 min-w-[44px] min-h-[44px] -ml-2 text-white/90 hover:text-white transition-colors"
                 >
                    <ArrowLeft className="size-6" strokeWidth={2} />
                 </button>
@@ -1278,8 +1263,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                         />
                         <ShieldCheck className="size-10 text-green-500 relative z-10" />
                       </motion.div>
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
+                      <motion.div                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.3 }}
                       >
@@ -1310,19 +1294,18 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                     <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-6 flex flex-col">
                        <div className="flex flex-col gap-y-3">
                           {REPORT_CATEGORIES.map((category) => (
-                            <button type="button" aria-label="button" 
-                              key={category.id}
+                            <button type="button" aria-label={`Select report category: ${category.label}`} key={category.id}
                               onClick={() => setReportCategory(category as any)}
-                              className={`w-full flex items-center p-4 bg-[#151518] rounded-xl transition-all group text-left border ${reportCategory?.id === category.id ? 'border-orange-500/50 bg-orange-500/5' : 'border-white/5 hover:border-white/10'}`}
+                              className={`w-full flex items-center p-4 bg-[#151518] rounded-xl transition-all group text-left border ${reportCategory?.id === category.id ? 'border-[#ff5a36]/50 bg-[#ff5a36]/5' : 'border-white/5 hover:border-white/10'}`}
                             >
-                              <div className={`w-[26px] h-[26px] rounded-full border-2 ${reportCategory?.id === category.id ? 'border-orange-500 text-orange-500' : 'border-[#d9183b]/80 text-[#d9183b]/80'} flex items-center justify-center shrink-0 mr-4 transition-colors`}>
+                              <div className={`w-[26px] h-[26px] rounded-full border-2 ${reportCategory?.id === category.id ? 'border-[#ff5a36] text-[#ff5a36]' : 'border-zinc-500 text-zinc-400'} flex items-center justify-center shrink-0 mr-4 transition-colors`}>
                                   <div className="size-[10px] rounded-full border-2 border-current" />
                               </div>
                               <div>
                                 <div className="font-medium text-[15px] text-white/90 tracking-wide mb-0.5">
                                   {category.label}
                                 </div>
-                                <div className="text-[13px] text-zinc-500 tracking-wide">{category.description}</div>
+                                <div className="text-[13px] text-zinc-400 tracking-wide">{category.description}</div>
                               </div>
                             </button>
                           ))}
@@ -1331,10 +1314,9 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
 
                     {/* Footer Submit Button */}
                     <div className="px-5 pt-4 pb-[calc(24px+env(safe-area-inset-bottom))] bg-[#0c0c0e] shrink-0 border-t border-transparent">
-                       <button type="button" aria-label="button" 
-                         onClick={submitReport}
+                       <button type="button" aria-label="Submit Report" onClick={submitReport}
                          disabled={!reportCategory || isSubmittingReport}
-                         className="w-full py-[18px] bg-[#d9183b] text-white font-semibold text-[16px] tracking-wide rounded-2xl flex items-center justify-center hover:bg-[#d9183b]/90 transition-colors active:scale-[0.98] shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                         className="w-full py-[18px] bg-[#ff5a36] text-white font-semibold text-[16px] tracking-wide rounded-2xl flex items-center justify-center hover:bg-[#ff5a36]/90 transition-colors active:scale-[0.98] shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                        >
                           {isSubmittingReport ? <Loader2 className="size-5 animate-spin" /> : 'Submit Report'}
                        </button>
@@ -1350,11 +1332,10 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
       {/* Product Details Drawer */}
       <AnimatePresence>
         {showProductDetails && (
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
+          <motion.div             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
-            className="absolute inset-0 z-[60] bg-[#0c0c0e] flex flex-col pointer-events-auto overflow-hidden animate-fadeIn"
+            className="absolute inset-0 z-[60] bg-[#0c0c0e] flex flex-col pointer-events-auto overflow-hidden animate-fade-in"
             onClick={(e) => { e.stopPropagation(); }}
             onTouchMove={(e) => e.stopPropagation()}
             onWheel={(e) => e.stopPropagation()}
@@ -1365,23 +1346,21 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                
                {/* Hero Image Section */}
                <div className="relative w-full aspect-[4/5] bg-zinc-950 shrink-0 rounded-b-3xl overflow-hidden shadow-lg">
-                 <img 
+                 <img  
                    src={video.main_product_image_url || video.thumbnail_url || "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=800&q=80"}
                    className="absolute inset-0 size-full object-cover"
                    alt="Product"
-                 />
+                 loading="lazy" decoding="async" />
                  <div className="absolute inset-0 bg-gradient-to-t from-[#0c0c0e] via-transparent to-black/35 pointer-events-none" />
                  
                  {/* Top Navigation Overlay */}
                  <div className="absolute top-0 left-0 right-0 p-4 pt-[calc(1rem+env(safe-area-inset-top,0px))] flex justify-between items-start z-10">
-                   <button type="button" aria-label="button"  
-                     onClick={() => { setShowProductDetails(false); }}
+                   <button type="button" aria-label="Close Product Details" onClick={() => { setShowProductDetails(false); }}
                      className="size-10 flex items-center justify-center text-white bg-[#0c0c0e]/45 rounded-full backdrop-blur-md border border-white/5 hover:bg-[#0c0c0e]/60 active:scale-95 transition-all shadow-md"
                    >
                      <ChevronLeft className="size-6" strokeWidth={2.5} />
                    </button>
-                   <button type="button" aria-label="button"  
-                     onClick={(e) => { e.stopPropagation(); setShowMoreOptions(true); }}
+                   <button type="button" aria-label="More Options" onClick={(e) => { e.stopPropagation(); setShowMoreOptions(true); }}
                      className="size-10 flex items-center justify-center text-white bg-[#0c0c0e]/45 rounded-full backdrop-blur-md border border-white/5 hover:bg-[#0c0c0e]/60 active:scale-95 transition-all shadow-md"
                    >
                      <MoreHorizontal className="size-5" />
@@ -1395,8 +1374,8 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                    {parsedProduct.productName || "Linked Product"}
                  </h1>
                  
-                 <p className="text-[14px] text-zinc-500 mt-1 font-sans tracking-wide">
-                   Recommended product by <span className="font-semibold text-[#d9183b]">@{video.profiles?.username || 'Creator'}</span>
+                 <p className="text-[14px] text-zinc-400 mt-1 font-sans tracking-wide">
+                   Recommended product by <span className="font-semibold text-[#ff5a36]">@{video.profiles?.username || 'Creator'}</span>
                   </p>
                   <div className="flex flex-wrap gap-2 mt-2.5">
                     {video.categories && (
@@ -1424,9 +1403,9 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                           const storeName = extractStoreName(video.product_url);
                           navigate(`/store/${encodeURIComponent(storeName)}`);
                         }}
-                        className="px-2.5 py-1 bg-[#d9183b]/10 hover:bg-[#d9183b]/20 active:scale-[0.98] text-[#d9183b] rounded-lg border border-[#d9183b]/20 text-[11px] font-semibold flex items-center transition-all cursor-pointer max-w-[150px]"
+                        className="px-2.5 py-1 bg-[#ff5a36]/10 hover:bg-[#ff5a36]/20 active:scale-[0.98] text-[#ff5a36] rounded-lg border border-[#ff5a36]/20 text-[11px] font-semibold flex items-center transition-all cursor-pointer max-w-[150px]"
                       >
-                        <ShoppingBag className="size-3.5 mr-1.5 text-[#d9183b] shrink-0" />
+                        <ShoppingBag className="size-3.5 mr-1.5 text-[#ff5a36] shrink-0" />
                         <span className="truncate">{extractStoreName(video.product_url)}</span>
                       </button>
                     )}
@@ -1440,7 +1419,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                        <span className="text-[28px] font-extrabold text-white font-mono tracking-tight">
                          ₹{parsedProduct.productPrice.toLocaleString('en-IN')}
                        </span>
-                       <span className="hidden text-[11px] text-[#d9183b] font-sans font-medium uppercase tracking-wider mt-0.5">Special Creator Price</span>
+                       <span className="hidden text-[11px] text-[#ff5a36] font-sans font-medium uppercase tracking-wider mt-0.5">Special Creator Price</span>
                      </div>
                    ) : (
                      <span className="text-[20px] font-sans font-bold text-zinc-400">Verified Deal</span>
@@ -1471,7 +1450,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                  {/* Description "Why recommends it" */}
                  {parsedProduct.captionText && (
                    <div className="mt-6 bg-[#151518]/60 border border-white/5 rounded-2xl p-4">
-                     <span className="text-xs font-bold uppercase tracking-wider text-[#d9183b] font-sans block mb-2">Why I Recommend This</span>
+                     <span className="text-xs font-bold uppercase tracking-wider text-[#ff5a36] font-sans block mb-2">Why I Recommend This</span>
                      <p className="text-[14.5px] text-zinc-300 leading-relaxed font-sans font-normal tracking-wide pl-0.5">
                        {parsedProduct.captionText}
                      </p>
@@ -1482,7 +1461,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                  <div className="mt-8 border-t border-zinc-900 pt-6">
                    <div className="flex items-center justify-between mb-3">
                      <h3 className="text-[15px] font-bold text-white tracking-wide">Product Looks</h3>
-                     <span className="text-[11px] text-zinc-500 font-medium font-sans flex items-center gap-1.5 bg-white/5 px-2.5 py-0.75 rounded-full select-none">
+                     <span className="text-[11px] text-zinc-400 font-medium font-sans flex items-center gap-1.5 bg-white/5 px-2.5 py-0.75 rounded-full select-none">
                        <Maximize2 className="size-2.5 text-zinc-400" />
                        <span>Tap image for full screen</span>
                      </span>
@@ -1493,7 +1472,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                        onClick={() => setFullscreenImageUrl(video.main_product_image_url || video.thumbnail_url || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=200&auto=format&fit=crop")}
                        className="w-[110px] h-full rounded-2xl bg-zinc-950 overflow-hidden shrink-0 snap-start border border-white/5 shadow-sm relative group cursor-pointer hover:border-white/20 hover:scale-[1.02] active:scale-[0.98] transition-all text-left p-0"
                      >
-                        <img src={video.main_product_image_url || video.thumbnail_url || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=200&auto=format&fit=crop"} className="size-full object-contain bg-black/40 transition-transform group-hover:scale-105 duration-300"  alt="" />
+                        <img  src={video.main_product_image_url || video.thumbnail_url || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=200&auto=format&fit=crop"} className="size-full object-contain bg-black/40 transition-transform group-hover:scale-105 duration-300"  alt="" loading="lazy" decoding="async" />
                         <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 bg-[#0c0c0e]/75 backdrop-blur-sm rounded text-[9px] text-white font-medium border border-white/5">Official</span>
                      </button>
                      {video.real_life_image_url && (
@@ -1502,8 +1481,8 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                          onClick={() => setFullscreenImageUrl(video.real_life_image_url)}
                          className="w-[110px] h-full rounded-2xl bg-zinc-950 overflow-hidden shrink-0 snap-start border border-white/5 shadow-sm relative group cursor-pointer hover:border-white/20 hover:scale-[1.02] active:scale-[0.98] transition-all text-left p-0"
                        >
-                          <img src={video.real_life_image_url} className="size-full object-contain bg-black/40 transition-transform group-hover:scale-105 duration-300"  alt="" />
-                          <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 bg-[#d9183b]/90 backdrop-blur-sm rounded text-[9px] text-white font-bold uppercase tracking-wider border border-[#d9183b]/10">Real Pic</span>
+                          <img  src={video.real_life_image_url} className="size-full object-contain bg-black/40 transition-transform group-hover:scale-105 duration-300"  alt="" loading="lazy" decoding="async" />
+                          <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 bg-[#ff5a36]/90 backdrop-blur-sm rounded text-[9px] text-white font-bold uppercase tracking-wider border border-[#ff5a36]/10">Real Pic</span>
                        </button>
                      )}
                    </div>
@@ -1534,12 +1513,11 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                      
                      <div className="flex gap-3 bg-zinc-950/80 border border-white/5 p-3 rounded-xl items-center justify-between mb-4">
                        <div className="flex flex-col">
-                         <span className="text-[12px] text-zinc-500 uppercase tracking-widest font-mono">Promo Coupon Code</span>
+                         <span className="text-[12px] text-zinc-400 uppercase tracking-widest font-mono">Promo Coupon Code</span>
                          <span className="text-[18px] font-extrabold text-[#11b981] font-mono tracking-wider">{parsedProduct.couponCode}</span>
                        </div>
                        
-                       <button type="button" aria-label="button" 
-                         onClick={(e) => {
+                       <button type="button" aria-label="Perform Action" onClick={(e) => {
                            e.stopPropagation();
                            navigator.clipboard.writeText(parsedProduct.couponCode || '');
                            setIsCopied(true);
@@ -1564,7 +1542,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                      )}
 
                      {parsedProduct.couponTerms && (
-                       <p className="text-[11px] text-zinc-500 leading-relaxed pl-1.5 border-l border-zinc-800">
+                       <p className="text-[11px] text-zinc-400 leading-relaxed pl-1.5 border-l border-zinc-800">
                          * Terms: {parsedProduct.couponTerms}
                        </p>
                      )}
@@ -1583,8 +1561,8 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                          <div className="text-[14px] text-zinc-300 leading-relaxed gap-y-2 pl-0.5">
                            {parsedProduct.productUses.map((line, idx) => (
                              <div key={idx} className="flex items-start gap-2.5">
-                               <div className="size-[18px] rounded-full bg-[#d9183b]/10 border border-[#d9183b]/20 flex items-center justify-center shrink-0 mt-0.5">
-                                 <svg className="size-2.5 text-[#d9183b]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="4">
+                               <div className="size-[18px] rounded-full bg-[#ff5a36]/10 border border-[#ff5a36]/20 flex items-center justify-center shrink-0 mt-0.5">
+                                 <svg className="size-2.5 text-[#ff5a36]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="4">
                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                  </svg>
                                </div>
@@ -1602,7 +1580,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                          <div className="bg-[#151518]/50 rounded-xl p-3 divide-y divide-zinc-900 text-[13.5px] text-zinc-300">
                            {parsedProduct.keySpecifications.map((spec, idx) => (
                              <div key={idx} className="py-2.5 first:pt-1 last:pb-1 flex items-start gap-2 text-zinc-300 leading-relaxed">
-                               <span className="text-zinc-650 shrink-0 font-bold text-[#d9183b]">𐃏</span>
+                               <span className="text-zinc-650 shrink-0 font-bold text-[#ff5a36]">𐃏</span>
                                <span>{spec.replace(/^•\s*/, '')}</span>
                              </div>
                            ))}
@@ -1632,14 +1610,14 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                    <div className="mt-8 border-t border-zinc-900 pt-6 grid grid-cols-2 gap-4">
                      {parsedProduct.bestFor && (
                        <div className="bg-[#151518]/45 border border-white/5 rounded-xl p-3.5 col-span-1">
-                         <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest block mb-1">Recommended Best For</span>
+                         <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">Recommended Best For</span>
                          <span className="text-[13px] text-zinc-200 font-sans font-semibold leading-snug">{parsedProduct.bestFor}</span>
                        </div>
                      )}
 
                      {parsedProduct.whatILiked && (
                        <div className="bg-[#151518]/45 border border-white/5 rounded-xl p-3.5 col-span-1">
-                         <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest block mb-1">Creator Fave Option</span>
+                         <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">Creator Fave Option</span>
                          <span className="text-[13px] text-zinc-200 font-sans font-semibold leading-snug">{parsedProduct.whatILiked}</span>
                        </div>
                      )}
@@ -1664,7 +1642,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                <button
                  type="button"
                  onClick={() => setShowPurchaseDisclaimer(true)}
-                 className="w-full bg-[#d9183b] hover:bg-[#f4284d] active:scale-[0.98] text-white font-bold py-4.5 px-6 rounded-2xl transition-all flex items-center justify-center text-[16px] shadow-[0_4px_15px_rgba(239,41,80,0.45)] tracking-wide shrink-0 cursor-pointer"
+                 className="w-full bg-[#ff5a36] hover:bg-[#ff7b5c] active:scale-[0.98] text-white font-bold py-4.5 px-6 rounded-2xl transition-all flex items-center justify-center text-[16px] shadow-[0_4px_15px_rgba(255,90,54,0.45)] tracking-wide shrink-0 cursor-pointer"
                >
                  Buy from {extractStoreName(video.product_url) || "Store"}
                </button>
@@ -1677,8 +1655,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
       {/* Auth Gate Announcement Dialog */}
       <AnimatePresence>
         {showAuthModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
+          <motion.div             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[70] pointer-events-auto"
@@ -1692,8 +1669,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
       {/* Purchase Disclaimer Dialog */}
       <AnimatePresence>
         {showPurchaseDisclaimer && (
-          <motion.div
-            initial={{ opacity: 0 }}
+          <motion.div             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="absolute inset-0 z-[75] bg-[#0c0c0e]/85 backdrop-blur-md pointer-events-auto flex flex-col justify-end"
@@ -1715,7 +1691,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                 </div>
                 <button type="button" aria-label="Close"  
                   onClick={() => setShowPurchaseDisclaimer(false)}
-                  className="p-1.5 text-zinc-400 hover:text-white transition-colors bg-white/5 rounded-full"
+                  className="p-3 text-zinc-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 hover:text-white transition-colors bg-white/5 rounded-full"
                 >
                   <X className="size-4.5" />
                 </button>
@@ -1733,10 +1709,10 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                   </p>
                   <ul className="text-zinc-300 text-[12.5px] leading-relaxed pl-4 list-disc space-y-2 font-sans">
                     <li>
-                      <span className="text-[#d9183b] font-semibold">Redirect Notice:</span> You will be redirected to <span className="text-white font-semibold font-mono">{extractStoreName(video.product_url) || "the external website"}</span> to purchase the product.
+                      <span className="text-[#ff5a36] font-semibold">Redirect Notice:</span> You will be redirected to <span className="text-white font-semibold font-mono">{extractStoreName(video.product_url) || "the external website"}</span> to purchase the product.
                     </li>
                     <li>
-                      <span className="text-white font-semibold">No Platform Liability:</span> We are <span className="text-[#d9183b] font-bold">not responsible</span> for any fraud, delayed shipping, payment errors, transit damage, or item quality.
+                      <span className="text-white font-semibold">No Platform Liability:</span> We are <span className="text-[#ff5a36] font-bold">not responsible</span> for any fraud, delayed shipping, payment errors, transit damage, or item quality.
                     </li>
                     <li>
                       <span className="text-white font-semibold">Returns & Refunds:</span> All cancellation requests, returns, refunds, or support queries are the entire, sole responsibility of the merchant store and the brand/influencer who uploaded this link.
@@ -1744,7 +1720,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                   </ul>
                 </div>
                 
-                <p className="text-zinc-500 text-[11px] leading-normal font-sans">
+                <p className="text-zinc-400 text-[11px] leading-normal font-sans">
                   By clicking "Proceed to Store", you confirm you understand and agree that any subsequent purchase or payment is done entirely at your own risk.
                 </p>
               </div>
@@ -1756,7 +1732,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setShowPurchaseDisclaimer(false)}
-                  className="w-full bg-[#d9183b] hover:bg-[#f4284d] active:scale-[0.98] text-white text-[15px] font-bold py-4 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shadow-[0_4px_12px_rgba(239,41,80,0.3)] cursor-pointer"
+                  className="w-full bg-[#ff5a36] hover:bg-[#ff7b5c] active:scale-[0.98] text-white text-[15px] font-bold py-4 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shadow-[0_4px_12px_rgba(255,90,54,0.3)] cursor-pointer"
                 >
                   <span>Proceed to {extractStoreName(video.product_url) || "Store"}</span>
                   <ChevronRight className="size-4" strokeWidth={2.5} />
@@ -1776,8 +1752,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
       </AnimatePresence>
       <AnimatePresence>
         {showVerifiedInfo && (
-          <motion.div
-            initial={{ opacity: 0 }}
+          <motion.div             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="absolute inset-0 z-[60] bg-[#0c0c0e]/60 backdrop-blur-sm pointer-events-auto"
@@ -1796,9 +1771,8 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                   <BadgeCheck className="size-6 mr-2" strokeWidth={2.5} />
                   <h3 className="text-xl font-bold text-white tracking-tight">Verified Hands-On</h3>
                 </div>
-                <button type="button" aria-label="button"  
-                  onClick={() => setShowVerifiedInfo(false)}
-                  className="p-1.5 text-zinc-400 hover:text-white transition-colors bg-zinc-800 rounded-full"
+                <button type="button" aria-label="Close Verified Info" onClick={() => setShowVerifiedInfo(false)}
+                  className="p-3 text-zinc-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 hover:text-white transition-colors bg-zinc-800 rounded-full"
                 >
                   <X className="size-5" />
                 </button>
@@ -1806,8 +1780,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
               <p className="text-zinc-300 leading-relaxed mb-6">
                 This creator uploaded a real-life photo to prove they actually use this product. You can view their photo in the product details.
               </p>
-              <button type="button" aria-label="button" 
-                onClick={() => setShowVerifiedInfo(false)}
+              <button type="button" aria-label="Close Verified Info" onClick={() => setShowVerifiedInfo(false)}
                 className="w-full bg-[#4A63F3] hover:bg-blue-600 text-white font-bold py-3.5 px-4 rounded-xl transition-colors shadow-lg active:scale-[0.98]"
               >
                 Got it
@@ -1819,8 +1792,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
 
       <AnimatePresence>
         {showAuthLinkInfo && (
-          <motion.div
-            initial={{ opacity: 0 }}
+          <motion.div             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="absolute inset-0 z-[60] bg-[#0c0c0e]/80 backdrop-blur-sm pointer-events-auto"
@@ -1839,9 +1811,8 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                   <BadgeCheck className="size-6 mr-2" strokeWidth={2.5} />
                   <h3 className="text-xl font-bold text-white tracking-tight">Authentic Store Link</h3>
                 </div>
-                <button type="button" aria-label="button"  
-                  onClick={() => setShowAuthLinkInfo(false)}
-                  className="p-1.5 text-zinc-400 hover:text-white transition-colors bg-zinc-800 rounded-full"
+                <button type="button" aria-label="Close Authorized Link Info" onClick={() => setShowAuthLinkInfo(false)}
+                  className="p-3 text-zinc-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 hover:text-white transition-colors bg-zinc-800 rounded-full"
                 >
                   <X className="size-5" />
                 </button>
@@ -1849,8 +1820,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
               <p className="text-zinc-300 leading-relaxed mb-6 font-sans">
                 This verification indicates that the creator has provided a legitimate link to the official e-commerce store (e.g., Amazon, official site). We perform validations to ensure it's not a deceptive or spam link.
               </p>
-              <button type="button" aria-label="button" 
-                onClick={() => setShowAuthLinkInfo(false)}
+              <button type="button" aria-label="Close Authorized Link Info" onClick={() => setShowAuthLinkInfo(false)}
                 className="w-full bg-[#10b981] hover:bg-emerald-600 text-white font-bold py-3.5 px-4 rounded-xl transition-colors shadow-lg active:scale-[0.98]"
               >
                 Understood
@@ -1862,8 +1832,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
 
        <AnimatePresence>
         {showMoreOptions && (
-          <motion.div
-            initial={{ opacity: 0 }}
+          <motion.div             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="absolute inset-0 z-[70] bg-[#0c0c0e]/80 backdrop-blur-sm pointer-events-auto"
@@ -1879,9 +1848,8 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
             >
               <div className="flex justify-between items-center mb-2">
                 <h3 className="text-lg font-bold text-white tracking-tight">More Options</h3>
-                <button type="button" aria-label="button"  
-                  onClick={() => setShowMoreOptions(false)}
-                  className="p-1.5 text-zinc-400 hover:text-white transition-colors bg-zinc-800 rounded-full"
+                <button type="button" aria-label="Close More Options" onClick={() => setShowMoreOptions(false)}
+                  className="p-3 text-zinc-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 hover:text-white transition-colors bg-zinc-800 rounded-full"
                 >
                   <X className="size-5" />
                 </button>
@@ -1893,7 +1861,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                 </div>
                 <div>
                   <h4 className="text-white font-bold text-[15px]">Share Video</h4>
-                  <p className="text-zinc-500 text-[12px] font-medium mt-0.5">Send this to friends</p>
+                  <p className="text-zinc-400 text-[12px] font-medium mt-0.5">Send this to friends</p>
                 </div>
               </button>
               
@@ -1903,7 +1871,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                 </div>
                 <div>
                   <h4 className="text-white font-bold text-[15px]">Copy Link</h4>
-                  <p className="text-zinc-500 text-[12px] font-medium mt-0.5">Copy direct link to clipboard</p>
+                  <p className="text-zinc-400 text-[12px] font-medium mt-0.5">Copy direct link to clipboard</p>
                 </div>
               </button>
               
@@ -1913,7 +1881,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
                 </div>
                 <div>
                   <h4 className="text-white font-bold text-[15px]">Report</h4>
-                  <p className="text-zinc-500 text-[12px] font-medium mt-0.5">Flag inappropriate content</p>
+                  <p className="text-zinc-400 text-[12px] font-medium mt-0.5">Flag inappropriate content</p>
                 </div>
               </button>
             </motion.div>
@@ -1924,8 +1892,7 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
       {/* Full Screen Image Viewer Modal */}
       <AnimatePresence>
         {fullscreenImageUrl && (
-          <motion.div
-            initial={{ opacity: 0 }}
+          <motion.div             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] bg-black/98 flex flex-col items-center justify-center pointer-events-auto cursor-zoom-out"
@@ -1953,12 +1920,14 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
               transition={{ type: "spring", damping: 28, stiffness: 240 }}
               className="p-4 w-full h-full max-w-[100vw] max-h-[100vh] flex items-center justify-center pointer-events-none"
             >
-              <img
+              <img                  
                 src={fullscreenImageUrl}
                 alt="Product visual full screen"
                 className="max-w-[95vw] max-h-[80vh] w-auto h-auto object-contain aspect-auto rounded-2xl border border-white/10 shadow-[0_12px_40px_rgba(0,0,0,0.9)] pointer-events-auto select-none"
                 onPointerDown={(e) => e.stopPropagation()}
                 role="presentation"
+                loading="lazy"
+                decoding="async"
               />
             </motion.div>
 
@@ -1985,17 +1954,17 @@ export const VideoPlayer = React.memo(function VideoPlayer({ video, isActive: is
             className="relative w-full flex items-center group/timeline h-6 cursor-pointer touch-none"
           >
             {/* Custom styled progress rail with smooth radial glow */}
-            <div className={`relative w-full overflow-hidden transition-all duration-300 ease-out pointer-events-none ${isScrubbing ? 'h-1.5 ring-2 ring-[#d9183b]/45 shadow-[0_0_15px_rgba(239,41,80,0.7)] bg-white/30' : 'h-1 bg-white/20 group-hover/timeline:h-1.5 shadow-[0_0_0px_rgba(239,41,80,0)]'}`}>
+            <div className={`relative w-full overflow-hidden transition-all duration-300 ease-out pointer-events-none ${isScrubbing ? 'h-1.5 ring-2 ring-[#ff5a36]/45 shadow-[0_0_15px_rgba(255,90,54,0.7)] bg-white/30' : 'h-1 bg-white/20 group-hover/timeline:h-1.5 shadow-[0_0_0px_rgba(255,90,54,0)]'}`}>
               {/* Highlight active progress */}
               <div 
-                className="absolute left-0 top-0 bottom-0 bg-[#d9183b] pointer-events-none"
+                className="absolute left-0 top-0 bottom-0 bg-[#ff5a36] pointer-events-none"
                 style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
               />
             </div>
             
             {/* Dynamic seeker knob */}
             <div 
-              className={`absolute size-3 bg-white rounded-full border border-[#d9183b] origin-center transition-all duration-100 pointer-events-none -translate-x-1/2 ${isScrubbing ? 'scale-125 ring-2 ring-white/50 shadow-[0_0_12px_rgba(239,41,80,0.8)]' : 'scale-0 group-hover/timeline:scale-100 shadow-md'}`}
+              className={`absolute size-3 bg-white rounded-full border border-[#ff5a36] origin-center transition-all duration-100 pointer-events-none -translate-x-1/2 ${isScrubbing ? 'scale-125 ring-2 ring-white/50 shadow-[0_0_12px_rgba(255,90,54,0.8)]' : 'scale-0 group-hover/timeline:scale-100 shadow-md'}`}
               style={{ left: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
             />
           </div>

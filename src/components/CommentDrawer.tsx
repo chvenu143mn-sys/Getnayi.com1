@@ -696,13 +696,13 @@ export function CommentDrawer({
           )}
 
           {loading ? (
-            <div className="h-full flex flex-col items-center justify-center py-20 text-zinc-500 gap-2">
-              <Loader2 className="size-6 animate-spin text-[#d9183b]" />
+            <div className="h-full flex flex-col items-center justify-center py-20 text-zinc-400 gap-2">
+              <Loader2 className="size-6 animate-spin text-[#ff5a36]" />
             </div>
           ) : rootComments.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center py-20 text-zinc-500 gap-2">
+            <div className="h-full flex flex-col items-center justify-center py-20 text-zinc-400 gap-2">
               <p className="text-sm font-sans font-medium text-white/80">No comments yet.</p>
-              <p className="text-xs text-zinc-500">Start the conversation.</p>
+              <p className="text-xs text-zinc-400">Start the conversation.</p>
             </div>
           ) : (
             <div className="space-y-5 pt-2 pb-6">
@@ -719,19 +719,18 @@ export function CommentDrawer({
                       {/* Avatar */}
                       <div className="size-8 rounded-full bg-zinc-800 overflow-hidden shrink-0 mt-0.5 relative">
                         {comment.profiles?.avatar_url ? (
-                          <img
-                            src={comment.profiles.avatar_url}
+                          <img                             src={comment.profiles.avatar_url}
                             alt=""
                             className="size-full object-cover"
                             referrerPolicy="no-referrer"
-                          />
+                          loading="lazy" decoding="async" />
                         ) : (
                           <div className="size-full flex items-center justify-center bg-zinc-700 text-white font-semibold text-[10px] italic">
                             {comment.profiles?.username?.charAt(0).toLowerCase() || 'u'}
                           </div>
                         )}
                         {comment.user_id === videoOwnerId && (
-                          <div className="absolute -bottom-0.5 -right-0.5 bg-[#d9183b] rounded-full p-[2px] border border-[#121212]">
+                          <div className="absolute -bottom-0.5 -right-0.5 bg-[#ff5a36] rounded-full p-[2px] border border-[#121212]">
                             <Pin className="size-1.5 text-white fill-white" />
                           </div>
                         )}
@@ -749,7 +748,7 @@ export function CommentDrawer({
                             </span>
                           )}
                           {comment.user_id === videoOwnerId && (
-                            <span className="px-1 text-[8px] bg-[#d9183b]/20 text-[#d9183b] font-bold uppercase tracking-wider rounded">
+                            <span className="px-1 text-[8px] bg-[#ff5a36]/20 text-[#ff5a36] font-bold uppercase tracking-wider rounded">
                               Creator
                             </span>
                           )}
@@ -760,8 +759,8 @@ export function CommentDrawer({
 
                         {/* Pinned Indicator badge */}
                         {comment.is_pinned && (
-                          <div className="flex items-center gap-1 text-[#d9183b] font-bold text-[10px] pt-0.5 tracking-wide uppercase">
-                            <Pin className="size-2.5 fill-[#d9183b]" />
+                          <div className="flex items-center gap-1 text-[#ff5a36] font-bold text-[10px] pt-0.5 tracking-wide uppercase">
+                            <Pin className="size-2.5 fill-[#ff5a36]" />
                             <span>Pinned by creator</span>
                           </div>
                         )}
@@ -784,9 +783,9 @@ export function CommentDrawer({
                             <button
                               type="button"
                               onClick={() => handlePinComment(comment.id)}
-                              className={`${comment.is_pinned ? 'text-[#d9183b]' : 'hover:text-white/80'} transition-colors flex items-center gap-0.5 cursor-pointer`}
+                              className={`${comment.is_pinned ? 'text-[#ff5a36]' : 'hover:text-white/80'} transition-colors flex items-center gap-0.5 cursor-pointer`}
                             >
-                              <Pin className={`size-3 ${comment.is_pinned ? 'fill-[#d9183b]' : ''}`} />
+                              <Pin className={`size-3 ${comment.is_pinned ? 'fill-[#ff5a36]' : ''}`} />
                               <span>{comment.is_pinned ? 'Unpin' : 'Pin'}</span>
                             </button>
                           )}
@@ -800,7 +799,7 @@ export function CommentDrawer({
                             >
                               {deletingCommentId === comment.id ? (
                                 <span className="flex items-center gap-1">
-                                  <Loader2 className="size-3 animate-spin text-[#d9183b]" />
+                                  <Loader2 className="size-3 animate-spin text-[#ff5a36]" />
                                   <span>Deleting...</span>
                                 </span>
                               ) : (
@@ -819,7 +818,7 @@ export function CommentDrawer({
                           <button
                             type="button"
                             onClick={() => toggleReplies(comment.id)}
-                            className="flex items-center gap-2 text-xs font-bold text-zinc-500 hover:text-zinc-300 transition-colors focus:outline-none py-1"
+                            className="flex items-center gap-2 text-xs font-bold text-zinc-400 hover:text-zinc-300 transition-colors focus:outline-none py-1"
                           >
                             <span className="w-5 h-[1.5px] bg-zinc-800 inline-block shrink-0" />
                             <span>
@@ -838,12 +837,11 @@ export function CommentDrawer({
                                   {/* Avatar */}
                                   <div className="size-6 rounded-full bg-zinc-800 overflow-hidden shrink-0 mt-0.5">
                                     {reply.profiles?.avatar_url ? (
-                                      <img
-                                        src={reply.profiles.avatar_url}
+                                      <img                                         src={reply.profiles.avatar_url}
                                         alt=""
                                         className="size-full object-cover"
                                         referrerPolicy="no-referrer"
-                                      />
+                                      loading="lazy" decoding="async" />
                                     ) : (
                                       <div className="size-full flex items-center justify-center bg-zinc-700 text-white font-semibold text-[9px] italic">
                                         {reply.profiles?.username?.charAt(0).toLowerCase() || 'u'}
@@ -863,7 +861,7 @@ export function CommentDrawer({
                                         </span>
                                       )}
                                       {reply.user_id === videoOwnerId && (
-                                        <span className="px-1 text-[8px] bg-[#d9183b]/20 text-[#d9183b] font-bold uppercase tracking-wider rounded">
+                                        <span className="px-1 text-[8px] bg-[#ff5a36]/20 text-[#ff5a36] font-bold uppercase tracking-wider rounded">
                                           Creator
                                         </span>
                                       )}
@@ -899,7 +897,7 @@ export function CommentDrawer({
                                         >
                                           {deletingCommentId === reply.id ? (
                                             <span className="flex items-center gap-1">
-                                              <Loader2 className="size-3 animate-spin text-[#d9183b]" />
+                                              <Loader2 className="size-3 animate-spin text-[#ff5a36]" />
                                               <span>Deleting...</span>
                                             </span>
                                           ) : (
@@ -954,7 +952,7 @@ export function CommentDrawer({
               exit={{ opacity: 0, y: 10 }}
               className="mx-3 mb-2 bg-[#1c1c1e] border border-white/10 rounded-xl overflow-hidden shadow-2xl z-20 overflow-y-auto max-h-[160px]"
             >
-              <div className="px-3.5 py-2 text-[11px] font-sans font-bold text-zinc-500 uppercase tracking-wider border-b border-white/5">
+              <div className="px-3.5 py-2 text-[11px] font-sans font-bold text-zinc-400 uppercase tracking-wider border-b border-white/5">
                 Suggested Mentions
               </div>
               <div className="flex flex-col py-1">
@@ -966,7 +964,7 @@ export function CommentDrawer({
                     className="px-4 py-2 text-left text-[13.5px] font-sans text-white hover:bg-white/5 flex items-center justify-between transition-colors cursor-pointer group"
                   >
                     <span className="font-semibold text-white/90 group-hover:text-white">@{username}</span>
-                    <span className="text-[11px] text-[#d9183b] group-hover:text-[#f4284d] font-semibold">Select</span>
+                    <span className="text-[11px] text-[#ff5a36] group-hover:text-[#f4284d] font-semibold">Select</span>
                   </button>
                 ))}
               </div>
@@ -985,12 +983,11 @@ export function CommentDrawer({
             >
               <div className="size-8 rounded-full bg-zinc-800 overflow-hidden shrink-0">
                 {replyingTo.profiles?.avatar_url ? (
-                  <img
-                    src={replyingTo.profiles.avatar_url}
+                  <img                     src={replyingTo.profiles.avatar_url}
                     alt=""
                     className="size-full object-cover"
                     referrerPolicy="no-referrer"
-                  />
+                  loading="lazy" decoding="async" />
                 ) : (
                   <div className="size-full flex items-center justify-center bg-zinc-700 text-white font-semibold text-xs italic">
                     {replyingTo.profiles?.username?.charAt(0).toLowerCase() || 'u'}
@@ -998,7 +995,7 @@ export function CommentDrawer({
                 )}
               </div>
               <div className="flex-1 min-w-0 pr-2">
-                <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+                <div className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
                   Replying to thread
                 </div>
                 <div className="text-[13px] font-semibold text-white truncate max-w-xs">
@@ -1031,12 +1028,11 @@ export function CommentDrawer({
             {/* User Profile avatar */}
             <div className="size-8 rounded-full bg-zinc-800 overflow-hidden shrink-0 mt-1">
               {user?.user_metadata?.avatar_url ? (
-                <img
-                  src={user.user_metadata.avatar_url}
+                <img                   src={user.user_metadata.avatar_url}
                   alt="My Profile"
                   className="size-full object-cover"
                   referrerPolicy="no-referrer"
-                />
+                loading="lazy" decoding="async" />
               ) : (
                 <div className="size-full bg-zinc-700 flex items-center justify-center text-white italic font-bold text-xs">
                   {user?.user_metadata?.username?.charAt(0).toLowerCase() || 'u'}
@@ -1051,7 +1047,7 @@ export function CommentDrawer({
               {selectedMentions.map((mention, index) => (
                 <div 
                   key={index}
-                  className="bg-[#d9183b]/15 text-[#d9183b] pl-2.5 pr-1 py-0.5 rounded-full text-xs font-bold flex items-center gap-1 shrink-0 border border-[#d9183b]/30 select-none font-sans"
+                  className="bg-[#ff5a36]/15 text-[#ff5a36] pl-2.5 pr-1 py-0.5 rounded-full text-xs font-bold flex items-center gap-1 shrink-0 border border-[#ff5a36]/30 select-none font-sans"
                 >
                   <span>@{mention.username}</span>
                   <button 
@@ -1076,7 +1072,7 @@ export function CommentDrawer({
               <button
                 type="submit"
                 disabled={isSubmitting || (!inputText.trim() && selectedMentions.length === 0)}
-                className="p-1 text-[#d9183b] hover:text-[#f4284d] disabled:text-white/20 transition-colors disabled:scale-100 active:scale-90 ml-auto"
+                className="p-1 text-[#ff5a36] hover:text-[#f4284d] disabled:text-white/20 transition-colors disabled:scale-100 active:scale-90 ml-auto"
               >
                 {isSubmitting ? (
                   <Loader2 className="size-4 animate-spin" />

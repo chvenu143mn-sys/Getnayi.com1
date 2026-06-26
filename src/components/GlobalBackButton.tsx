@@ -31,7 +31,7 @@ export function GlobalBackButton({ className, iconClassName, fallbackPath = '/' 
     <button 
       type="button" 
       onClick={handleBack} 
-      className={cn("p-[10px] rounded-full bg-[#1c1c1e] hover:bg-[#2c2c2e] transition-colors border border-white/5 active:scale-95 shrink-0 flex items-center justify-center", className)}
+      className={cn("p-3 rounded-full bg-[#1c1c1e] hover:bg-[#2c2c2e] transition-colors border border-white/5 active:scale-95 shrink-0 flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50", className)}
       aria-label="Go back"
     >
       <ChevronLeft className={cn("size-5 text-white", iconClassName)} />

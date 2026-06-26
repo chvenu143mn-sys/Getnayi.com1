@@ -24,7 +24,7 @@ export default function TermsOfService() {
           </div>
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-white">Terms of Service</h1>
-            <p className="text-zinc-500 text-xs mt-1">Last Updated: June 24, 2026</p>
+            <p className="text-zinc-400 text-xs mt-1">Last Updated: June 24, 2026</p>
           </div>
         </div>
 
@@ -61,7 +61,7 @@ export default function TermsOfService() {
               <span className="text-purple-500">1.</span> Agreement to Terms
             </h2>
             <p className="mb-2">
-              Welcome to GetNayi ("the App", "the Service"). GetNayi is owned and operated by Aisles Platform, a registered business in the United States. By registering an account, purchasing premium collection tiers, or simply accessing any services within GetNayi, you explicitly agree to comply with and be bound by these Terms of Service.
+              Welcome to GetNayi ("the App", "the Service"). GetNayi is owned and operated by Getnayi, a registered business in the United States. By registering an account, purchasing premium collection tiers, or simply accessing any services within GetNayi, you explicitly agree to comply with and be bound by these Terms of Service.
             </p>
             <p>
               If you do not accept these provisions, you must immediately terminate your access to the App and stop using our services.
@@ -80,7 +80,7 @@ export default function TermsOfService() {
               We employ military-grade server-side encryption and standard bcrypt-12 hashing to safeguard authentication tokens. However, you are solely responsible for protecting your password and preventing unauthorized local or device level breaches.
             </p>
             <p className="text-zinc-400">
-              Aisles Platform will not be liable for any losses caused by credentials shared with or compromised by external actors.
+              Getnayi will not be liable for any losses caused by credentials shared with or compromised by external actors.
             </p>
           </section>
 
@@ -95,7 +95,7 @@ export default function TermsOfService() {
             <ul className="list-disc list-inside space-y-2 text-zinc-400 pl-2">
               <li>No uploads, profile edits, or bookmarks contain malicious payloads, script tags, or virus files.</li>
               <li>No automated scrapers, web spiders, or data extraction utilities are deployed to harvest media assets in bulk.</li>
-              <li>No intellectual property of other creators, developers, or Aisles Platform is cloned or published without clear written authorization.</li>
+              <li>No intellectual property of other creators, developers, or Getnayi is cloned or published without clear written authorization.</li>
             </ul>
           </section>
 

@@ -29,27 +29,27 @@ export default function AdminSpam({
     <div className="gap-y-6 animate-in fade-in duration-500">
       <div>
         <h1 className="text-2xl font-bold text-white tracking-tight">AI & Risk Spam Detection</h1>
-        <p className="text-zinc-500 text-xs mt-1">Real-time content scoring scans capturing keyword payloads, safety discrepancies, and domain violations.</p>
+        <p className="text-zinc-400 text-xs mt-1">Real-time content scoring scans capturing keyword payloads, safety discrepancies, and domain violations.</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-[#141416] border border-white/5 rounded-2xl p-5 flex flex-col justify-between">
           <div>
-            <span className="text-zinc-500 text-[10px] uppercase font-mono tracking-wider">Scanned Assets</span>
+            <span className="text-zinc-400 text-[10px] uppercase font-mono tracking-wider">Scanned Assets</span>
             <p className="text-2xl font-bold text-white mt-1">{spamItems.length}</p>
           </div>
           <AlertTriangle className="size-5 text-zinc-650 mt-2" />
         </div>
         <div className="bg-[#141416] border border-white/5 rounded-2xl p-5 flex flex-col justify-between">
           <div>
-            <span className="text-zinc-500 text-[10px] uppercase font-mono tracking-wider">Risk Flag Count</span>
+            <span className="text-zinc-400 text-[10px] uppercase font-mono tracking-wider">Risk Flag Count</span>
             <p className="text-2xl font-bold text-[#EF4444] mt-1">{spamItems.filter(i => i.riskScore >= 70).length}</p>
           </div>
           <ShieldAlert className="size-5 text-red-500/20 mt-2" />
         </div>
         <div className="bg-[#141416] border border-white/5 rounded-2xl p-5 flex flex-col justify-between max-w-full">
           <div>
-            <span className="text-zinc-500 text-[10px] uppercase font-mono tracking-wider">Average Compliance Rating</span>
+            <span className="text-zinc-400 text-[10px] uppercase font-mono tracking-wider">Average Compliance Rating</span>
             <p className="text-2xl font-bold text-green-500 mt-1">98.4%</p>
           </div>
           <div className="size-2.5 rounded-full bg-green-500 animate-pulse mt-2" />
@@ -77,13 +77,13 @@ export default function AdminSpam({
             <div>
               <div className="flex items-center gap-3">
                 {item.video?.thumbnail_url ? (
-                  <img src={item.video.thumbnail_url} className="w-12 h-16 rounded-lg object-cover bg-neutral-900 border border-white/5" referrerPolicy="no-referrer"  alt="" />
+                  <img src={item.video.thumbnail_url} className="w-12 h-16 rounded-lg object-cover bg-neutral-900 border border-white/5" referrerPolicy="no-referrer"  alt="" loading="lazy" decoding="async" />
                 ) : (
                   <div className="w-12 h-16 rounded-lg bg-white/5 border border-white/5" />
                 )}
                 <div className="min-w-0">
                   <p className="text-white font-semibold text-sm truncate max-w-[150px]">{parseVideoProduct(item.video?.caption).captionText || 'Untitled Video'}</p>
-                  <p className="text-zinc-500 text-[10px] font-mono mt-0.5">by @{item.video?.profiles?.username || 'uploader'}</p>
+                  <p className="text-zinc-400 text-[10px] font-mono mt-0.5">by @{item.video?.profiles?.username || 'uploader'}</p>
                   {item.video?.product_url && (
                     <p className="text-[#F97316] text-[10px] font-mono truncate max-w-[150px] mt-1 hover:underline">
                       {item.video.product_url}
@@ -97,7 +97,7 @@ export default function AdminSpam({
                 <span className="text-zinc-400 text-[10px] font-mono uppercase tracking-wider">Classification analysis:</span>
                 <ul className="gap-y-1.5 mt-1">
                   {item.reasons.map((reason: string, idx: number) => (
-                    <li key={idx} className="text-zinc-500 text-xs flex items-start gap-1.5 leading-relaxed font-serif">
+                    <li key={idx} className="text-zinc-400 text-xs flex items-start gap-1.5 leading-relaxed font-serif">
                       <span className="size-1.5 rounded-full bg-[#EF4444] mt-1.5 shrink-0" />
                       <span>{reason}</span>
                     </li>

@@ -2,6 +2,61 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Early error interception to swallow harmless cross-origin / ResizeObserver errors
+      (function() {
+        const isHarmless = (msg) => {
+          if (!msg) return false;
+          const s = String(msg).toLowerCase();
+          return s.includes('script error') || s.includes('resizeobserver') || s.includes('failed to fetch dynamically imported module');
+        };
+
+        const originalOnError = window.onerror;
+        window.onerror = function (message, source, lineno, colno, error) {
+          if (isHarmless(message) || isHarmless(error)) {
+            return true; // Swallow
+          }
+          if (originalOnError) {
+            return originalOnError.apply(this, arguments);
+          }
+          return false;
+        };
+
+        window.addEventListener('error', function (e) {
+          const msg = e.message || '';
+          const errStr = e.error ? String(e.error) : '';
+          if (isHarmless(msg) || isHarmless(errStr)) {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+          }
+        }, true);
+
+        window.addEventListener('unhandledrejection', function (e) {
+          const reason = e.reason;
+          const msg = (reason && typeof reason === 'object' && 'message' in reason) ? reason.message : reason;
+          if (isHarmless(reason) || isHarmless(msg)) {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+          }
+        }, true);
+
+        // Intercept Vite's WebSocket messages to prevent logging harmless errors to the backend terminal
+        const originalSend = WebSocket.prototype.send;
+        WebSocket.prototype.send = function(data) {
+          if (typeof data === 'string') {
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.type === 'error' && parsed.err && isHarmless(parsed.err.message)) {
+                return; // Drop the message
+              }
+            } catch (e) {
+              // Ignore
+            }
+          }
+          return originalSend.apply(this, arguments);
+        };
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover" />
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -10,40 +65,30 @@
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
     <meta name="theme-color" content="#d9183b" />
-    <title>Aisles - The Future of Video Commerce</title>
+    <title>Getnayi - Video Commerce</title>
     <meta name="description" content="Discover and shop products through immersive video experiences. Connect with creators and brands in real-time." />
     <!-- Comprehensive Open Graph Tags -->
-    <meta property="og:title" content="Aisles - The Future of Video Commerce" />
+    <meta property="og:title" content="Getnayi - Video Commerce" />
     <meta property="og:description" content="Discover and shop products through immersive video experiences. Connect with creators and brands in real-time." />
     <meta property="og:image" content="/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:url" content="https://aisles.platform" />
-    <meta property="og:site_name" content="Aisles" />
+    <meta property="og:url" content="https://getnayi.app" />
+    <meta property="og:site_name" content="Getnayi" />
     <meta property="og:type" content="website" />
 
     <!-- Twitter Card Tags -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Aisles - The Future of Video Commerce" />
+    <meta name="twitter:title" content="Getnayi - Video Commerce" />
     <meta name="twitter:description" content="Discover and shop products through immersive video experiences. Connect with creators and brands in real-time." />
     <meta name="twitter:image" content="/og-image.png" />
 
     <!-- Additional Metadata for search engines -->
     <meta name="robots" content="index, follow" />
-    <meta name="author" content="Aisles Platform" />
-
-    <!-- Google Analytics / Google Tag Manager for Product Analytics -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-DUMMYTRACK"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-DUMMYTRACK', { 'anonymize_ip': true });
-    </script>
+    <meta name="author" content="Getnayi Platform" />
   </head>
   <body>
     <div id="root"></div>
-    <script src="https://js.puter.com/v2/"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

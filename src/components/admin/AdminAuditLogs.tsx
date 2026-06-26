@@ -18,11 +18,11 @@ export default function AdminAuditLogs({ auditLogs }: AdminAuditLogsProps) {
     <div className="gap-y-6 animate-in fade-in duration-500">
       <div>
         <h1 className="text-2xl font-bold text-white tracking-tight">Operator Audit Trails & Logs</h1>
-        <p className="text-zinc-500 text-xs mt-1">Immutable security ledger capturing administrative modifications, status adjustments, and domains synchronization events.</p>
+        <p className="text-zinc-400 text-xs mt-1">Immutable security ledger capturing administrative modifications, status adjustments, and domains synchronization events.</p>
       </div>
 
       <div className="relative">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-500" />
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400" />
         <input
           type="text"
           placeholder="Filtering ledger fields..."
@@ -36,7 +36,7 @@ export default function AdminAuditLogs({ auditLogs }: AdminAuditLogsProps) {
       <div className="bg-[#141416] border border-white/5 rounded-2xl overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-[#18181a] border-b border-white/5 text-zinc-500 uppercase font-mono text-[10px] tracking-wider">
+            <thead className="bg-[#18181a] border-b border-white/5 text-zinc-400 uppercase font-mono text-[10px] tracking-wider">
               <tr>
                 <th className="py-4 px-5 font-semibold">Event Timestamp</th>
                 <th className="py-4 px-5 font-semibold">Moderator / Admin</th>
@@ -50,7 +50,7 @@ export default function AdminAuditLogs({ auditLogs }: AdminAuditLogsProps) {
                 <tr key={log.id} className="hover:bg-white/[0.01] transition-all text-zinc-400">
                   <td className="py-4 px-5 text-white font-mono text-[11px]">
                     <span className="flex items-center gap-1.5 whitespace-nowrap">
-                      <Calendar className="size-3.5 text-zinc-500" />
+                      <Calendar className="size-3.5 text-zinc-400" />
                       {new Date(log.created_at).toLocaleString()}
                     </span>
                   </td>
@@ -74,7 +74,7 @@ export default function AdminAuditLogs({ auditLogs }: AdminAuditLogsProps) {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-zinc-500 bg-[#121214]">
+                  <td colSpan={5} className="py-12 text-center text-zinc-400 bg-[#121214]">
                     No diagnostic audit entries located.
                   </td>
                 </tr>

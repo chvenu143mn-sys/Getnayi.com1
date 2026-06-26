@@ -46,71 +46,71 @@ export function BottomNav() {
 
   return (
     <div className="md:hidden fixed bottom-0 w-full z-40 bg-[#0c0c0e] pb-[env(safe-area-inset-bottom)] border-t border-white/[0.08]">
-      <div className="flex items-center justify-between h-[60px] px-2 sm:max-w-md sm:mx-auto">
+      <div className="flex items-center justify-between h-[60px] px-3 sm:max-w-md sm:mx-auto">
         <Link
           to="/"
           className={cn(
-            "flex-1 flex flex-col items-center justify-center gap-y-1 transition-colors",
-            location.pathname === '/' ? "text-white" : "text-white/60 hover:text-white"
+            "flex-1 flex flex-col items-center justify-center gap-y-1 transition-all duration-300 group h-full",
+            location.pathname === '/' ? "text-white" : "text-white/50 hover:text-white/80"
           )}
         >
-          <Home className="size-6" strokeWidth={location.pathname === '/' ? 2.5 : 2} />
-          <span className="text-[10px] font-sans font-medium">Home</span>
+          <div className={cn("p-1.5 rounded-xl transition-all duration-300", location.pathname === '/' ? "bg-white/10" : "group-hover:bg-white/5")}>
+            <Home className="size-[22px]" strokeWidth={location.pathname === '/' ? 2.5 : 2} />
+          </div>
+          <span className="text-[9px] font-sans font-bold tracking-wide">Home</span>
         </Link>
         
         <Link
           to="/explore"
           className={cn(
-            "flex-1 flex flex-col items-center justify-center gap-y-1 transition-colors",
-            location.pathname === '/explore' ? "text-white" : "text-white/60 hover:text-white"
+            "flex-1 flex flex-col items-center justify-center gap-y-1 transition-all duration-300 group h-full",
+            location.pathname === '/explore' ? "text-white" : "text-white/50 hover:text-white/80"
           )}
         >
-          <Search className="size-6" strokeWidth={location.pathname === '/explore' ? 2.5 : 2} />
-          <span className="text-[10px] font-sans font-medium">Explore</span>
+          <div className={cn("p-1.5 rounded-xl transition-all duration-300", location.pathname === '/explore' ? "bg-white/10" : "group-hover:bg-white/5")}>
+            <Search className="size-[22px]" strokeWidth={location.pathname === '/explore' ? 2.5 : 2} />
+          </div>
+          <span className="text-[9px] font-sans font-bold tracking-wide">Explore</span>
         </Link>
 
         {/* Upload Button */}
         <Link
           to="/upload"
-          className="flex-1 flex flex-col items-center justify-center"
+          className="flex-[1.2] flex flex-col items-center justify-center group h-full"
+          aria-label="Upload"
         >
-          <div className="relative flex items-center justify-center w-11 h-[28px]">
-            {/* Left Cyan Border */}
-            <div className="absolute left-0 rounded-lg size-full bg-[#20D5EC] -translate-x-[3px]" />
-            {/* Right Pink Border */}
-            <div className="absolute right-0 rounded-lg size-full bg-[#d9183b] translate-x-[3px]" />
-            {/* Center White */}
-            <div className="absolute rounded-lg size-full bg-white flex items-center justify-center z-10 transition-transform active:scale-95">
-              <Plus className="size-[18px] text-black" strokeWidth={3} />
-            </div>
+          <div className="relative flex items-center justify-center w-[48px] h-[32px] bg-white rounded-full transition-transform group-active:scale-95">
+            <Plus className="size-5 text-black" strokeWidth={2.5} />
           </div>
         </Link>
 
         <Link
           to="/notifications"
           className={cn(
-            "flex-1 flex flex-col items-center justify-center gap-y-1 transition-colors relative",
-            location.pathname === '/notifications' ? "text-[#d9183b]" : "text-white/60 hover:text-white"
+            "flex-1 flex flex-col items-center justify-center gap-y-1 transition-all duration-300 relative group h-full",
+            location.pathname === '/notifications' ? "text-white" : "text-white/50 hover:text-white/80"
           )}
         >
-          <div className="relative">
-            <MessageSquare className="size-[22px] mb-0.5" strokeWidth={location.pathname === '/notifications' ? 2.5 : 2} />
+          <div className={cn("relative p-1.5 rounded-xl transition-all duration-300", location.pathname === '/notifications' ? "bg-white/10" : "group-hover:bg-white/5")}>
+            <MessageSquare className="size-[22px]" strokeWidth={location.pathname === '/notifications' ? 2.5 : 2} />
             {hasUnread && (
-               <div className="absolute top-0 right-0 size-2 bg-[#d9183b] rounded-full border border-black transform translate-x-1/3 -translate-y-1/4 animate-pulse"></div>
+               <div className="absolute top-1 right-1 size-2 bg-[#ff5a36] rounded-full border border-[#0c0c0e] animate-pulse"></div>
             )}
           </div>
-          <span className="text-[10px] font-sans font-medium">Inbox</span>
+          <span className="text-[9px] font-sans font-bold tracking-wide">Inbox</span>
         </Link>
 
         <Link
           to="/profile"
           className={cn(
-            "flex-1 flex flex-col items-center justify-center gap-y-1 transition-colors",
-            location.pathname === '/profile' ? "text-white" : "text-white/60 hover:text-white"
+            "flex-1 flex flex-col items-center justify-center gap-y-1 transition-all duration-300 group h-full",
+            location.pathname === '/profile' ? "text-white" : "text-white/50 hover:text-white/80"
           )}
         >
-          <User className="size-[24px]" strokeWidth={location.pathname === '/profile' ? 2.5 : 2} />
-          <span className="text-[10px] font-sans font-medium">Profile</span>
+          <div className={cn("p-1.5 rounded-xl transition-all duration-300", location.pathname === '/profile' ? "bg-white/10" : "group-hover:bg-white/5")}>
+            <User className="size-[22px]" strokeWidth={location.pathname === '/profile' ? 2.5 : 2} />
+          </div>
+          <span className="text-[9px] font-sans font-bold tracking-wide">Profile</span>
         </Link>
       </div>
     </div>

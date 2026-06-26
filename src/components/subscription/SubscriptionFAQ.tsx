@@ -45,7 +45,7 @@ export function SubscriptionFAQ() {
               <span className="font-medium text-zinc-100">{faq.question}</span>
               <ChevronDown 
                 className={cn(
-                  "size-5 text-zinc-500 transition-transform duration-200", 
+                  "size-5 text-zinc-400 transition-transform duration-200", 
                   openIndex === index ? "rotate-180 text-white" : ""
                 )} 
               />

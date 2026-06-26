@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Share, PlusSquare, X, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { safeStorage } from '../utils/storage';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: Array<string>;
@@ -28,7 +29,7 @@ export function PWAInstallPrompt() {
     }
 
     // Check if dismissed previously
-    if (localStorage.getItem('pwa_prompt_dismissed') === 'true') {
+    if (safeStorage.getItem('pwa_prompt_dismissed') === 'true') {
       setIsDismissed(true);
       return;
     }
@@ -66,7 +67,7 @@ export function PWAInstallPrompt() {
     setIsDismissed(true);
     setDeferredPrompt(null);
     setShowIOSPrompt(false);
-    localStorage.setItem('pwa_prompt_dismissed', 'true');
+    safeStorage.setItem('pwa_prompt_dismissed', 'true');
   };
 
   const handleInstallClick = async () => {

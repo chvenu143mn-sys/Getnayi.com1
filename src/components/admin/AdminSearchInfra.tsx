@@ -78,7 +78,7 @@ export default function AdminSearchInfra() {
             <Cpu className="size-6 text-[#F97316] animate-pulse" />
             Search Infrastructure Simulator
           </h1>
-          <p className="text-zinc-500 text-xs mt-1">
+          <p className="text-zinc-400 text-xs mt-1">
             System performance profiler simulating millions of lookup operations, database indexes, and security safeguards.
           </p>
         </div>
@@ -102,7 +102,7 @@ export default function AdminSearchInfra() {
             <Server className="size-5 text-[#F97316]" />
           </div>
           <div>
-            <div className="text-[10px] uppercase font-mono tracking-wider text-zinc-500">Simulating Creators</div>
+            <div className="text-[10px] uppercase font-mono tracking-wider text-zinc-400">Simulating Creators</div>
             <div className="text-xl font-bold mt-0.5">{simulationSize.creators.toLocaleString()}</div>
           </div>
         </div>
@@ -112,7 +112,7 @@ export default function AdminSearchInfra() {
             <Layers className="size-5 text-[#38BDF8]" />
           </div>
           <div>
-            <div className="text-[10px] uppercase font-mono tracking-wider text-zinc-500">Simulating Products</div>
+            <div className="text-[10px] uppercase font-mono tracking-wider text-zinc-400">Simulating Products</div>
             <div className="text-xl font-bold mt-0.5">{simulationSize.products.toLocaleString()}</div>
           </div>
         </div>
@@ -122,7 +122,7 @@ export default function AdminSearchInfra() {
             <Database className="size-5 text-[#A855F7]" />
           </div>
           <div>
-            <div className="text-[10px] uppercase font-mono tracking-wider text-zinc-500">Simulating Videos</div>
+            <div className="text-[10px] uppercase font-mono tracking-wider text-zinc-400">Simulating Videos</div>
             <div className="text-xl font-bold mt-0.5">{simulationSize.videos.toLocaleString()}</div>
           </div>
         </div>
@@ -137,14 +137,14 @@ export default function AdminSearchInfra() {
             <span className="text-xs font-mono text-zinc-400 flex items-center gap-1.5">
               <Terminal className="size-3.5 text-orange-500" /> Live Audit Terminal Engine
             </span>
-            <span className="text-[10px] font-mono text-zinc-500 bg-white/5 px-2 py-0.5 rounded-full">
+            <span className="text-[10px] font-mono text-zinc-400 bg-white/5 px-2 py-0.5 rounded-full">
               {terminalLogs.length} events logged
             </span>
           </div>
 
           <div className="flex-1 overflow-y-auto no-scrollbar font-mono text-[11px] text-zinc-300 space-y-1.5 mt-3 py-1 leading-relaxed bg-[#0c0c0e] p-3.5 rounded-xl border border-white/5 h-[300px]">
             {terminalLogs.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-zinc-500 py-20 text-center gap-2">
+              <div className="h-full flex flex-col items-center justify-center text-zinc-400 py-20 text-center gap-2">
                 <Terminal className="size-8 opacity-40 animate-pulse" />
                 <span>Click "Run Performance Audit" to spin up simulated cluster telemetry logs.</span>
               </div>
@@ -173,28 +173,28 @@ export default function AdminSearchInfra() {
             <div className="space-y-4">
               <div className="space-y-1 border-l-2 border-red-500/50 pl-3">
                 <h4 className="text-semibold text-xs text-white">Sequential Scan Wildcard Match</h4>
-                <p className="text-[11px] text-zinc-500 leading-relaxed">
+                <p className="text-[11px] text-zinc-400 leading-relaxed">
                   Queries on <code className="text-orange-300 font-mono text-[10px]">%search_term%</code> enforce seq-scans, causing database latency to jump to 410ms at 100k scale.
                 </p>
               </div>
 
               <div className="space-y-1 border-l-2 border-red-500/50 pl-3">
                 <h4 className="text-semibold text-xs text-white">Intermediate Ordering Sorting</h4>
-                <p className="text-[11px] text-zinc-500 leading-relaxed">
+                <p className="text-[11px] text-zinc-400 leading-relaxed">
                   Fulfilling filter requests with multiple standalone indexes triggers filesort steps. Compound index resolution prevents sorting overhead.
                 </p>
               </div>
 
               <div className="space-y-1 border-l-2 border-yellow-500/50 pl-3">
                 <h4 className="text-semibold text-xs text-white">Unsecured Link Vulnerabilities</h4>
-                <p className="text-[11px] text-zinc-500 leading-relaxed">
+                <p className="text-[11px] text-zinc-400 leading-relaxed">
                    permissive substring domain comparisons were prone to spoofed subdomain phishing. Resolving redirects and applying eTLD+1 parsing avoids this.
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="pt-4 border-t border-white/5 text-[11px] text-zinc-500 leading-tight">
+          <div className="pt-4 border-t border-white/5 text-[11px] text-zinc-400 leading-tight">
             Our hardened link audit converts homographs, follows hops, and sanitizes UTM tracking tags instantly.
           </div>
         </div>
@@ -207,7 +207,7 @@ export default function AdminSearchInfra() {
             type="button"
             onClick={() => setActiveTab('latency')}
             className={`pb-3 text-xs font-semibold tracking-wider uppercase transition-colors relative ${
-              activeTab === 'latency' ? 'text-[#F97316]' : 'text-zinc-500 hover:text-zinc-300'
+              activeTab === 'latency' ? 'text-[#F97316]' : 'text-zinc-400 hover:text-zinc-300'
             }`}
           >
             Latency Speed Check
@@ -217,7 +217,7 @@ export default function AdminSearchInfra() {
             type="button"
             onClick={() => setActiveTab('architect')}
             className={`pb-3 text-xs font-semibold tracking-wider uppercase transition-colors relative ${
-              activeTab === 'architect' ? 'text-[#F97316]' : 'text-zinc-500 hover:text-zinc-300'
+              activeTab === 'architect' ? 'text-[#F97316]' : 'text-zinc-400 hover:text-zinc-300'
             }`}
           >
             Hardened URL Security Pipeline
@@ -227,7 +227,7 @@ export default function AdminSearchInfra() {
             type="button"
             onClick={() => setActiveTab('sql')}
             className={`pb-3 text-xs font-semibold tracking-wider uppercase transition-colors relative ${
-              activeTab === 'sql' ? 'text-[#F97316]' : 'text-zinc-500 hover:text-zinc-300'
+              activeTab === 'sql' ? 'text-[#F97316]' : 'text-zinc-400 hover:text-zinc-300'
             }`}
           >
             PostgreSQL Indices Script
@@ -252,16 +252,16 @@ export default function AdminSearchInfra() {
 
             <div className="space-y-4">
               <h4 className="text-sm font-semibold text-white">Telemetry Audit Breakdown</h4>
-              <p className="text-xs text-zinc-500 leading-relaxed">
+              <p className="text-xs text-zinc-400 leading-relaxed">
                 By enabling pg_trgm trigram indices and composite B-tree layouts directly inside the public schema database, queries skip table scanning, executing almost immediately.
               </p>
               <div className="grid grid-cols-2 gap-3">
                 {auditData.map((d, i) => (
                   <div key={i} className="bg-[#0c0c0e] border border-white/5 p-3 rounded-xl flex flex-col justify-between">
-                    <span className="text-[10px] text-zinc-500 truncate font-mono">{d.name}</span>
+                    <span className="text-[10px] text-zinc-400 truncate font-mono">{d.name}</span>
                     <div className="flex items-baseline gap-2 mt-1">
                       <span className="text-sm font-bold text-green-400">{d.optimized}ms</span>
-                      <span className="text-[9px] text-zinc-500 line-through">{d.unoptimized}ms</span>
+                      <span className="text-[9px] text-zinc-400 line-through">{d.unoptimized}ms</span>
                       <span className="text-[10px] font-bold text-orange-500 ml-auto bg-orange-500/10 px-1.5 py-0.5 rounded-full">{d.speedup}</span>
                     </div>
                   </div>
@@ -274,7 +274,7 @@ export default function AdminSearchInfra() {
         {activeTab === 'architect' && (
           <div className="space-y-4">
             <h4 className="text-sm font-semibold text-white">Hardened URL Safety Pipeline (Link Ingestion Security)</h4>
-            <p className="text-xs text-zinc-500 leading-relaxed">
+            <p className="text-xs text-zinc-400 leading-relaxed">
               We recently completely restructured the marketplace link validation engine (/api/videos) using a security sandbox. Below is the operational lifecycle of how user-entered products are processed safely:
             </p>
 
@@ -284,7 +284,7 @@ export default function AdminSearchInfra() {
                   <span className="size-5 rounded-full bg-orange-500/20 text-orange-400 font-mono font-bold text-[10px] flex items-center justify-center">1</span>
                   <span className="font-semibold text-xs text-zinc-300">HTTP HEAD Resolution</span>
                 </div>
-                <p className="text-[11px] text-zinc-500 leading-relaxed">
+                <p className="text-[11px] text-zinc-400 leading-relaxed">
                   Performs a lightweight background fetch with a 10-hop max limit. Intercepts hidden 301/302 shortlink redirection walls.
                 </p>
                 <ArrowRight className="hidden md:block absolute size-4 text-zinc-700 right-[-10px] top-1/2 -translate-y-1/2" />
@@ -295,7 +295,7 @@ export default function AdminSearchInfra() {
                   <span className="size-5 rounded-full bg-blue-500/20 text-blue-400 font-mono font-bold text-[10px] flex items-center justify-center">2</span>
                   <span className="font-semibold text-xs text-zinc-300">eTLD+1 Root Matching</span>
                 </div>
-                <p className="text-[11px] text-zinc-500 leading-relaxed">
+                <p className="text-[11px] text-zinc-400 leading-relaxed">
                   Uses the robust <code className="text-[#38BDF8] text-[10px]">tldts</code> engine to extract pure root brands, completely mitigating subdomain spoofing attacks.
                 </p>
                 <ArrowRight className="hidden md:block absolute size-4 text-zinc-700 right-[-10px] top-1/2 -translate-y-1/2" />
@@ -306,7 +306,7 @@ export default function AdminSearchInfra() {
                   <span className="size-5 rounded-full bg-purple-500/20 text-purple-400 font-mono font-bold text-[10px] flex items-center justify-center">3</span>
                   <span className="font-semibold text-xs text-zinc-300">Punycode Enforcement</span>
                 </div>
-                <p className="text-[11px] text-zinc-500 leading-relaxed">
+                <p className="text-[11px] text-zinc-400 leading-relaxed">
                   Resolves domain strings to their standard ASCII punycode equivalents to block homograph attacks utilizing visual character lookalikes.
                 </p>
                 <ArrowRight className="hidden md:block absolute size-4 text-zinc-700 right-[-10px] top-1/2 -translate-y-1/2" />
@@ -317,7 +317,7 @@ export default function AdminSearchInfra() {
                   <span className="size-5 rounded-full bg-green-500/20 text-green-400 font-mono font-bold text-[10px] flex items-center justify-center">4</span>
                   <span className="font-semibold text-xs text-zinc-300">Parameter Scrubbing</span>
                 </div>
-                <p className="text-[11px] text-zinc-500 leading-relaxed">
+                <p className="text-[11px] text-zinc-400 leading-relaxed">
                   Removes user-specific affiliate tagging, cookie tracking ids, and UTM parameters, preventing affiliate URL stuffing easily.
                 </p>
               </div>
@@ -335,7 +335,7 @@ export default function AdminSearchInfra() {
         {activeTab === 'sql' && (
           <div className="space-y-4">
             <h4 className="text-sm font-semibold text-white">PostgreSQL Indices Migration Script</h4>
-            <p className="text-xs text-zinc-500 leading-relaxed">
+            <p className="text-xs text-zinc-400 leading-relaxed">
               These index optimizations represent the exact schema statements written into our database layout:
             </p>
 

@@ -57,7 +57,7 @@ export default function AdminDashboard({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Command Center</h1>
-          <p className="text-zinc-500 text-xs mt-1">Real-time engagement telemetry & content moderation.</p>
+          <p className="text-zinc-400 text-xs mt-1">Real-time engagement telemetry & content moderation.</p>
         </div>
         <button type="button" aria-label="button" 
           onClick={handleRefresh}
@@ -77,7 +77,7 @@ export default function AdminDashboard({
           <div className="flex items-end justify-between">
             <span className="text-2xl font-bold text-white">{stats.totalUsers.toLocaleString()}</span>
             <div className="flex flex-col items-end">
-              <TrendingUp className="size-4 text-zinc-500 mb-1" />
+              <TrendingUp className="size-4 text-zinc-400 mb-1" />
               <span className="text-[#10B981] text-xs font-semibold flex items-center gap-0.5">↑ 14.2%</span>
             </div>
           </div>
@@ -87,7 +87,7 @@ export default function AdminDashboard({
         <div className="bg-[#141416] border border-white/5 rounded-2xl p-5 flex flex-col justify-between transition-all hover:border-white/10">
           <div className="text-zinc-400 text-xs font-mono uppercase tracking-wider mb-2 flex items-center justify-between">
             <span>Verified Creators</span>
-            <Users className="size-4 text-zinc-500" />
+            <Users className="size-4 text-zinc-400" />
           </div>
           <div className="flex items-end justify-between">
             <span className="text-2xl font-bold text-white">{creators.length.toLocaleString()}</span>
@@ -99,7 +99,7 @@ export default function AdminDashboard({
         <div className="bg-[#141416] border border-white/5 rounded-2xl p-5 flex flex-col justify-between transition-all hover:border-white/10">
           <div className="text-zinc-400 text-xs font-mono uppercase tracking-wider mb-2 flex items-center justify-between">
             <span>Uploaded Videos</span>
-            <PlaySquare className="size-4 text-zinc-500" />
+            <PlaySquare className="size-4 text-zinc-400" />
           </div>
           <div className="flex items-end justify-between">
             <span className="text-2xl font-bold text-white">{stats.totalVideos.toLocaleString()}</span>
@@ -117,7 +117,7 @@ export default function AdminDashboard({
             <span className={cn("text-2xl font-bold", stats.totalReports > 0 ? "text-[#EF4444]" : "text-white")}>
               {stats.totalReports.toLocaleString()}
             </span>
-            <span className={cn("text-xs font-mono px-2 py-0.5 rounded-full border", stats.totalReports > 0 ? "bg-red-500/10 border-red-500/20 text-red-500" : "bg-white/5 border-white/5 text-zinc-500")}>
+            <span className={cn("text-xs font-mono px-2 py-0.5 rounded-full border", stats.totalReports > 0 ? "bg-red-500/10 border-red-500/20 text-red-500" : "bg-white/5 border-white/5 text-zinc-400")}>
               {stats.totalReports > 0 ? 'CRITICAL' : 'OK'}
             </span>
           </div>
@@ -158,10 +158,10 @@ export default function AdminDashboard({
                     <span className="size-1.5 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
                     <span className="text-zinc-300 truncate max-w-[85px]">{cat.name}</span>
                   </div>
-                  <span className="text-zinc-500 font-bold">{cat.value}</span>
+                  <span className="text-zinc-400 font-bold">{cat.value}</span>
                 </div>
               )) : (
-                <div className="text-zinc-500 text-xs">No active video categories assigned.</div>
+                <div className="text-zinc-400 text-xs">No active video categories assigned.</div>
               )}
             </div>
           </div>
@@ -200,7 +200,7 @@ export default function AdminDashboard({
                   <div className="size-2 rounded-full bg-[#EF4444] animate-pulse" />
                   <div className="min-w-0">
                     <p className="text-white text-xs font-medium truncate max-w-[120px]">{r.reason || 'Flagged content'}</p>
-                    <p className="text-zinc-500 text-[10px] truncate">by {r.profiles?.username || 'user'}</p>
+                    <p className="text-zinc-400 text-[10px] truncate">by {r.profiles?.username || 'user'}</p>
                   </div>
                 </div>
                 <button type="button" aria-label="button" 
@@ -213,7 +213,7 @@ export default function AdminDashboard({
             ))}
             {reports.length === 0 && (
               <div className="text-center py-6 border border-dashed border-white/5 rounded-xl">
-                <p className="text-zinc-500 text-xs font-mono">No reports in queue</p>
+                <p className="text-zinc-400 text-xs font-mono">No reports in queue</p>
               </div>
             )}
           </div>
@@ -259,7 +259,7 @@ export default function AdminDashboard({
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-[#18181a] border-b border-white/5 text-zinc-500 uppercase font-mono text-[10px] tracking-wider">
+            <thead className="bg-[#18181a] border-b border-white/5 text-zinc-400 uppercase font-mono text-[10px] tracking-wider">
               <tr>
                 <th className="py-4 px-5 font-semibold">Flag reason</th>
                 <th className="py-4 px-5 font-semibold">Uploader Info</th>
@@ -273,12 +273,12 @@ export default function AdminDashboard({
                 <tr key={r.id} className="hover:bg-white/[0.01] group transition-all">
                   <td className="py-4 px-5 text-white flex flex-col justify-start">
                     <span className="font-semibold text-[13px]">{r.reason || 'Violation Flagged'}</span>
-                    <span className="text-[10px] text-zinc-500 mt-0.5 font-mono">{r.id.substring(0, 8)}</span>
+                    <span className="text-[10px] text-zinc-400 mt-0.5 font-mono">{r.id.substring(0, 8)}</span>
                   </td>
                   <td className="py-4 px-5 text-zinc-400">
                     <span className="text-zinc-33">{r.videos?.profiles?.username || 'Unknown Creator'}</span>
                   </td>
-                  <td className="py-4 px-5 text-zinc-500">@{r.profiles?.username || 'user'}</td>
+                  <td className="py-4 px-5 text-zinc-400">@{r.profiles?.username || 'user'}</td>
                   <td className="py-4 px-5">
                     <span className={cn(
                       "font-mono px-2 py-0.5 border text-[11px] font-semibold rounded-full",
@@ -309,7 +309,7 @@ export default function AdminDashboard({
               ))}
               {reports.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-zinc-500 bg-[#121214]">
+                  <td colSpan={5} className="py-12 text-center text-zinc-400 bg-[#121214]">
                     No pending community warning reports. System safe.
                   </td>
                 </tr>

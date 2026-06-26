@@ -61,7 +61,7 @@ export default function AdminSettings({
     <div className="gap-y-6 animate-in fade-in duration-500">
       <div>
         <h1 className="text-2xl font-bold text-white tracking-tight">System Controls & Parameters</h1>
-        <p className="text-zinc-500 text-xs mt-1">Configure global variables, filter algorithms, domain blacklists, and platform configurations.</p>
+        <p className="text-zinc-400 text-xs mt-1">Configure global variables, filter algorithms, domain blacklists, and platform configurations.</p>
       </div>
 
       <form onSubmit={handleSaveSettings} className="gap-y-6">
@@ -70,7 +70,7 @@ export default function AdminSettings({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-[#141416] border border-white/5 rounded-2xl p-5 gap-y-4">
             <h3 className="text-white text-sm font-semibold flex items-center gap-2">
-              <Settings2 className="size-4 text-zinc-500" />
+              <Settings2 className="size-4 text-zinc-400" />
               Upload Enforcement Controls
             </h3>
 
@@ -78,7 +78,7 @@ export default function AdminSettings({
             <div className="flex items-center justify-between py-1 border-b border-white/5">
               <div>
                 <p className="text-white text-xs font-semibold">Verification Mandatory to Upload</p>
-                <p className="text-zinc-500 text-[10.5px] mt-0.5">Allow only approved credentials to share clip content.</p>
+                <p className="text-zinc-400 text-[10.5px] mt-0.5">Allow only approved credentials to share clip content.</p>
               </div>
               <button aria-label="button" 
                 type="button"
@@ -98,7 +98,7 @@ export default function AdminSettings({
             <div className="flex items-center justify-between py-1 border-b border-white/5">
               <div>
                 <p className="text-white text-xs font-semibold">Pre-Upload Trust Grading</p>
-                <p className="text-zinc-500 text-[10.5px] mt-0.5">Analyze URL destinations automatically during video upload.</p>
+                <p className="text-zinc-400 text-[10.5px] mt-0.5">Analyze URL destinations automatically during video upload.</p>
               </div>
               <button aria-label="button" 
                 type="button"
@@ -120,7 +120,7 @@ export default function AdminSettings({
                 <p className="text-white text-xs font-semibold text-[#EF4444] flex items-center gap-1.5">
                   <AlertTriangle className="size-4 shrink-0 animate-pulse" /> Maintenance Access Restrictions
                 </p>
-                <p className="text-zinc-500 text-[10.5px] mt-0.5">Pause public access instantly, only allowing logged in admins.</p>
+                <p className="text-zinc-400 text-[10.5px] mt-0.5">Pause public access instantly, only allowing logged in admins.</p>
               </div>
               <button aria-label="button" 
                 type="button"
@@ -139,7 +139,7 @@ export default function AdminSettings({
 
           <div className="bg-[#141416] border border-white/5 rounded-2xl p-5 gap-y-4">
             <h3 className="text-white text-sm font-semibold flex items-center gap-2">
-              <Mail className="size-4 text-zinc-500" /> System Contact Parameters
+              <Mail className="size-4 text-zinc-400" /> System Contact Parameters
             </h3>
 
             {/* Support contact info */}
@@ -172,7 +172,7 @@ export default function AdminSettings({
         {/* Tags lists Whitelist and Blacklists */}
         <div className="bg-[#141416] border border-white/5 rounded-2xl p-5 gap-y-6">
           <h3 className="text-white text-sm font-semibold flex items-center gap-2">
-            <Globe className="size-4 text-zinc-500" /> Whitelist & Blocklist Domains Filter Control
+            <Globe className="size-4 text-zinc-400" /> Whitelist & Blocklist Domains Filter Control
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

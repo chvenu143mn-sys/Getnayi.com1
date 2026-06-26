@@ -34,13 +34,13 @@ export default function AdminCreators({
     <div className="gap-y-6 animate-in fade-in duration-500">
       <div>
         <h1 className="text-2xl font-bold text-white tracking-tight">User Directory & Roles</h1>
-        <p className="text-zinc-500 text-xs mt-1">Configure user-level permissions, verify brand upload configurations, or issue suspensions.</p>
+        <p className="text-zinc-400 text-xs mt-1">Configure user-level permissions, verify brand upload configurations, or issue suspensions.</p>
       </div>
 
       {/* Filters bar */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-500" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400" />
           <input
             type="text"
             placeholder="Search creators by username, email..."
@@ -51,7 +51,7 @@ export default function AdminCreators({
         </div>
 
         <div className="flex items-center gap-2">
-          <Filter className="size-4 text-zinc-500" />
+          <Filter className="size-4 text-zinc-400" />
           <select
             value={roleFilter}
             onChange={(e: any) => setRoleFilter(e.target.value)}
@@ -66,7 +66,7 @@ export default function AdminCreators({
         </div>
 
         <div className="flex items-center justify-end">
-          <span className="text-zinc-500 text-xs font-mono">
+          <span className="text-zinc-400 text-xs font-mono">
             Directing {filtered.length} profiles
           </span>
         </div>
@@ -76,7 +76,7 @@ export default function AdminCreators({
       <div className="bg-[#141416] border border-white/5 rounded-2xl overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-[#18181a] border-b border-white/5 text-zinc-500 uppercase font-mono text-[10px] tracking-wider">
+            <thead className="bg-[#18181a] border-b border-white/5 text-zinc-400 uppercase font-mono text-[10px] tracking-wider">
               <tr>
                 <th className="py-4 px-5 font-semibold">User details</th>
                 <th className="py-4 px-5 font-semibold">Active Permissions</th>
@@ -92,7 +92,7 @@ export default function AdminCreators({
                   <td className="py-4 px-5">
                     <div className="flex items-center gap-3">
                       {creator.avatar_url ? (
-                        <img src={creator.avatar_url} className="size-10 rounded-full object-cover border border-white/10" referrerPolicy="no-referrer"  alt="" />
+                        <img src={creator.avatar_url} className="size-10 rounded-full object-cover border border-white/10" referrerPolicy="no-referrer"  alt="" loading="lazy" decoding="async" />
                       ) : (
                         <div className="size-10 rounded-full bg-orange-500/10 text-[#F97316] font-bold text-sm flex items-center justify-center border border-white/5">
                           {(creator.username || 'U')[0].toUpperCase()}
@@ -100,7 +100,7 @@ export default function AdminCreators({
                       )}
                       <div>
                         <p className="font-semibold text-white text-[13px]">{creator.username || 'user_identity'}</p>
-                        <p className="text-zinc-500 text-[10px] mt-0.5">{creator.email || 'no-email@id'}</p>
+                        <p className="text-zinc-400 text-[10px] mt-0.5">{creator.email || 'no-email@id'}</p>
                       </div>
                     </div>
                   </td>
@@ -114,7 +114,7 @@ export default function AdminCreators({
                           <CheckCircle className="size-4" /> Granted
                         </span>
                       ) : (
-                        <span className="text-zinc-500 flex items-center gap-1 font-mono text-[11px]">
+                        <span className="text-zinc-400 flex items-center gap-1 font-mono text-[11px]">
                           <XCircle className="size-4" /> Banned
                         </span>
                       )}
@@ -176,7 +176,7 @@ export default function AdminCreators({
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-zinc-500 bg-[#121214]">
+                  <td colSpan={6} className="py-12 text-center text-zinc-400 bg-[#121214]">
                     No profiles loaded matching selection parameters.
                   </td>
                 </tr>

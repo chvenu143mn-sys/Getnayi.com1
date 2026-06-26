@@ -202,7 +202,7 @@ export const ProfileImageCropper: React.FC<ProfileImageCropperProps> = ({
         <button
           type="button"
           onClick={handleApplyCrop}
-          className="h-10 px-4 flex items-center gap-1.5 text-xs font-bold text-[#d9183b] bg-[#d9183b]/10 hover:bg-[#d9183b]/20 active:scale-95 transition-all rounded-full border border-[#d9183b]/20 cursor-pointer"
+          className="h-10 px-4 flex items-center gap-1.5 text-xs font-bold text-[#ff5a36] bg-[#ff5a36]/10 hover:bg-[#ff5a36]/20 active:scale-95 transition-all rounded-full border border-[#ff5a36]/20 cursor-pointer"
         >
           <Check className="size-4" />
           <span>Done</span>
@@ -215,7 +215,7 @@ export const ProfileImageCropper: React.FC<ProfileImageCropperProps> = ({
         {/* Aspect Ratio Guideline frame */}
         <div className="w-full flex justify-between items-center mb-4 text-xs font-medium text-zinc-400">
           <span className="flex items-center gap-1">
-            <Sliders className="size-3 text-zinc-500" />
+            <Sliders className="size-3 text-zinc-400" />
             Instagram Standard
           </span>
           <span className="bg-zinc-800 text-[10px] text-zinc-300 px-2 py-0.5 rounded-full font-mono font-medium">
@@ -233,7 +233,7 @@ export const ProfileImageCropper: React.FC<ProfileImageCropperProps> = ({
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-          className="relative w-[280px] h-[280px] rounded-full overflow-hidden bg-zinc-900 border-2 border-[#d9183b]/40 shadow-inner cursor-move select-none"
+          className="relative w-[280px] h-[280px] rounded-full overflow-hidden bg-zinc-900 border-2 border-[#ff5a36]/40 shadow-inner cursor-move select-none"
           style={{
             touchAction: 'none'
           }}
@@ -248,8 +248,7 @@ export const ProfileImageCropper: React.FC<ProfileImageCropperProps> = ({
 
            {/* Render image */}
           {imageSrc && (
-            <img
-              ref={imageRef}
+            <img               ref={imageRef}
               src={imageSrc}
               alt="To crop"
               onLoad={handleImageLoad}
@@ -261,7 +260,7 @@ export const ProfileImageCropper: React.FC<ProfileImageCropperProps> = ({
                 width: naturalSize.width ? `${naturalSize.width * Math.max(viewportSize / naturalSize.width, viewportSize / naturalSize.height)}px` : '100%',
                 height: naturalSize.height ? `${naturalSize.height * Math.max(viewportSize / naturalSize.width, viewportSize / naturalSize.height)}px` : '100%',
               }}
-            />
+            loading="lazy" decoding="async" />
           )}
         </div>
 
@@ -269,13 +268,13 @@ export const ProfileImageCropper: React.FC<ProfileImageCropperProps> = ({
         <div className="w-full mt-6 bg-zinc-900/50 p-4 rounded-xl border border-white/5 flex flex-col gap-3">
           <div className="flex items-center justify-between text-xs text-zinc-400">
             <span className="font-sans">Adjust Scale / Zoom</span>
-            <span className="font-mono text-zinc-500 font-semibold">{Math.round(zoom * 100)}%</span>
+            <span className="font-mono text-zinc-400 font-semibold">{Math.round(zoom * 100)}%</span>
           </div>
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setZoom(prev => Math.max(1, prev - 0.1))}
-              className="text-zinc-500 hover:text-white transition-colors bg-white/5 hover:bg-white/10 p-1.5 rounded-full"
+              className="text-zinc-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 p-1.5 rounded-full"
             >
               <ZoomOut className="size-4" />
             </button>
@@ -286,12 +285,12 @@ export const ProfileImageCropper: React.FC<ProfileImageCropperProps> = ({
               step={0.01}
               value={zoom}
               onChange={(e) => setZoom(parseFloat(e.target.value))}
-              className="flex-1 accent-[#d9183b] h-1.5 bg-zinc-800 rounded-lg cursor-pointer appearance-none"
+              className="flex-1 accent-[#ff5a36] h-1.5 bg-zinc-800 rounded-lg cursor-pointer appearance-none"
             />
             <button
               type="button"
               onClick={() => setZoom(prev => Math.min(3, prev + 0.1))}
-              className="text-zinc-500 hover:text-white transition-colors bg-white/5 hover:bg-white/10 p-1.5 rounded-full"
+              className="text-zinc-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 p-1.5 rounded-full"
             >
               <ZoomIn className="size-4" />
             </button>
@@ -299,7 +298,7 @@ export const ProfileImageCropper: React.FC<ProfileImageCropperProps> = ({
         </div>
 
         {/* Hint text */}
-        <p className="text-[11px] text-zinc-500 mt-4 text-center leading-relaxed">
+        <p className="text-[11px] text-zinc-400 mt-4 text-center leading-relaxed">
           Drag photo to position your face within the circle. Standard 1:1 format provides a precise fit for headers, comments, and recommendations.
         </p>
 

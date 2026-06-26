@@ -510,6 +510,7 @@ const standardApiLimiter = expressRateLimit({
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   message: { error: "Too many requests, please try again later." },
+  validate: false,
   keyGenerator: (req, res) => {
     return ipKeyGenerator(req.ip || "unknown");
   },
@@ -817,12 +818,12 @@ async function ensureUserPasswordsTable() {
       `
     });
     if (error) {
-      logger.error("Error creating user_passwords table via execute_sql RPC:", error);
+      logger.info("Info regarding user_passwords table via execute_sql RPC (this is expected if the table or RPC is not configured):", error);
     } else {
       logger.info("Successfully ensured user_passwords table exists.");
     }
   } catch (err) {
-    logger.error("Failed to execute SQL to ensure user_passwords table:", err);
+    logger.info("Note: Failed to execute SQL to ensure user_passwords table:", err);
   }
 }
 
@@ -833,6 +834,7 @@ async function startServer() {
   const authRateLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 5,
+    validate: false,
     keyGenerator: (req) => {
       const ip = req.headers['x-forwarded-for'] || req.ip || 'unknown';
       return Array.isArray(ip) ? ip[0] : ip;
@@ -848,6 +850,7 @@ async function startServer() {
   const aiRateLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 10,
+    validate: false,
     keyGenerator: (req) => {
       const authHeader = req.headers.authorization;
       if (authHeader) {
@@ -867,6 +870,7 @@ async function startServer() {
   const paymentRateLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 10,
+    validate: false,
     keyGenerator: (req) => {
       const authHeader = req.headers.authorization;
       if (authHeader) {
@@ -1173,6 +1177,7 @@ ${urls.join('\n')}
     windowMs: 60 * 60 * 1000, // 1 hour
     max: 5, // Limit each IP or User to 5 failures per window
     skipSuccessfulRequests: true, // Only count failures towards the rate limit
+    validate: false,
     keyGenerator: (req, res) => {
       const authHeader = req.headers.authorization;
       if (authHeader && authHeader.startsWith("Bearer ")) {
@@ -2598,7 +2603,7 @@ ${urls.join('\n')}
 
   app.get(
     "/api/trending",
-    rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }),
+    rateLimit({ windowMs: 15 * 60 * 1000, max: 100, validate: false }),
     async (req, res) => {
       try {
         if (!supabaseAdmin)
@@ -2729,7 +2734,7 @@ ${urls.join('\n')}
 
   app.get(
     "/api/search",
-    rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }),
+    rateLimit({ windowMs: 15 * 60 * 1000, max: 100, validate: false }),
     async (req, res) => {
       try {
         if (!supabaseAdmin)

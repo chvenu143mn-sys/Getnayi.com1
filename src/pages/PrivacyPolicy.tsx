@@ -24,7 +24,7 @@ export default function PrivacyPolicy() {
           </div>
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-white">Privacy Policy</h1>
-            <p className="text-zinc-500 text-xs mt-1">Last Updated: June 24, 2026</p>
+            <p className="text-zinc-400 text-xs mt-1">Last Updated: June 24, 2026</p>
           </div>
         </div>
 
@@ -55,7 +55,7 @@ export default function PrivacyPolicy() {
               <span className="text-blue-500">1.</span> Personal Data We Collect
             </h2>
             <p className="mb-3">
-              GetNayi (owned and operated by Aisles Platform, based in the United States) values your trust. When you use our application to discover and browse creator items, we gather specific categories of information:
+              GetNayi (owned and operated by Getnayi, based in the United States) values your trust. When you use our application to discover and browse creator items, we gather specific categories of information:
             </p>
             <ul className="list-disc list-inside space-y-2 text-zinc-400 pl-2 mb-4">
               <li><strong>Account Credentials:</strong> Email addresses and securely hashed password records collected during signup.</li>
@@ -74,7 +74,7 @@ export default function PrivacyPolicy() {
               <span className="text-blue-500">2.</span> Why We Collect Your Information
             </h2>
             <p className="mb-3">
-              Aisles Platform utilizes your gathered information to power, protect, and optimize GetNayi services under the following lawful bases:
+              Getnayi utilizes your gathered information to power, protect, and optimize GetNayi services under the following lawful bases:
             </p>
             <ul className="list-disc list-inside space-y-2 text-zinc-400 pl-2">
               <li><strong>Service Execution:</strong> Registering your account, authenticating sessions, loading custom video feeds, and managing your bookmark collections.</li>

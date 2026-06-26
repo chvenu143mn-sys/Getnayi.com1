@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { ChevronLeft, Shield, Check, CreditCard, X, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
 
 export default function SubscriptionSettings() {
@@ -41,12 +41,12 @@ export default function SubscriptionSettings() {
 
   if (loading) {
      return <div className="min-h-screen bg-[#0c0c0e] flex items-center justify-center">
-       <div className="w-8 h-8 rounded-full border-t-2 border-[#d9183b] animate-spin" />
+       <div className="w-8 h-8 rounded-full border-t-2 border-[#ff5a36] animate-spin" />
      </div>
   }
 
   const planName = plan === 'free' ? 'Free Plan' : plan === 'pro' ? 'Pro Plan' : 'Creator Plan';
-  const planColor = plan === 'free' ? 'text-zinc-400' : 'text-[#d9183b]';
+  const planColor = plan === 'free' ? 'text-zinc-400' : 'text-[#ff5a36]';
 
   return (
     <div className="min-h-screen bg-[#0c0c0e] text-white selection:bg-white/20 pb-32">
@@ -78,7 +78,7 @@ export default function SubscriptionSettings() {
           
           <div className="mt-6 pt-6 border-t border-white/5 space-y-4">
              {plan === 'free' ? (
-               <button onClick={() => navigate('/subscription')} className="w-full py-3.5 bg-[#d9183b] hover:bg-[#f4284d] text-white rounded-xl font-bold tracking-wide transition shadow-lg shadow-[#d9183b]/20">
+               <button onClick={() => navigate('/subscription')} className="w-full py-3.5 bg-[#ff5a36] hover:bg-[#f4284d] text-white rounded-xl font-bold tracking-wide transition shadow-lg shadow-[#ff5a36]/20">
                  Upgrade Plan
                </button>
              ) : (
@@ -101,7 +101,7 @@ export default function SubscriptionSettings() {
             <h3 className="text-lg font-bold">Billing History</h3>
           </div>
           <div className="text-center py-8">
-            <p className="text-zinc-500 text-sm">You have no past invoices.</p>
+            <p className="text-zinc-400 text-sm">You have no past invoices.</p>
           </div>
         </section>
 
@@ -136,7 +136,7 @@ export default function SubscriptionSettings() {
                   <button 
                     key={r}
                     onClick={() => setCancelReason(r)}
-                    className={`w-full text-left px-4 py-3 rounded-xl border transition-all text-sm font-medium ${cancelReason === r ? 'border-[#d9183b] bg-[#d9183b]/10 text-[#d9183b]' : 'border-white/10 hover:border-white/20 text-zinc-300'}`}
+                    className={`w-full text-left px-4 py-3 rounded-xl border transition-all text-sm font-medium ${cancelReason === r ? 'border-[#ff5a36] bg-[#ff5a36]/10 text-[#ff5a36]' : 'border-white/10 hover:border-white/20 text-zinc-300'}`}
                   >
                     {r}
                   </button>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Cookie, Check, Sliders, Shield, Activity, Settings, ChevronDown, ChevronUp } from 'lucide-react';
+import { safeStorage } from '../utils/storage';
 
 interface CookiePreferences {
   necessary: boolean;
@@ -29,7 +30,7 @@ export function CookieConsent() {
     }
 
     // 2. Check if user already accepted/rejected cookie settings in localStorage
-    const savedConsent = localStorage.getItem('getnayi_cookie_consent');
+    const savedConsent = safeStorage.getItem('getnayi_cookie_consent');
     if (!savedConsent) {
       // Delay presentation slightly for a premium non-blocking entrance
       const timer = setTimeout(() => {
@@ -41,18 +42,18 @@ export function CookieConsent() {
 
   const handleAcceptAll = () => {
     const consentObj = { necessary: true, analytics: true, personalization: true };
-    localStorage.setItem('getnayi_cookie_consent', JSON.stringify(consentObj));
+    safeStorage.setItem('getnayi_cookie_consent', JSON.stringify(consentObj));
     setIsVisible(false);
   };
 
   const handleAcceptNecessary = () => {
     const consentObj = { necessary: true, analytics: false, personalization: false };
-    localStorage.setItem('getnayi_cookie_consent', JSON.stringify(consentObj));
+    safeStorage.setItem('getnayi_cookie_consent', JSON.stringify(consentObj));
     setIsVisible(false);
   };
 
   const handleSaveCustom = () => {
-    localStorage.setItem('getnayi_cookie_consent', JSON.stringify(prefs));
+    safeStorage.setItem('getnayi_cookie_consent', JSON.stringify(prefs));
     setIsVisible(false);
   };
 
@@ -98,7 +99,7 @@ export function CookieConsent() {
                     <Shield className="size-4 text-emerald-400" />
                     <div>
                       <div className="text-xs font-semibold text-zinc-200">Strictly Necessary</div>
-                      <div className="text-[10px] text-zinc-500">Required for authentication, security & essential features.</div>
+                      <div className="text-[10px] text-zinc-400">Required for authentication, security & essential features.</div>
                     </div>
                   </div>
                   <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded font-mono uppercase font-bold">Always Active</span>
@@ -110,7 +111,7 @@ export function CookieConsent() {
                     <Activity className="size-4 text-blue-400" />
                     <div>
                       <div className="text-xs font-semibold text-zinc-200">Performance & Analytics</div>
-                      <div className="text-[10px] text-zinc-500">Helps us understand viewer engagement & optimize video playbacks.</div>
+                      <div className="text-[10px] text-zinc-400">Helps us understand viewer engagement & optimize video playbacks.</div>
                     </div>
                   </div>
                   <button
@@ -133,7 +134,7 @@ export function CookieConsent() {
                     <Settings className="size-4 text-purple-400" />
                     <div>
                       <div className="text-xs font-semibold text-zinc-200">Personalization</div>
-                      <div className="text-[10px] text-zinc-500">Saves your dark/light theme choices and custom creator feeds.</div>
+                      <div className="text-[10px] text-zinc-400">Saves your dark/light theme choices and custom creator feeds.</div>
                     </div>
                   </div>
                   <button

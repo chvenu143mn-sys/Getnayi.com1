@@ -30,7 +30,7 @@ export function UploadAccordion({ title, icon, isOpen, onToggle, children, class
           animate={{ rotate: isOpen ? 90 : 0 }}
           transition={{ duration: 0.2 }}
         >
-          <ChevronRight className="size-5 text-zinc-500 shrink-0" />
+          <ChevronRight className="size-5 text-zinc-400 shrink-0" />
         </motion.div>
       </button>
       <AnimatePresence initial={false}>

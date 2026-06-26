@@ -173,25 +173,25 @@ export default function Saved() {
     <div className="flex-1 w-full bg-[#0c0c0e] text-white font-sans flex flex-col h-full bg-[#0c0c0e]">
       {/* Header Tabs */}
       <div className="sticky top-0 z-20 bg-[#0c0c0e] pt-6 pb-1">
-        <div className="flex items-center px-4 mb-2">
+        <div className="flex items-center px-4 md:px-8 mb-2">
             <GlobalBackButton className="p-2 -ml-2 bg-transparent hover:bg-white/5 border-transparent" />
             <h2 className="text-[17px] font-semibold text-white ml-2 tracking-wide">Saved Items</h2>
         </div>
 
-        <div className="flex px-5 gap-x-7 overflow-x-auto scrollbar-none pb-3 border-b border-white/5">
+        <div className="flex px-5 md:px-8 gap-x-7 overflow-x-auto scrollbar-none pb-3 border-b border-white/5">
           {tabs.map((tab) => (
             <button type="button" aria-label="button" 
                key={tab}
                onClick={() => setActiveTab(tab)}
                className={`relative pb-2 text-[15px] font-medium tracking-wide whitespace-nowrap transition-colors ${
-                 activeTab === tab ? 'text-white' : 'text-zinc-500 hover:text-white/80'
+                 activeTab === tab ? 'text-white' : 'text-zinc-400 hover:text-white/80'
                }`}
             >
               {tab}
               {activeTab === tab && (
                 <motion.div
                   layoutId="activeTabBadgeSaved"
-                  className="absolute bottom-[-2px] left-0 right-0 h-[3px] bg-[#d9183b] rounded-t-full"
+                  className="absolute bottom-[-2px] left-0 right-0 h-[3px] bg-[#ff5a36] rounded-t-full"
                   initial={false}
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 />
@@ -201,10 +201,10 @@ export default function Saved() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto no-scrollbar pt-5 px-5">
+      <div className="flex-1 overflow-y-auto no-scrollbar pt-5 px-5 md:px-8">
         {loading ? (
-          <div className="py-20 flex flex-col items-center justify-center text-zinc-500 gap-y-3">
-            <Loader2 className="size-8 animate-spin text-[#d9183b]" />
+          <div className="py-20 flex flex-col items-center justify-center text-zinc-400 gap-y-3">
+            <Loader2 className="size-8 animate-spin text-[#ff5a36]" />
             <p className="text-sm font-medium">Loading saved items...</p>
           </div>
         ) : (
@@ -213,13 +213,20 @@ export default function Saved() {
             {activeTab === 'Products' && (
               <div>
                 {products.length === 0 ? (
-                  <div className="py-16 text-center text-zinc-500 flex flex-col items-center">
-                    <ShoppingBag className="size-12 text-zinc-700 mb-3" strokeWidth={1.5} />
-                    <p className="text-sm font-medium">No saved products yet.</p>
-                    <p className="text-xs text-zinc-500 mt-1">Bookmark review videos to save their products.</p>
+                  <div className="flex flex-col items-center justify-center py-20 text-center px-4 md:px-8 h-full min-h-[350px]">
+                    <div className="relative mb-6">
+                      <div className="absolute inset-0 bg-[#ff5a36]/5 rounded-full blur-2xl transform scale-150 animate-pulse" />
+                      <div className="relative size-20 rounded-3xl bg-zinc-900 border border-white/5 flex items-center justify-center text-zinc-400 shadow-xl">
+                        <ShoppingBag className="size-9 text-zinc-400" strokeWidth={1.5} />
+                      </div>
+                    </div>
+                    <h3 className="text-[17px] font-bold text-white tracking-wide mb-2 drop-shadow-sm">No saved products yet</h3>
+                    <p className="text-[14px] text-zinc-400 max-w-xs leading-relaxed font-medium">
+                      Bookmark review videos to save their products here for easy access.
+                    </p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-3.5 mb-6">
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 mb-6">
                     {products.map((product, idx) => (
                       <div key={`${product.id}-${idx}`} className="flex flex-col bg-[#151518] border border-white/5 rounded-2xl overflow-hidden shadow-lg group relative">
                         <button type="button" aria-label="button"  
@@ -229,14 +236,14 @@ export default function Saved() {
                           <FolderPlus className="size-4 text-white" />
                         </button>
                         <div className="w-full aspect-square overflow-hidden bg-zinc-900 relative">
-                          <img src={product.image} alt={product.name} className="size-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                          <img src={product.image} alt={product.name} className="size-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" decoding="async" />
                           <div className="absolute inset-0 bg-[#0c0c0e]/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                             <a 
                               href={product.url} 
                               target="_blank" 
                               rel="noopener noreferrer"
                               onClick={(e) => e.stopPropagation()}
-                              className="p-2.5 bg-[#d9183b] text-white rounded-full hover:bg-[#f4284d] active:scale-95 transition-all shadow-lg"
+                              className="p-2.5 bg-[#ff5a36] text-white rounded-full hover:bg-[#f4284d] active:scale-95 transition-all shadow-lg"
                             >
                               <ExternalLink className="size-4" />
                             </a>
@@ -244,9 +251,9 @@ export default function Saved() {
                         </div>
                         <div className="p-3.5 flex flex-col flex-1">
                            <h4 className="text-[14px] font-semibold text-white truncate tracking-tight">{product.name}</h4>
-                           <span className="text-[11px] font-medium text-zinc-500 mt-0.5">by @{product.creator.toLowerCase()}</span>
+                           <span className="text-[11px] font-medium text-zinc-400 mt-0.5">by @{product.creator.toLowerCase()}</span>
                            <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-white/5">
-                             <span className="text-[12px] font-semibold text-[#d9183b] bg-[#d9183b]/10 px-2 py-0.5 rounded-md">{product.price}</span>
+                             <span className="text-[12px] font-semibold text-[#ff5a36] bg-[#ff5a36]/10 px-2 py-0.5 rounded-md">{product.price}</span>
                              <button type="button" aria-label="button"  onClick={() => navigate(`/video/${product.id}`)} className="text-[11px] text-zinc-400 hover:text-white flex items-center gap-0.5">
                                Watch <ChevronRight className="size-3" />
                              </button>
@@ -263,13 +270,20 @@ export default function Saved() {
             {activeTab === 'Videos' && (
               <div>
                 {savedVideos.length === 0 ? (
-                  <div className="py-16 text-center text-zinc-500 flex flex-col items-center">
-                    <VideoIcon className="size-12 text-zinc-700 mb-3" strokeWidth={1.5} />
-                    <p className="text-sm font-medium">No saved videos yet.</p>
-                    <p className="text-xs text-zinc-500 mt-1">Videos you bookmark from the home feed will show here.</p>
+                  <div className="flex flex-col items-center justify-center py-20 text-center px-4 md:px-8 h-full min-h-[350px]">
+                    <div className="relative mb-6">
+                      <div className="absolute inset-0 bg-[#ff5a36]/5 rounded-full blur-2xl transform scale-150 animate-pulse" />
+                      <div className="relative size-20 rounded-3xl bg-zinc-900 border border-white/5 flex items-center justify-center text-zinc-400 shadow-xl">
+                        <VideoIcon className="size-9 text-zinc-400" strokeWidth={1.5} />
+                      </div>
+                    </div>
+                    <h3 className="text-[17px] font-bold text-white tracking-wide mb-2 drop-shadow-sm">No saved videos yet</h3>
+                    <p className="text-[14px] text-zinc-400 max-w-xs leading-relaxed font-medium">
+                      Videos you bookmark from the home feed will show here.
+                    </p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-3 gap-2.5 mb-6">
+                  <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 md:gap-3.5 mb-6">
                     {savedVideos.map((item) => (
                       <div 
                         key={item.id} 
@@ -283,9 +297,9 @@ export default function Saved() {
                           <FolderPlus className="size-3.5 text-white" />
                         </button>
                         {item.video.thumbnail_url || item.video.main_product_image_url ? (
-                          <img src={item.video.thumbnail_url || item.video.main_product_image_url} alt="Video thumbnail" className="size-full object-cover" />
+                          <img src={item.video.thumbnail_url || item.video.main_product_image_url} alt="Video thumbnail" className="size-full object-cover" loading="lazy" decoding="async" />
                         ) : (
-                          <div className="size-full flex items-center justify-center bg-zinc-800 text-zinc-500">No Image</div>
+                          <div className="size-full flex items-center justify-center bg-zinc-800 text-zinc-400">No Image</div>
                         )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-85 pointer-events-none" />
                         <div className="absolute bottom-2 left-2 flex items-center shadow-sm">
@@ -305,10 +319,17 @@ export default function Saved() {
             {activeTab === 'Creators' && (
               <div>
                 {followedCreators.length === 0 ? (
-                  <div className="py-16 text-center text-zinc-500 flex flex-col items-center">
-                    <svg className="size-12 text-zinc-700 mb-3" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
-                    <p className="text-sm font-medium">No followed creators yet.</p>
-                    <p className="text-xs text-zinc-500 mt-1">Creators you follow will appear here.</p>
+                  <div className="flex flex-col items-center justify-center py-20 text-center px-4 md:px-8 h-full min-h-[350px]">
+                    <div className="relative mb-6">
+                      <div className="absolute inset-0 bg-[#ff5a36]/5 rounded-full blur-2xl transform scale-150 animate-pulse" />
+                      <div className="relative size-20 rounded-3xl bg-zinc-900 border border-white/5 flex items-center justify-center text-zinc-400 shadow-xl">
+                        <svg className="size-9 text-zinc-400" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
+                      </div>
+                    </div>
+                    <h3 className="text-[17px] font-bold text-white tracking-wide mb-2 drop-shadow-sm">No followed creators yet</h3>
+                    <p className="text-[14px] text-zinc-400 max-w-xs leading-relaxed font-medium">
+                      Creators you follow will appear here.
+                    </p>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-y-3 mb-6">
@@ -320,7 +341,7 @@ export default function Saved() {
                       >
                         <div className="size-[50px] rounded-full overflow-hidden bg-zinc-850 shrink-0 mr-4 border border-white/10">
                           {profile.avatar_url ? (
-                            <img src={profile.avatar_url} alt={profile.username} className="size-full object-cover" />
+                            <img src={profile.avatar_url} alt={profile.username} className="size-full object-cover" loading="lazy" decoding="async" />
                           ) : (
                             <div className="size-full flex items-center justify-center text-white/60 bg-zinc-800 text-lg uppercase font-semibold">
                               {profile.username?.charAt(0)}
@@ -329,9 +350,9 @@ export default function Saved() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className="font-semibold text-white text-[15px] tracking-tight">{profile.username}</h4>
-                          {profile.bio && <p className="text-zinc-500 text-[13px] truncate whitespace-nowrap overflow-hidden pr-2 mt-0.5">{profile.bio}</p>}
+                          {profile.bio && <p className="text-zinc-400 text-[13px] truncate whitespace-nowrap overflow-hidden pr-2 mt-0.5">{profile.bio}</p>}
                         </div>
-                        <ChevronRight className="size-5 text-zinc-500 group-hover:text-white transition-colors" />
+                        <ChevronRight className="size-5 text-zinc-400 group-hover:text-white transition-colors" />
                       </button>
                     ))}
                   </div>
@@ -342,29 +363,44 @@ export default function Saved() {
             {/* Collections Tab */}
             {activeTab === 'Collections' && (
               <div>
-                <div className="grid grid-cols-2 gap-3.5 mb-6">
-                  {collections.map((collection) => (
-                    <div 
-                      key={collection.id} 
-                      className="flex flex-col cursor-pointer group"
-                      onClick={() => navigate(`/collection/${collection.id}`)}
-                    >
-                      <div className="w-full aspect-[4/3] rounded-2xl overflow-hidden border border-white/5 shadow-md bg-zinc-900 border-b-0 rounded-b-none relative">
-                        {collection.image_url ? (
-                          <img src={collection.image_url} alt={collection.name} className="size-full object-cover" />
-                        ) : (
-                          <div className="size-full flex items-center justify-center bg-[#151518] text-zinc-500">
-                             <Bookmark className="size-8 text-zinc-700" strokeWidth={1.5} />
-                          </div>
-                        )}
-                      </div>
-                      <div className="bg-[#151518] border border-white/5 border-t-0 p-3.5 pt-2 rounded-b-2xl -mt-[11px] shadow-lg flex-1">
-                         <h4 className="text-[14px] font-semibold text-white truncate tracking-tight">{collection.name}</h4>
-                         <span className="text-[11px] font-medium text-zinc-500 block mt-0.5">Collection</span>
+                {collections.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-center px-4 md:px-8 h-full min-h-[350px]">
+                    <div className="relative mb-6">
+                      <div className="absolute inset-0 bg-[#ff5a36]/5 rounded-full blur-2xl transform scale-150 animate-pulse" />
+                      <div className="relative size-20 rounded-3xl bg-zinc-900 border border-white/5 flex items-center justify-center text-zinc-400 shadow-xl">
+                        <FolderPlus className="size-9 text-zinc-400" strokeWidth={1.5} />
                       </div>
                     </div>
-                  ))}
-                </div>
+                    <h3 className="text-[17px] font-bold text-white tracking-wide mb-2 drop-shadow-sm">No collections yet</h3>
+                    <p className="text-[14px] text-zinc-400 max-w-xs leading-relaxed font-medium">
+                      Create collections to organize your saved products.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 mb-6">
+                    {collections.map((collection) => (
+                      <div 
+                        key={collection.id} 
+                        className="flex flex-col cursor-pointer group"
+                        onClick={() => navigate(`/collection/${collection.id}`)}
+                      >
+                        <div className="w-full aspect-[4/3] rounded-2xl overflow-hidden border border-white/5 shadow-md bg-zinc-900 border-b-0 rounded-b-none relative">
+                          {collection.image_url ? (
+                            <img src={collection.image_url} alt={collection.name} className="size-full object-cover" loading="lazy" decoding="async" />
+                          ) : (
+                            <div className="size-full flex items-center justify-center bg-[#151518] text-zinc-400">
+                               <Bookmark className="size-8 text-zinc-700" strokeWidth={1.5} />
+                            </div>
+                          )}
+                        </div>
+                        <div className="bg-[#151518] border border-white/5 border-t-0 p-3.5 pt-2 rounded-b-2xl -mt-[11px] shadow-lg flex-1">
+                           <h4 className="text-[14px] font-semibold text-white truncate tracking-tight">{collection.name}</h4>
+                           <span className="text-[11px] font-medium text-zinc-400 block mt-0.5">Collection</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* New Collection Button */}
                 <button type="button" aria-label="button"  
@@ -415,8 +451,8 @@ export default function Saved() {
                   }}
                   className="w-full flex items-center p-4 bg-white/5 hover:bg-white/10 rounded-2xl transition-colors border border-white/10 border-dashed"
                 >
-                  <div className="size-12 rounded-xl bg-[#d9183b]/20 flex items-center justify-center mr-4">
-                    <Plus className="size-6 text-[#d9183b]" />
+                  <div className="size-12 rounded-xl bg-[#ff5a36]/20 flex items-center justify-center mr-4">
+                    <Plus className="size-6 text-[#ff5a36]" />
                   </div>
                   <span className="font-semibold text-white/90">Create New Collection</span>
                 </button>
@@ -430,10 +466,10 @@ export default function Saved() {
                   >
                     <div className="size-14 rounded-xl overflow-hidden bg-zinc-900 border border-white/5 shrink-0">
                       {col.image_url ? (
-                        <img src={col.image_url} alt={col.name} className="size-full object-cover" />
+                        <img src={col.image_url} alt={col.name} className="size-full object-cover" loading="lazy" decoding="async" />
                       ) : (
                         <div className="size-full flex items-center justify-center">
-                          <Bookmark className="size-5 text-zinc-500" />
+                          <Bookmark className="size-5 text-zinc-400" />
                         </div>
                       )}
                     </div>

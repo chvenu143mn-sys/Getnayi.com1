@@ -87,8 +87,8 @@ export default function Trending() {
         <div className="flex items-center gap-x-3 mb-4">
           <GlobalBackButton className="p-2 -ml-2 hover:bg-white/5 bg-transparent border-transparent" />
           <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-[#d9183b]/10 shrink-0">
-              <TrendingUp className="size-[18px] text-[#d9183b]" />
+            <div className="p-1.5 rounded-lg bg-[#ff5a36]/10 shrink-0">
+              <TrendingUp className="size-[18px] text-[#ff5a36]" />
             </div>
             <h1 className="text-[19px] font-bold text-white tracking-tight">
               Trending
@@ -114,21 +114,21 @@ export default function Trending() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto no-scrollbar pb-24 pt-4 px-4 bg-[#0c0c0e]">
+      <div className="flex-1 overflow-y-auto no-scrollbar pb-24 pt-4 px-4 md:px-8 bg-[#0c0c0e]">
         {loading ? (
           <div className="flex justify-center py-20">
-            <Loader2 className="size-8 text-zinc-500 animate-spin" />
+            <Loader2 className="size-8 text-zinc-400 animate-spin" />
           </div>
         ) : trendingVideos.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
              <div className="size-16 rounded-full bg-zinc-900 border border-white/5 flex items-center justify-center mb-4">
-                <Zap className="size-8 text-zinc-500" />
+                <Zap className="size-8 text-zinc-400" />
              </div>
              <p className="text-[15px] font-bold text-white mb-1">No viral videos yet</p>
-             <p className="text-[13px] text-zinc-500 w-2/3">Try checking another trending hashtag or topic.</p>
+             <p className="text-[13px] text-zinc-400 w-2/3">Try checking another trending hashtag or topic.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3 max-w-lg mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 lg:grid-cols-4 md:max-w-none max-w-lg mx-auto">
             {trendingVideos.map((video, idx) => {
               let textToShow = video.caption || 'No description';
               try {
@@ -156,7 +156,7 @@ export default function Trending() {
 
                   <div className="aspect-[3/4] bg-zinc-900 relative">
                     {video.thumbnail_url ? (
-                      <img src={video.thumbnail_url} className="size-full object-cover opacity-85 group-hover:opacity-100 transition-opacity" alt="thumbnail" />
+                      <img src={video.thumbnail_url} className="size-full object-cover opacity-85 group-hover:opacity-100 transition-opacity" alt="thumbnail" loading="lazy" decoding="async" />
                     ) : (
                       <div className="size-full flex items-center justify-center">
                         <Play className="size-8 text-white/10" shrink-0 />
@@ -168,7 +168,7 @@ export default function Trending() {
                       <div className="flex items-center gap-1.5 mb-1.5">
                         <div className="size-5 rounded-full overflow-hidden bg-zinc-800 border border-white/20">
                           {video.profiles?.avatar_url ? (
-                            <img src={video.profiles.avatar_url} className="size-full object-cover" alt="creator" />
+                            <img src={video.profiles.avatar_url} className="size-full object-cover" alt="creator" loading="lazy" decoding="async" />
                           ) : (
                             <div className="size-full flex justify-center items-center text-[8px] bg-indigo-500 font-bold uppercase">{video.profiles?.username?.[0] || 'C'}</div>
                           )}

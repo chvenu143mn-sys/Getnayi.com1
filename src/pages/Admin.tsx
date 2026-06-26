@@ -550,7 +550,7 @@ export default function Admin() {
     try {
       const { error } = await supabase.from('categories').update({ name: editingCategoryName.trim(), image_url: editingCategoryImageUrl.trim() || null }).eq('id', id);
       if (error) {
-        if (error.code === '42501' || (error.message && error.message.includes('policy'))) {
+        if (error.code === '42501' || error.message?.includes('policy')) {
           alert("Permission denied. Ensure you ran the updated database.sql policy in Supabase to allow category updates.");
         }
         throw error;
@@ -559,7 +559,7 @@ export default function Admin() {
       setEditingCategoryImageUrl('');
       fetchCategories();
     } catch (err: any) {
-      if (err.message && !err.message.includes('policy')) {
+      if (err.message && !err.message?.includes('policy')) {
         alert("Failed to update category: " + err.message);
       }
     }
@@ -731,11 +731,11 @@ export default function Admin() {
                 }}
                 className={cn(
                   "flex items-center justify-between px-4 py-3 rounded-xl transition-all font-medium text-sm text-left group",
-                  isActive ? "bg-white/10 text-white" : "text-zinc-500 hover:bg-white/5 hover:text-zinc-300"
+                  isActive ? "bg-white/10 text-white" : "text-zinc-400 hover:bg-white/5 hover:text-zinc-300"
                 )}
               >
                 <div className="flex items-center gap-4">
-                  <Icon className={cn("size-5", isActive ? "text-white" : "text-zinc-500")} />
+                  <Icon className={cn("size-5", isActive ? "text-white" : "text-zinc-400")} />
                   {item.label}
                 </div>
                 {item.id === 'flagged' && videos.filter(v => v.status === 'pending_review').length > 0 && (
@@ -905,7 +905,7 @@ export default function Admin() {
                     <div className="flex items-end justify-between">
                        <span className="text-2xl font-bold text-white">{stats.totalUsers > 1000000 ? (stats.totalUsers/1000000).toFixed(1)+'M' : stats.totalUsers.toLocaleString()}</span>
                        <div className="flex flex-col items-end">
-                          <TrendingUp className="size-5 text-zinc-500 mb-1" />
+                          <TrendingUp className="size-5 text-zinc-400 mb-1" />
                           <span className="text-[#10B981] text-xs font-semibold flex items-center gap-1">↑ 12.3%</span>
                        </div>
                     </div>
@@ -913,7 +913,7 @@ export default function Admin() {
                  <div className="bg-[#161619] border border-white/5 rounded-2xl p-5 flex flex-col justify-between">
                     <div className="text-zinc-400 text-sm mb-2 flex items-center justify-between">
                       <span>Total Creators</span>
-                      <Users className="size-4 text-zinc-500" />
+                      <Users className="size-4 text-zinc-400" />
                     </div>
                     <div className="flex items-end justify-between">
                        <span className="text-2xl font-bold text-white">{(creators.length > 1000 ? (creators.length/1000).toFixed(1)+'K' : creators.length.toLocaleString())}</span>
@@ -923,7 +923,7 @@ export default function Admin() {
                  <div className="bg-[#161619] border border-white/5 rounded-2xl p-5 flex flex-col justify-between">
                     <div className="text-zinc-400 text-sm mb-2 flex items-center justify-between">
                       <span>Total Videos</span>
-                      <PlaySquare className="size-4 text-zinc-500" />
+                      <PlaySquare className="size-4 text-zinc-400" />
                     </div>
                     <div className="flex items-end justify-between">
                        <span className="text-2xl font-bold text-white">{(stats.totalVideos > 1000 ? (stats.totalVideos/1000).toFixed(1)+'K' : stats.totalVideos.toLocaleString())}</span>
@@ -933,7 +933,7 @@ export default function Admin() {
                  <div className="bg-[#161619] border border-white/5 rounded-2xl p-5 flex flex-col justify-between">
                     <div className="text-zinc-400 text-sm mb-2 flex items-center justify-between">
                       <span>Reports Today</span>
-                      <FileText className="size-4 text-zinc-500" />
+                      <FileText className="size-4 text-zinc-400" />
                     </div>
                     <div className="flex items-end justify-between">
                        <span className="text-2xl font-bold text-white">{stats.totalReports.toLocaleString()}</span>
@@ -964,10 +964,10 @@ export default function Admin() {
                           {hasCategoryData ? topCategoriesData.map((cat, i) => (
                             <div key={cat.name} className="flex items-center justify-between text-xs">
                                <span className="text-zinc-300">{cat.name}</span>
-                               <span className="text-zinc-500">{Math.round((cat.value / (stats.totalVideos || 1)) * 100)}%</span>
+                               <span className="text-zinc-400">{Math.round((cat.value / (stats.totalVideos || 1)) * 100)}%</span>
                             </div>
                           )) : (
-                            <div className="text-zinc-500 text-xs">No data available</div>
+                            <div className="text-zinc-400 text-xs">No data available</div>
                           )}
                        </div>
                     </div>
@@ -1003,8 +1003,8 @@ export default function Admin() {
                                <span className="text-white text-sm whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]">{r.reason || 'Report'}</span>
                             </div>
                             <div className="flex items-center justify-between w-1/2 text-xs">
-                               <span className="text-zinc-500 truncate">by {r.profiles?.username || 'user'}</span>
-                               <span className="text-zinc-500">
+                               <span className="text-zinc-400 truncate">by {r.profiles?.username || 'user'}</span>
+                               <span className="text-zinc-400">
                                  {Math.floor((new Date().getTime() - new Date(r.created_at).getTime()) / 60000)}m ago
                                </span>
                             </div>
@@ -1021,7 +1021,7 @@ export default function Admin() {
                  <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm whitespace-nowrap">
                        <thead className="bg-[#131316]">
-                          <tr className="border-b border-white/5 text-zinc-500">
+                          <tr className="border-b border-white/5 text-zinc-400">
                              <th className="py-4 px-5 font-medium">Report</th>
                              <th className="py-4 px-5 font-medium">Type</th>
                              <th className="py-4 px-5 font-medium">Reported By</th>
@@ -1052,7 +1052,7 @@ export default function Admin() {
                              </tr>
                           ))}
                           {reports.length === 0 && (
-                             <tr><td colSpan={5} className="py-12 text-center text-zinc-500">No reports found</td></tr>
+                             <tr><td colSpan={5} className="py-12 text-center text-zinc-400">No reports found</td></tr>
                           )}
                        </tbody>
                     </table>
@@ -1070,7 +1070,7 @@ export default function Admin() {
                  <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm whitespace-nowrap">
                        <thead className="bg-[#131316]">
-                          <tr className="border-b border-white/5 text-zinc-500">
+                          <tr className="border-b border-white/5 text-zinc-400">
                              <th className="py-4 px-5 font-medium">Video</th>
                              <th className="py-4 px-5 font-medium">Creator</th>
                              <th className="py-4 px-5 font-medium">Status</th>
@@ -1083,7 +1083,7 @@ export default function Admin() {
                              <tr key={v.id} className="hover:bg-white/[0.02] group">
                                 <td className="py-4 px-5 flex items-center gap-3 text-white">
                                    {v.thumbnail_url ? (
-                                      <img src={v.thumbnail_url} className="size-10 rounded-md object-cover"  alt="" />
+                                      <img src={v.thumbnail_url} className="size-10 rounded-md object-cover"  alt="" loading="lazy" decoding="async" />
                                    ) : (
                                       <div className="size-10 rounded-md bg-white/10" />
                                    )}
@@ -1092,7 +1092,7 @@ export default function Admin() {
                                 <td className="py-4 px-5">
                                    <div className="flex items-center gap-2">
                                      {v.profiles?.avatar_url ? (
-                                        <img src={v.profiles.avatar_url} className="size-6 rounded-full object-cover"  alt="" />
+                                        <img src={v.profiles.avatar_url} className="size-6 rounded-full object-cover"  alt="" loading="lazy" decoding="async" />
                                      ) : (
                                         <div className="size-6 rounded-full bg-white/10" />
                                      )}
@@ -1113,7 +1113,7 @@ export default function Admin() {
                              </tr>
                           ))}
                           {videos.length === 0 && (
-                             <tr><td colSpan={5} className="py-12 text-center text-zinc-500">No videos found</td></tr>
+                             <tr><td colSpan={5} className="py-12 text-center text-zinc-400">No videos found</td></tr>
                           )}
                        </tbody>
                     </table>
@@ -1131,7 +1131,7 @@ export default function Admin() {
                  <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm whitespace-nowrap">
                        <thead className="bg-[#131316]">
-                          <tr className="border-b border-white/5 text-zinc-500">
+                          <tr className="border-b border-white/5 text-zinc-400">
                              <th className="py-4 px-5 font-medium">Creator</th>
                              <th className="py-4 px-5 font-medium">Followers</th>
                              <th className="py-4 px-5 font-medium">Status</th>
@@ -1143,7 +1143,7 @@ export default function Admin() {
                              <tr key={app.id} className="hover:bg-white/[0.02] group">
                                 <td className="py-4 px-5 flex items-center gap-3 text-white">
                                    {app.profiles?.avatar_url ? (
-                                      <img src={app.profiles.avatar_url} className="size-10 rounded-full object-cover"  alt="" />
+                                      <img src={app.profiles.avatar_url} className="size-10 rounded-full object-cover"  alt="" loading="lazy" decoding="async" />
                                    ) : (
                                       <div className="size-10 rounded-full bg-white/10" />
                                    )}
@@ -1167,7 +1167,7 @@ export default function Admin() {
                              </tr>
                           ))}
                           {applications.length === 0 && (
-                             <tr><td colSpan={4} className="py-12 text-center text-zinc-500">No requests found</td></tr>
+                             <tr><td colSpan={4} className="py-12 text-center text-zinc-400">No requests found</td></tr>
                           )}
                        </tbody>
                     </table>

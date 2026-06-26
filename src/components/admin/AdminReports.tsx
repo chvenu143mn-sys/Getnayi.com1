@@ -36,13 +36,13 @@ export default function AdminReports({
     <div className="gap-y-6 animate-in fade-in duration-500">
       <div>
         <h1 className="text-2xl font-bold text-white tracking-tight">Reports & Warning Logs</h1>
-        <p className="text-zinc-500 text-xs mt-1">Review allegations of violations, inspect affiliated links, or remove infringing items from distribution.</p>
+        <p className="text-zinc-400 text-xs mt-1">Review allegations of violations, inspect affiliated links, or remove infringing items from distribution.</p>
       </div>
 
       {/* Controls bar */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-500" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400" />
           <input
             type="text"
             placeholder="Search reports dynamically..."
@@ -53,7 +53,7 @@ export default function AdminReports({
         </div>
 
         <div className="flex items-center gap-2">
-          <Filter className="size-4 text-zinc-500" />
+          <Filter className="size-4 text-zinc-400" />
           <select
             value={statusFilter}
             onChange={(e: any) => setStatusFilter(e.target.value)}
@@ -67,7 +67,7 @@ export default function AdminReports({
         </div>
 
         <div className="flex items-center justify-end">
-          <span className="text-zinc-500 text-xs font-mono">
+          <span className="text-zinc-400 text-xs font-mono">
             Directing {filtered.length} reports
           </span>
         </div>
@@ -77,7 +77,7 @@ export default function AdminReports({
       <div className="bg-[#141416] border border-white/5 rounded-2xl overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-[#18181a] border-b border-white/5 text-zinc-500 uppercase font-mono text-[10px] tracking-wider">
+            <thead className="bg-[#18181a] border-b border-white/5 text-zinc-400 uppercase font-mono text-[10px] tracking-wider">
               <tr>
                 <th className="py-4 px-5 font-semibold">Alleged Violation</th>
                 <th className="py-4 px-5 font-semibold">Flagged Creator</th>
@@ -93,7 +93,7 @@ export default function AdminReports({
                   <td className="py-4 px-5">
                     <div className="flex flex-col justify-start">
                       <span className="font-semibold text-white text-[13px]">{r.reason || 'Safety hazard / violation link'}</span>
-                      <span className="text-[10px] text-zinc-500 font-mono mt-0.5">{r.id.substring(0,8)}</span>
+                      <span className="text-[10px] text-zinc-400 font-mono mt-0.5">{r.id.substring(0,8)}</span>
                     </div>
                   </td>
                   <td className="py-4 px-5">
@@ -109,7 +109,7 @@ export default function AdminReports({
                         className="flex items-center gap-2 hover:underline text-zinc-400 hover:text-white text-left font-serif"
                       >
                         {r.videos.thumbnail_url ? (
-                          <img src={r.videos.thumbnail_url} className="w-8 h-10 rounded-md object-cover bg-neutral-900 border border-white/5" referrerPolicy="no-referrer"  alt="" />
+                          <img src={r.videos.thumbnail_url} className="w-8 h-10 rounded-md object-cover bg-neutral-900 border border-white/5" referrerPolicy="no-referrer"  alt="" loading="lazy" decoding="async" />
                         ) : (
                           <div className="w-8 h-10 rounded bg-white/5" />
                         )}
@@ -166,7 +166,7 @@ export default function AdminReports({
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-zinc-500 bg-[#121214]">
+                  <td colSpan={6} className="py-12 text-center text-zinc-400 bg-[#121214]">
                     No reports match criteria.
                   </td>
                 </tr>

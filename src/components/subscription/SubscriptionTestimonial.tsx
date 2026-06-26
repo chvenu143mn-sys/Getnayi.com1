@@ -28,7 +28,7 @@ const testimonials = [
 export function SubscriptionTestimonial() {
   return (
     <div className="py-20 border-y border-zinc-800/50 bg-[#0f0f12] my-24 relative overflow-hidden">
-      <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-[#d9183b]/5 rounded-full blur-[120px] pointer-events-none"></div>
+      <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-[#ff5a36]/5 rounded-full blur-[120px] pointer-events-none"></div>
       
       <div className="max-w-6xl mx-auto px-4 relative z-10">
         <div className="text-center mb-16">
@@ -52,10 +52,10 @@ export function SubscriptionTestimonial() {
                   src={testimonial.image} 
                   alt={testimonial.name} 
                   className="size-12 rounded-full object-cover ring-2 ring-zinc-800"
-                />
+                loading="lazy" decoding="async" />
                 <div>
                   <h4 className="font-bold text-white text-sm">{testimonial.name}</h4>
-                  <p className="text-xs text-zinc-500">{testimonial.handle}</p>
+                  <p className="text-xs text-zinc-400">{testimonial.handle}</p>
                 </div>
               </div>
             </div>

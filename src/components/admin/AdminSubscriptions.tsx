@@ -82,14 +82,14 @@ export default function AdminSubscriptions() {
               placeholder="Search users..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-zinc-900 border border-white/10 rounded-lg py-2 pl-9 pr-4 text-sm focus:outline-none focus:border-[#d9183b]"
+              className="w-full bg-zinc-900 border border-white/10 rounded-lg py-2 pl-9 pr-4 text-sm focus:outline-none focus:border-[#ff5a36]"
             />
           </div>
         </div>
         
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-zinc-400">
-            <thead className="text-xs uppercase bg-black/20 text-zinc-500">
+            <thead className="text-xs uppercase bg-black/20 text-zinc-400">
               <tr>
                 <th className="px-6 py-3 font-medium">User</th>
                 <th className="px-6 py-3 font-medium">Plan</th>
@@ -100,16 +100,16 @@ export default function AdminSubscriptions() {
             </thead>
             <tbody className="divide-y divide-white/5">
               {loading ? (
-                <tr><td colSpan={5} className="py-8 text-center text-zinc-500"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></td></tr>
+                <tr><td colSpan={5} className="py-8 text-center text-zinc-400"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={5} className="py-8 text-center text-zinc-500">No subscriptions found</td></tr>
+                <tr><td colSpan={5} className="py-8 text-center text-zinc-400">No subscriptions found</td></tr>
               ) : (
                 filtered.map(profile => (
                   <tr key={profile.id} className="hover:bg-white/5 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         {profile.avatar_url ? (
-                          <img src={profile.avatar_url} alt="" className="w-8 h-8 rounded-full border border-white/10" />
+                          <img src={profile.avatar_url} alt="" className="w-8 h-8 rounded-full border border-white/10" loading="lazy" decoding="async" />
                         ) : (
                           <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center font-serif italic text-white/50">{profile.username?.[0] || 'U'}</div>
                         )}

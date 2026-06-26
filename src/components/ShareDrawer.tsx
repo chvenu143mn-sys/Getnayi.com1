@@ -155,9 +155,9 @@ export function ShareDrawer({
                 </button>
               ) : (
                 <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-center flex flex-col items-center justify-center">
-                  <Share2 className="w-6 h-6 text-zinc-500 mb-2" />
+                  <Share2 className="w-6 h-6 text-zinc-400 mb-2" />
                   <p className="text-sm font-medium text-zinc-400">Your device doesn't support the native Web Share API.</p>
-                  <p className="text-xs text-zinc-500 mt-1">Please use the copy link button above.</p>
+                  <p className="text-xs text-zinc-400 mt-1">Please use the copy link button above.</p>
                 </div>
               )}
             </div>

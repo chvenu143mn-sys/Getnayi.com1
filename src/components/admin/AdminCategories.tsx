@@ -103,22 +103,22 @@ export function SortableCategoryItem({
             <button type="button" aria-label="button" 
               {...attributes}
               {...listeners}
-              className="p-2 -ml-2 cursor-grab active:cursor-grabbing text-zinc-500 hover:text-white transition-colors shrink-0"
+              className="p-2 -ml-2 cursor-grab active:cursor-grabbing text-zinc-400 hover:text-white transition-colors shrink-0"
               title="Drag to reorder"
             >
               <GripVertical className="size-4" />
             </button>
             {cat.image_url ? (
-              <img src={cat.image_url} alt={cat.name} className="size-10 rounded-md object-cover border border-white/10 mx-1 shrink-0 bg-white/5" />
+              <img src={cat.image_url} alt={cat.name} className="size-10 rounded-md object-cover border border-white/10 mx-1 shrink-0 bg-white/5" loading="lazy" decoding="async" />
             ) : (
               <div className="size-10 rounded-md bg-white/5 border border-white/10 mx-1 shrink-0 flex items-center justify-center">
-                <ImagePlus className="size-4 text-zinc-500" />
+                <ImagePlus className="size-4 text-zinc-400" />
               </div>
             )}
             <div className="flex flex-col gap-1">
               <span className="font-bold text-white tracking-wide text-[15px]">{cat.name}</span>
               <div className="flex items-center gap-2">
-                <span className="text-[12px] text-zinc-500 font-mono">{cat.id.substring(0,8)}...</span>
+                <span className="text-[12px] text-zinc-400 font-mono">{cat.id.substring(0,8)}...</span>
                 <span className="text-[11px] bg-white/10 text-white/70 px-2 py-0.5 rounded-full font-medium">
                   {cat.videoCount || 0} usage{(cat.videoCount || 0) === 1 ? '' : 's'}
                 </span>
@@ -193,7 +193,7 @@ export default function AdminCategories({
             </div>
           </div>
           <div className="w-full sm:w-auto relative">
-             <Search className="size-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+             <Search className="size-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
              <input
                type="text"
                placeholder="Find category..."
@@ -224,12 +224,12 @@ export default function AdminCategories({
          </div>
 
          {categories.length === 0 ? (
-          <div className="text-center py-16 text-zinc-500 flex flex-col items-center">
+          <div className="text-center py-16 text-zinc-400 flex flex-col items-center">
             <Briefcase className="size-12 mb-3 opacity-20" />
             <p className="font-display tracking-wide font-medium">No categories found.</p>
           </div>
         ) : filteredCategories.length === 0 ? (
-          <div className="text-center py-16 text-zinc-500">
+          <div className="text-center py-16 text-zinc-400">
             <p className="font-display tracking-wide font-medium">No matching categories.</p>
           </div>
         ) : (

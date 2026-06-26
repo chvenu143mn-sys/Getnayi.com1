@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { safeStorage } from '../utils/storage';
 
 type Theme = 'midnight' | 'dark-grey';
 
@@ -14,14 +15,14 @@ const ThemeContext = createContext<ThemeContextType>({
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
-    const savedTheme = localStorage.getItem('app-theme') as Theme;
+    const savedTheme = safeStorage.getItem('app-theme') as Theme;
     return savedTheme === 'dark-grey' ? 'dark-grey' : 'midnight';
   });
 
   const toggleTheme = React.useCallback(() => {
     setTheme((prev) => {
       const newTheme = prev === 'midnight' ? 'dark-grey' : 'midnight';
-      localStorage.setItem('app-theme', newTheme);
+      safeStorage.setItem('app-theme', newTheme);
       return newTheme;
     });
   }, []);
