@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { parseVideoProduct } from '../utils/videoUtils';
+import { useAuth } from '../context/AuthContext';
 
 const groupNotifications = (notifs: UINotification[]) => {
   const todayList: UINotification[] = [];
@@ -151,14 +152,14 @@ function NotificationItem({
       className="relative overflow-hidden group border-b border-white/[0.015] last:border-b-0"
     >
       {/* Background Red Delete Area (revealed when swiped left) */}
-      <div className="absolute inset-y-0 right-0 w-[80px] bg-red-600 flex items-center justify-center text-white font-medium z-0">
+      <div className="absolute inset-y-0 right-0 w-[80px] bg-red-600 flex items-center justify-center text-text-primary font-medium z-0">
         <button
           type="button"
           onClick={(e) => onDelete(notif.id, e)}
           className="size-full flex flex-col items-center justify-center gap-1 active:scale-95 transition-all duration-150"
         >
-          <Trash2 className="size-4 text-white" />
-          <span className="text-[8px] font-black uppercase tracking-wider text-white/90">Delete</span>
+          <Trash2 className="size-4 text-text-primary" />
+          <span className="text-[8px] font-black uppercase tracking-wider text-text-primary/90">Delete</span>
         </button>
       </div>
 
@@ -179,8 +180,8 @@ function NotificationItem({
         onClick={handleItemClick}
         className={`flex items-center py-2.5 px-4 md:px-5 select-none touch-pan-y cursor-pointer transition-all duration-150 relative z-10 ${
           !notif.is_read
-            ? 'bg-[#0c0c0e] before:absolute before:inset-0 before:bg-gradient-to-r before:from-[#ff5a36]/[0.03] before:to-transparent'
-            : 'bg-[#0c0c0e]'
+            ? 'bg-bg-base before:absolute before:inset-0 before:bg-gradient-to-r before:from-brand-primary/[0.03] before:to-transparent'
+            : 'bg-bg-base'
         }`}
       >
         {/* Left Avatar with Smart Sub-badges (TikTok/Instagram style) */}
@@ -189,33 +190,33 @@ function NotificationItem({
             <div className="relative">
               <div className={`w-[36px] h-[36px] rounded-full flex items-center justify-center shadow-sm relative transition-colors ${
                 notif.iconColor === 'red'
-                  ? 'bg-rose-500/10 border border-rose-500/15 text-[#ff5a36]'
+                  ? 'bg-rose-500/10 border border-rose-500/15 text-brand-primary'
                   : 'bg-blue-500/10 border border-blue-500/15 text-blue-400'
               }`}>
                 {notif.iconColor === 'red' ? (
-                  <AlertCircle className="size-4.5 text-[#ff5a36]" strokeWidth={2.5} />
+                  <AlertCircle className="size-4.5 text-brand-primary" strokeWidth={2.5} />
                 ) : (
                   <ShieldCheck className="size-4.5 text-blue-400" strokeWidth={2} />
                 )}
               </div>
-              <span className="absolute -top-0.5 -right-0.5 size-2 bg-[#ff5a36] rounded-full border border-[#0c0c0e] shadow-sm animate-pulse" />
+              <span className="absolute -top-0.5 -right-0.5 size-2 bg-brand-primary rounded-full border border-[#0c0c0e] shadow-sm animate-pulse" />
             </div>
           ) : (
             <div className="relative">
-              <div className="w-[36px] h-[36px] rounded-full overflow-hidden shadow-sm bg-zinc-800 border border-white/5 transition-transform group-hover:scale-105 duration-200">
+              <div className="w-[36px] h-[36px] rounded-full overflow-hidden shadow-sm bg-surface-2 border border-border-subtle transition-transform group-hover:scale-105 duration-200">
                 <img src={notif.user?.image} alt={notif.user?.name} className="size-full object-cover" referrerPolicy="no-referrer" loading="lazy" decoding="async" />
               </div>
               
               {/* Ultra-slick Miniature Activity Sub-badge (TikTok & Instagram signature UI) */}
-              <div className={`absolute -bottom-1 -right-1 size-4 rounded-full flex items-center justify-center border border-[#0c0c0e] text-white shadow-md ${
-                notif.type === 'like' ? 'bg-[#ff5a36]' :
+              <div className={`absolute -bottom-1 -right-1 size-4 rounded-full flex items-center justify-center border border-[#0c0c0e] text-text-primary shadow-md ${
+                notif.type === 'like' ? 'bg-brand-primary' :
                 notif.type === 'comment' ? 'bg-sky-500' :
                 notif.type === 'follow' ? 'bg-indigo-500' :
-                'bg-zinc-600'
+                'bg-surface-2'
               }`}>
                 {notif.type === 'like' && <Heart className="size-2.5 fill-white" />}
-                {notif.type === 'comment' && <MessageSquare className="size-2 text-white fill-white/10" />}
-                {notif.type === 'follow' && <UserPlus className="size-2 text-white" />}
+                {notif.type === 'comment' && <MessageSquare className="size-2 text-text-primary fill-white/10" />}
+                {notif.type === 'follow' && <UserPlus className="size-2 text-text-primary" />}
               </div>
             </div>
           )}
@@ -228,23 +229,23 @@ function NotificationItem({
               {notif.title}
             </h4>
           )}
-          <p className="text-[12.5px] text-zinc-300 leading-snug break-words">
+          <p className="text-[12.5px] text-text-primary leading-snug break-words">
             {notif.user && (
-              <span className="font-bold text-white mr-1.5 select-none hover:underline cursor-pointer">
+              <span className="font-bold text-text-primary mr-1.5 select-none hover:underline cursor-pointer">
                 {notif.user.name}
               </span>
             )}
-            <span className={notif.type === 'system' ? 'text-zinc-200 font-medium' : 'text-zinc-300'}>
+            <span className={notif.type === 'system' ? 'text-text-primary font-medium' : 'text-text-primary'}>
               {notif.content}
             </span>
-            <span className="text-zinc-400 text-[10.5px] font-semibold ml-1.5 whitespace-nowrap select-none">
+            <span className="text-text-secondary text-[10.5px] font-semibold ml-1.5 whitespace-nowrap select-none">
               {notif.time}
             </span>
           </p>
 
           {notif.rejection_reason && (
-            <div className="mt-0.5 flex items-center gap-1 text-[10.5px] text-[#ff5a36] font-black cursor-pointer hover:underline select-none">
-              <span className="size-1 bg-[#ff5a36] rounded-full animate-ping" />
+            <div className="mt-0.5 flex items-center gap-1 text-[10.5px] text-brand-primary font-black cursor-pointer hover:underline select-none">
+              <span className="size-1 bg-brand-primary rounded-full animate-ping" />
               <span>View moderation details • Click here</span>
             </div>
           )}
@@ -254,7 +255,7 @@ function NotificationItem({
         <div className="flex items-center gap-2.5 shrink-0 ml-1.5">
           {/* Linked Target Video Thumbnail */}
           {notif.targetImage && (
-            <div className="w-[34px] h-[34px] rounded-[4px] overflow-hidden shadow-sm bg-zinc-800 border border-white/5 group-hover:border-white/20 transition-colors">
+            <div className="w-[34px] h-[34px] rounded-[4px] overflow-hidden shadow-sm bg-surface-2 border border-border-subtle group-hover:border-white/20 transition-colors">
               <img src={notif.targetImage} alt="Reference Thumbnail" className="size-full object-cover" referrerPolicy="no-referrer" loading="lazy" decoding="async" />
             </div>
           )}
@@ -263,7 +264,7 @@ function NotificationItem({
           {notif.type === 'follow' && (
             <button
               type="button"
-              className="h-6 px-3 bg-[#ff5a36] hover:bg-[#ff5a36]/90 active:scale-95 text-white font-black text-[10px] rounded-full tracking-wide shadow-sm transition-all"
+              className="h-6 px-3 bg-brand-primary hover:bg-brand-primary/90 active:scale-95 text-text-primary font-black text-[10px] rounded-full tracking-wide shadow-sm transition-all"
               onClick={(e) => {
                 e.stopPropagation();
                 navigate('/profile');
@@ -278,12 +279,12 @@ function NotificationItem({
             <button 
               type="button"
               onClick={(e) => onToggleRead(notif.id, notif.is_read, e)}
-              className="p-1 rounded-full hover:bg-white/5 text-[#ff5a36] transition-colors"
+              className="p-1 rounded-full hover:bg-surface-1 text-brand-primary transition-colors"
               title="Mark as read"
             >
               <div className="relative size-1.5 flex items-center justify-center">
-                <span className="absolute size-2.5 bg-[#ff5a36] rounded-full animate-ping opacity-75" />
-                <span className="size-1.5 bg-[#ff5a36] rounded-full" />
+                <span className="absolute size-2.5 bg-brand-primary rounded-full animate-ping opacity-75" />
+                <span className="size-1.5 bg-brand-primary rounded-full" />
               </div>
             </button>
           )}
@@ -293,7 +294,7 @@ function NotificationItem({
             <button 
               type="button"
               onClick={(e) => onToggleRead(notif.id, notif.is_read, e)}
-              className="p-1 rounded-full hover:bg-white/5 text-zinc-700 hover:text-zinc-400 transition-colors opacity-0 group-hover:opacity-100"
+              className="p-1 rounded-full hover:bg-surface-1 text-zinc-700 hover:text-text-secondary transition-colors opacity-0 group-hover:opacity-100"
               title="Mark as unread"
             >
               <MailOpen className="size-3" />
@@ -306,6 +307,7 @@ function NotificationItem({
 }
 
 export default function Notifications() {
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -319,9 +321,13 @@ export default function Notifications() {
     typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default'
   );
 
-  
-
   const [isTableMissing, setIsTableMissing] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      setLoading(false);
+    }
+  }, [user, authLoading]);
 
   async function loadNotifications() {
     try {
@@ -643,7 +649,7 @@ export default function Notifications() {
       is_read: !!notif.is_read,
       user: notif.actor ? {
         name: notif.actor.username || 'System Admin',
-        image: notif.actor.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop'
+        image: notif.actor.avatar_url || ''
       } : undefined,
       content,
       time: timeString,
@@ -718,18 +724,38 @@ export default function Notifications() {
     }
   };
 
+  if (!user && !authLoading) {
+    return (
+      <div className="flex-1 w-full bg-bg-base text-text-primary font-sans h-full flex flex-col items-center justify-center p-6">
+        <div className="size-20 bg-surface-2 rounded-full flex items-center justify-center mb-6">
+          <MessageSquare className="size-10 text-text-secondary" strokeWidth={1.5} />
+        </div>
+        <h1 className="text-[24px] font-display font-bold mb-3">Inbox</h1>
+        <p className="text-[15px] text-text-secondary text-center mb-8 max-w-[280px]">
+          Log in to see notifications, track likes, comments, and new followers in your Inbox.
+        </p>
+        <button 
+          onClick={() => navigate('/auth')}
+          className="w-full max-w-[280px] bg-brand-primary text-bg-base font-bold text-[16px] h-12 rounded-[12px] flex items-center justify-center active:scale-95 transition-transform"
+        >
+          Sign Up / Log In
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex-1 w-full text-white font-sans flex flex-col h-full bg-[#0c0c0e]">
+    <div className="flex-1 w-full text-text-primary font-sans flex flex-col h-full bg-bg-base">
       {/* Premium Social Styled Header */}
-      <div className="sticky top-0 z-20 bg-[#0c0c0e]/95 backdrop-blur-md border-b border-white/[0.03] flex flex-col gap-2">
+      <div className="sticky top-0 z-20 bg-bg-base/95 backdrop-blur-md border-b border-border-subtle flex flex-col gap-2">
         <div className="flex items-center justify-between px-5 pt-5 pb-1 select-none">
-          <h1 className="text-xl font-extrabold tracking-tight text-white">
+          <h1 className="text-xl font-extrabold tracking-tight text-text-primary">
             Inbox
           </h1>
           {dbNotifications.some(n => !n.is_read) && (
             <button type="button"
               onClick={markAllAsRead}
-              className="text-xs font-bold text-[#ff5a36] hover:text-[#f35775] transition-colors flex items-center gap-1 shrink-0"
+              className="text-xs font-bold text-brand-primary hover:text-[#f35775] transition-colors flex items-center gap-1 shrink-0"
             >
               <Check className="size-3.5" strokeWidth={2.5} />
               Mark all read
@@ -740,7 +766,7 @@ export default function Notifications() {
         {/* Real-time search query capsule */}
         <div className="px-5 pb-2">
           <div className="relative w-full">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-zinc-400">
+            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-text-secondary">
               <Search className="size-4" />
             </span>
             <input
@@ -748,13 +774,13 @@ export default function Notifications() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search senders, updates..."
-              className="w-full bg-zinc-900 focus:bg-zinc-900 border border-transparent focus:border-white/10 rounded-[10px] py-1.5 pl-9 pr-9 text-xs font-medium text-white placeholder-zinc-500 outline-none transition-all duration-150"
+              className="w-full bg-surface-1 focus:bg-surface-1 border border-transparent focus:border-border-subtle rounded-[10px] py-1.5 pl-9 pr-9 text-xs font-medium text-text-primary placeholder-zinc-500 outline-none transition-all duration-150"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="absolute inset-y-0 right-0 flex items-center pr-3 text-zinc-400 hover:text-white transition-colors"
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-text-secondary hover:text-text-primary transition-colors"
               >
                 <X className="size-4" />
               </button>
@@ -772,7 +798,7 @@ export default function Notifications() {
               className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-150 select-none ${
                 activeTab === tab
                   ? 'bg-white text-black font-extrabold shadow-sm'
-                  : 'bg-zinc-900/60 border border-white/[0.04] text-zinc-400 hover:bg-zinc-900 hover:text-white'
+                  : 'bg-surface-1/60 border border-white/[0.04] text-text-secondary hover:bg-surface-1 hover:text-text-primary'
               }`}
             >
               {tab}
@@ -784,19 +810,19 @@ export default function Notifications() {
       <div className="flex-1 overflow-y-auto no-scrollbar pt-2">
         {/* Modern Web Push Permission Prompt */}
         {permission === 'default' && (
-          <div className="mx-5 my-4 p-4 bg-zinc-900/80 border border-white/5 rounded-2xl flex items-center justify-between gap-4">
+          <div className="mx-5 my-4 p-4 bg-surface-1/80 border border-border-subtle rounded-2xl flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="size-10 rounded-xl bg-[#ff5a36]/15 flex items-center justify-center text-[#ff5a36]">
+              <div className="size-10 rounded-xl bg-brand-primary/15 flex items-center justify-center text-brand-primary">
                 <Bell className="size-5" />
               </div>
               <div className="min-w-0">
-                <h4 className="text-xs font-semibold text-white tracking-wide">Enable Desktop Alerts</h4>
-                <p className="text-[11px] text-zinc-400 mt-0.5 leading-snug">Receive real-time push events when your videos are approved or rejected.</p>
+                <h4 className="text-xs font-semibold text-text-primary tracking-wide">Enable Desktop Alerts</h4>
+                <p className="text-[11px] text-text-secondary mt-0.5 leading-snug">Receive real-time push events when your videos are approved or rejected.</p>
               </div>
             </div>
             <button type="button"
               onClick={requestPushPermission}
-              className="px-3.5 py-1.5 bg-[#ff5a36] hover:bg-[#ff5a36]/90 text-white rounded-lg text-xs font-semibold tracking-wide shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all shrink-0"
+              className="px-3.5 py-1.5 bg-brand-primary hover:bg-brand-primary/90 text-text-primary rounded-lg text-xs font-semibold tracking-wide shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all shrink-0"
             >
               Enable
             </button>
@@ -804,8 +830,8 @@ export default function Notifications() {
         )}
 
         {loading ? (
-          <div className="flex flex-col items-center justify-center p-12 text-zinc-400 text-sm h-full min-h-[300px]">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ff5a36] mb-3"></div>
+          <div className="flex flex-col items-center justify-center p-12 text-text-secondary text-sm h-full min-h-[300px]">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary mb-3"></div>
             Loading notifications...
           </div>
         ) : filteredNotifications.length === 0 ? (
@@ -817,13 +843,13 @@ export default function Notifications() {
             className="flex flex-col items-center justify-center py-20 text-center px-4 h-full min-h-[350px]"
           >
             <div className="relative mb-6">
-              <div className="absolute inset-0 bg-[#ff5a36]/5 rounded-full blur-2xl transform scale-150 animate-pulse" />
-              <div className="relative size-20 rounded-3xl bg-zinc-900 border border-white/5 flex items-center justify-center text-zinc-400 shadow-xl">
-                <BellOff className="size-9 text-zinc-400" strokeWidth={1.5} />
+              <div className="absolute inset-0 bg-brand-primary/5 rounded-full blur-2xl transform scale-150 animate-pulse" />
+              <div className="relative size-20 rounded-3xl bg-surface-1 border border-border-subtle flex items-center justify-center text-text-secondary shadow-xl">
+                <BellOff className="size-9 text-text-secondary" strokeWidth={1.5} />
               </div>
             </div>
-            <h3 className="text-lg font-semibold text-white tracking-wide mb-2">No notifications yet</h3>
-            <p className="text-sm text-zinc-400 max-w-xs leading-relaxed">
+            <h3 className="text-lg font-semibold text-text-primary tracking-wide mb-2">No notifications yet</h3>
+            <p className="text-sm text-text-secondary max-w-xs leading-relaxed">
               When there are updates regarding likes, comments, onboarding, or video moderation, you'll see them right here.
             </p>
           </motion.div>
@@ -837,7 +863,7 @@ export default function Notifications() {
             {groupedGroups.map((group) => (
               <div key={group.key} className="mb-6">
                 {/* Category Date Header */}
-                <div className="sticky top-0 z-10 bg-[#0c0c0e]/95 backdrop-blur-sm py-2 px-5 text-xs font-semibold uppercase tracking-wider text-zinc-400 select-none">
+                <div className="sticky top-0 z-10 bg-bg-base/95 backdrop-blur-sm py-2 px-5 text-xs font-semibold uppercase tracking-wider text-text-secondary select-none">
                   {group.title}
                 </div>
 
@@ -876,28 +902,28 @@ export default function Notifications() {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 15 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md bg-[#121215] border border-white/10 rounded-[24px] overflow-hidden shadow-2xl p-6"
+              className="w-full max-w-md bg-surface-2 border border-border-subtle rounded-[24px] overflow-hidden shadow-2xl p-6"
             >
-              <div className="flex items-center gap-3 mb-4 text-[#ff5a36]">
+              <div className="flex items-center gap-3 mb-4 text-brand-primary">
                 <div className="size-10 rounded-xl bg-rose-500/10 flex items-center justify-center border border-rose-500/15">
                   <AlertCircle className="size-5" />
                 </div>
-                <h3 className="text-lg font-semibold text-white tracking-wide">Video Rejection Info</h3>
+                <h3 className="text-lg font-semibold text-text-primary tracking-wide">Video Rejection Info</h3>
               </div>
               
               <div className="space-y-4 font-sans">
                 {selectedNotification.video && (
-                  <div className="flex items-center gap-3 p-3 bg-white/5 rounded-2xl border border-white/5">
+                  <div className="flex items-center gap-3 p-3 bg-white/5 rounded-2xl border border-border-subtle">
                     {selectedNotification.targetImage && (
-                      <div className="size-12 rounded-lg overflow-hidden shrink-0 border border-white/5 bg-zinc-800">
+                      <div className="size-12 rounded-lg overflow-hidden shrink-0 border border-border-subtle bg-surface-2">
                         <img src={selectedNotification.targetImage} alt="Reference" className="size-full object-cover" referrerPolicy="no-referrer" loading="lazy" decoding="async" />
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-white truncate leading-tight">
+                      <p className="text-sm font-semibold text-text-primary truncate leading-tight">
                         {parseVideoProduct(selectedNotification.video.caption).captionText || 'Untitled Video'}
                       </p>
-                      <p className="text-xs text-zinc-400 mt-1 truncate">
+                      <p className="text-xs text-text-secondary mt-1 truncate">
                         Uploaded video status update
                       </p>
                     </div>
@@ -905,7 +931,7 @@ export default function Notifications() {
                 )}
                 
                 <div>
-                  <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                  <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
                     Moderator Feedback
                   </h4>
                   <div className="p-4 bg-rose-500/5 border border-rose-500/10 rounded-2xl text-rose-200/90 text-sm leading-relaxed whitespace-pre-wrap font-medium">
@@ -913,7 +939,7 @@ export default function Notifications() {
                   </div>
                 </div>
 
-                <p className="text-xs text-zinc-400 leading-normal">
+                <p className="text-xs text-text-secondary leading-normal">
                   Our moderators check all submissions against product integration guidelines. If you believe this was an error, please inspect your video link or capture details and try uploading again.
                 </p>
               </div>
@@ -922,7 +948,7 @@ export default function Notifications() {
                 <button 
                   type="button" 
                   onClick={() => setSelectedNotification(null)}
-                  className="px-5 py-2.5 bg-white/5 hover:bg-white/10 active:bg-white/5 border border-white/5 transition rounded-xl text-sm font-medium text-white"
+                  className="px-5 py-2.5 bg-white/5 hover:bg-surface-1 active:bg-white/5 border border-border-subtle transition rounded-xl text-sm font-medium text-text-primary"
                 >
                   Close
                 </button>
@@ -948,13 +974,13 @@ export default function Notifications() {
               exit={{ scale: 0.9, y: 30 }}
               transition={{ type: "spring", damping: 25, stiffness: 350 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md bg-[#16161a]/95 border border-white/10 rounded-[28px] overflow-hidden shadow-2xl p-6 flex flex-col relative backdrop-blur-xl"
+              className="w-full max-w-md bg-surface-1/95 border border-border-subtle rounded-[28px] overflow-hidden shadow-2xl p-6 flex flex-col relative backdrop-blur-xl"
             >
               {/* Close Button / Tap to close indicator */}
               <button
                 type="button"
                 onClick={() => setPreviewNotification(null)}
-                className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/5 active:bg-white/10 text-zinc-400 hover:text-white transition-colors"
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-surface-1 active:bg-white/10 text-text-secondary hover:text-text-primary transition-colors"
                 aria-label="Close preview"
               >
                 <X className="size-5" />
@@ -964,7 +990,7 @@ export default function Notifications() {
                 {/* Pop-over Top Left Icon Indicator based on type */}
                 <div className={`p-3 rounded-2xl ${
                   previewNotification.type === 'system'
-                    ? 'bg-rose-500/10 border border-rose-500/15 text-[#ff5a36]'
+                    ? 'bg-rose-500/10 border border-rose-500/15 text-brand-primary'
                     : previewNotification.type === 'like'
                     ? 'bg-rose-500/10 border border-rose-500/15 text-rose-400'
                     : previewNotification.type === 'comment'
@@ -987,40 +1013,40 @@ export default function Notifications() {
                 </div>
 
                 <div>
-                  <h4 className="text-[11px] font-semibold uppercase tracking-widest text-[#ff5a36]">
+                  <h4 className="text-[11px] font-semibold uppercase tracking-widest text-brand-primary">
                     {previewNotification.type === 'system' ? 'System Notification' : `${previewNotification.type} Activity`}
                   </h4>
-                  <h3 className="text-base font-bold text-white tracking-tight mt-0.5">
+                  <h3 className="text-base font-bold text-text-primary tracking-tight mt-0.5">
                     {previewNotification.title || (previewNotification.type === 'system' ? 'Moderator Update' : 'Interaction Summary')}
                   </h3>
                 </div>
               </div>
 
               {/* Main Content Details */}
-              <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 mb-5 space-y-3">
+              <div className="bg-white/[0.02] border border-border-subtle rounded-2xl p-4 mb-5 space-y-3">
                 {/* User avatar and name if present */}
                 {(previewNotification.user || previewNotification.type !== 'system') && (
-                  <div className="flex items-center gap-3 pb-3 border-b border-white/5 select-none">
-                    <div className="size-10 rounded-full overflow-hidden bg-zinc-800 border border-white/5">
+                  <div className="flex items-center gap-3 pb-3 border-b border-border-subtle select-none">
+                    <div className="size-10 rounded-full overflow-hidden bg-surface-2 border border-border-subtle">
                       <img 
-                        src={previewNotification.user?.image || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop'} 
+                        src={previewNotification.user?.image || ''} 
                         alt={previewNotification.user?.name || 'System Admin'} 
                         className="size-full object-cover" 
                         referrerPolicy="no-referrer"
                       loading="lazy" decoding="async" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-white">
+                      <p className="text-sm font-semibold text-text-primary">
                         {previewNotification.user?.name || 'TikTok Admin'}
                       </p>
-                      <p className="text-[11px] text-zinc-400 flex items-center gap-1.5 mt-0.5">
+                      <p className="text-[11px] text-text-secondary flex items-center gap-1.5 mt-0.5">
                         <Clock className="size-3" /> {previewNotification.time}
                       </p>
                     </div>
                   </div>
                 )}
 
-                <div className="text-[14px] text-zinc-200 leading-relaxed font-sans max-h-[160px] overflow-y-auto no-scrollbar">
+                <div className="text-[14px] text-text-primary leading-relaxed font-sans max-h-[160px] overflow-y-auto no-scrollbar">
                   {previewNotification.content}
                 </div>
 
@@ -1034,25 +1060,25 @@ export default function Notifications() {
 
               {/* Connected Video Reference Card if any */}
               {previewNotification.video && (
-                <div className="flex items-center gap-3 p-3 bg-zinc-900 border border-white/5 rounded-2xl mb-6 select-none">
+                <div className="flex items-center gap-3 p-3 bg-surface-1 border border-border-subtle rounded-2xl mb-6 select-none">
                   {previewNotification.targetImage && (
-                    <div className="size-12 rounded-xl overflow-hidden shrink-0 border border-white/10 bg-zinc-800 relative">
+                    <div className="size-12 rounded-xl overflow-hidden shrink-0 border border-border-subtle bg-surface-2 relative">
                       <img 
                         src={previewNotification.targetImage} 
                         alt="Video Thumbnail" 
                         className="size-full object-cover" 
                         referrerPolicy="no-referrer"
                       loading="lazy" decoding="async" />
-                      <div className="absolute inset-0 bg-[#ff5a36]/10 flex items-center justify-center">
+                      <div className="absolute inset-0 bg-brand-primary/10 flex items-center justify-center">
                         <span className="size-2.5 bg-white rounded-full animate-pulse" />
                       </div>
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
-                      <Info className="size-3 text-[#ff5a36]" /> Video Attachment
+                    <div className="flex items-center gap-1 text-[11px] font-semibold text-text-secondary uppercase tracking-wider">
+                      <Info className="size-3 text-brand-primary" /> Video Attachment
                     </div>
-                    <p className="text-xs font-semibold text-white truncate mt-1">
+                    <p className="text-xs font-semibold text-text-primary truncate mt-1">
                       {parseVideoProduct(previewNotification.video.caption).captionText || 'Untitled Video'}
                     </p>
                   </div>
@@ -1069,8 +1095,8 @@ export default function Notifications() {
                   }}
                   className={`py-3 px-4 rounded-xl border font-semibold text-xs tracking-wider uppercase transition-all duration-200 flex items-center justify-center gap-2 ${
                     previewNotification.is_read 
-                      ? 'bg-transparent border-white/10 hover:border-white/20 active:bg-white/5 text-zinc-400 hover:text-white'
-                      : 'bg-white/10 border-white/10 hover:bg-white/15 active:bg-white/5 text-white'
+                      ? 'bg-transparent border-border-subtle hover:border-white/20 active:bg-white/5 text-text-secondary hover:text-text-primary'
+                      : 'bg-white/10 border-border-subtle hover:bg-white/15 active:bg-white/5 text-text-primary'
                   }`}
                 >
                   <MailOpen className="size-4" />
@@ -1082,14 +1108,14 @@ export default function Notifications() {
                     handleDeleteNotification(previewNotification.id, e);
                     setPreviewNotification(null);
                   }}
-                  className="py-3 px-4 bg-rose-500/10 hover:bg-rose-500/15 active:bg-rose-500/5 hover:border-rose-500/20 text-[#ff5a36] border border-rose-500/10 rounded-xl font-semibold text-xs tracking-wider uppercase transition-all duration-200 flex items-center justify-center gap-2"
+                  className="py-3 px-4 bg-rose-500/10 hover:bg-rose-500/15 active:bg-rose-500/5 hover:border-rose-500/20 text-brand-primary border border-rose-500/10 rounded-xl font-semibold text-xs tracking-wider uppercase transition-all duration-200 flex items-center justify-center gap-2"
                 >
                   <Trash2 className="size-4" />
                   Delete
                 </button>
               </div>
 
-              <p className="text-[10px] text-zinc-400 text-center mt-4">
+              <p className="text-[10px] text-text-secondary text-center mt-4">
                 Tap anywhere outside the box to close this preview.
               </p>
             </motion.div>

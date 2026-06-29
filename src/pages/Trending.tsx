@@ -81,16 +81,16 @@ export default function Trending() {
   };
 
   return (
-    <div className="flex-1 w-full bg-[#0c0c0e] text-white font-sans h-full flex flex-col overflow-hidden">
+    <div className="flex-1 w-full bg-bg-base text-text-primary font-sans h-full flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-[#0c0c0e]/95 backdrop-blur-md pt-6 pb-3 px-5 border-b border-white/5 shrink-0">
+      <div className="sticky top-0 z-20 bg-bg-base/95 backdrop-blur-md pt-6 pb-3 px-5 border-b border-border-subtle shrink-0">
         <div className="flex items-center gap-x-3 mb-4">
-          <GlobalBackButton className="p-2 -ml-2 hover:bg-white/5 bg-transparent border-transparent" />
+          <GlobalBackButton className="p-2 -ml-2 hover:bg-surface-1 bg-transparent border-transparent" />
           <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-[#ff5a36]/10 shrink-0">
-              <TrendingUp className="size-[18px] text-[#ff5a36]" />
+            <div className="p-1.5 rounded-lg bg-brand-primary/10 shrink-0">
+              <TrendingUp className="size-[18px] text-brand-primary" />
             </div>
-            <h1 className="text-[19px] font-bold text-white tracking-tight">
+            <h1 className="text-[19px] font-bold text-text-primary tracking-tight">
               Trending
             </h1>
           </div>
@@ -105,7 +105,7 @@ export default function Trending() {
               className={`px-4 py-1.5 border snap-start shrink-0 rounded-full text-[13.5px] font-semibold whitespace-nowrap transition-all ${
                 activeTag === tag 
                 ? 'bg-white text-black border-white' 
-                : 'bg-[#131316] border-white/10 text-white/80 hover:bg-white/10'
+                : 'bg-surface-2 border-border-subtle text-text-primary/80 hover:bg-surface-1'
               }`}
             >
               {tag.startsWith('#') || tag === 'All' ? tag : `#${tag.replace(/\s+/g, '')}`}
@@ -114,18 +114,18 @@ export default function Trending() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto no-scrollbar pb-24 pt-4 px-4 md:px-8 bg-[#0c0c0e]">
+      <div className="flex-1 overflow-y-auto no-scrollbar pb-24 pt-4 px-4 md:px-8 bg-bg-base">
         {loading ? (
           <div className="flex justify-center py-20">
-            <Loader2 className="size-8 text-zinc-400 animate-spin" />
+            <Loader2 className="size-8 text-text-secondary animate-spin" />
           </div>
         ) : trendingVideos.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
-             <div className="size-16 rounded-full bg-zinc-900 border border-white/5 flex items-center justify-center mb-4">
-                <Zap className="size-8 text-zinc-400" />
+             <div className="size-16 rounded-full bg-surface-1 border border-border-subtle flex items-center justify-center mb-4">
+                <Zap className="size-8 text-text-secondary" />
              </div>
-             <p className="text-[15px] font-bold text-white mb-1">No viral videos yet</p>
-             <p className="text-[13px] text-zinc-400 w-2/3">Try checking another trending hashtag or topic.</p>
+             <p className="text-[15px] font-bold text-text-primary mb-1">No viral videos yet</p>
+             <p className="text-[13px] text-text-secondary w-2/3">Try checking another trending hashtag or topic.</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 lg:grid-cols-4 md:max-w-none max-w-lg mx-auto">
@@ -142,7 +142,7 @@ export default function Trending() {
                 <div 
                   key={video.id} 
                   onClick={() => navigate(`/video/${video.id}`)}
-                  className="bg-[#151518] border border-white/5 rounded-2xl overflow-hidden cursor-pointer group hover:border-white/10 transition-all shadow-md relative"
+                  className="bg-surface-1 border border-border-subtle rounded-2xl overflow-hidden cursor-pointer group hover:border-border-subtle transition-all shadow-md relative"
                 >
                   <div className="absolute top-2 left-2 z-10 font-bold font-mono text-[22px] tracking-tighter opacity-80"
                     style={{
@@ -154,42 +154,42 @@ export default function Trending() {
                     {idx + 1}
                   </div>
 
-                  <div className="aspect-[3/4] bg-zinc-900 relative">
+                  <div className="aspect-[3/4] bg-surface-1 relative">
                     {video.thumbnail_url ? (
                       <img src={video.thumbnail_url} className="size-full object-cover opacity-85 group-hover:opacity-100 transition-opacity" alt="thumbnail" loading="lazy" decoding="async" />
                     ) : (
                       <div className="size-full flex items-center justify-center">
-                        <Play className="size-8 text-white/10" shrink-0 />
+                        <Play className="size-8 text-text-primary/10" shrink-0 />
                       </div>
                     )}
                     
                     {/* Dark gradient for text overlay */}
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0c0c0e] via-[#0c0c0e]/30 to-transparent flex flex-col justify-end p-3">
                       <div className="flex items-center gap-1.5 mb-1.5">
-                        <div className="size-5 rounded-full overflow-hidden bg-zinc-800 border border-white/20">
+                        <div className="size-5 rounded-full overflow-hidden bg-surface-2 border border-white/20">
                           {video.profiles?.avatar_url ? (
                             <img src={video.profiles.avatar_url} className="size-full object-cover" alt="creator" loading="lazy" decoding="async" />
                           ) : (
                             <div className="size-full flex justify-center items-center text-[8px] bg-indigo-500 font-bold uppercase">{video.profiles?.username?.[0] || 'C'}</div>
                           )}
                         </div>
-                        <span className="text-[11px] font-semibold text-white/90 drop-shadow">@{video.profiles?.username}</span>
+                        <span className="text-[11px] font-semibold text-text-primary/90 drop-shadow">@{video.profiles?.username}</span>
                       </div>
                       
-                      <p className="text-[12.5px] font-medium text-white line-clamp-2 leading-tight drop-shadow-md">
+                      <p className="text-[12.5px] font-medium text-text-primary line-clamp-2 leading-tight drop-shadow-md">
                         {textToShow}
                       </p>
                     </div>
                   </div>
                   
                   {/* Subtle metrics bar */}
-                  <div className="px-3 py-2.5 flex items-center justify-between border-t border-white/5 bg-[#151518]">
-                    <div className="flex items-center gap-1 text-[11px] font-mono text-zinc-400">
+                  <div className="px-3 py-2.5 flex items-center justify-between border-t border-border-subtle bg-surface-1">
+                    <div className="flex items-center gap-1 text-[11px] font-mono text-text-secondary">
                       <Play className="size-[11px]" />
                       {video.views >= 1000 ? (video.views/1000).toFixed(1) + 'K' : (video.views || 0)}
                     </div>
                     {video.likes && video.likes[0] && (
-                      <div className="flex items-center gap-1 text-[11px] font-mono text-zinc-400">
+                      <div className="flex items-center gap-1 text-[11px] font-mono text-text-secondary">
                         <Heart className="size-[11px]" />
                         {video.likes[0].count}
                       </div>

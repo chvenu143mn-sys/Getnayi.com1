@@ -96,12 +96,12 @@ export function PWAInstallPrompt() {
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 50 }}
-          className="fixed bottom-20 left-4 right-4 md:left-auto md:right-4 md:w-96 bg-zinc-900 border border-white/10 rounded-2xl p-4 shadow-2xl z-50 overflow-hidden"
+          className="fixed bottom-20 left-4 right-4 md:left-auto md:right-4 md:w-96 bg-surface-1 border border-border-subtle rounded-2xl p-4 shadow-2xl z-50 overflow-hidden"
         >
           <button 
             type="button" 
             onClick={dismissPrompt}
-            className="absolute top-2 right-2 p-1.5 bg-black/20 text-white/60 hover:text-white hover:bg-black/40 rounded-full transition-colors"
+            className="absolute top-2 right-2 p-1.5 bg-black/20 text-text-primary/60 hover:text-text-primary hover:bg-black/40 rounded-full transition-colors"
             aria-label="Dismiss install prompt"
           >
             <X className="w-4 h-4" />
@@ -112,16 +112,16 @@ export function PWAInstallPrompt() {
               {showIOSPrompt ? <Share className="w-6 h-6 text-blue-400" /> : <Download className="w-6 h-6 text-green-400" />}
             </div>
             <div className="flex-1 pb-1">
-              <h3 className="font-semibold text-white mb-1">Install App</h3>
+              <h3 className="font-semibold text-text-primary mb-1">Install App</h3>
               
               {showIOSPrompt ? (
-                <p className="text-sm text-zinc-400">
+                <p className="text-sm text-text-secondary">
                   Tap the <Share className="inline w-4 h-4 mx-1" /> Share button and select <br/>
-                  <span className="font-medium text-white flex items-center mt-2"><PlusSquare className="inline w-4 h-4 mr-1" /> Add to Home Screen</span>
+                  <span className="font-medium text-text-primary flex items-center mt-2"><PlusSquare className="inline w-4 h-4 mr-1" /> Add to Home Screen</span>
                 </p>
               ) : (
                 <>
-                  <p className="text-sm text-zinc-400 mb-3">Install for a better, faster, and offline-ready experience.</p>
+                  <p className="text-sm text-text-secondary mb-3">Install for a better, faster, and offline-ready experience.</p>
                   <button 
                     type="button"
                     onClick={handleInstallClick}

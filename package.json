@@ -76,6 +76,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@google/design.md": "^0.3.0",
     "@playwright/test": "^1.60.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/canvas-confetti": "^1.9.0",

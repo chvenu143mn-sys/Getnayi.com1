@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Send, Trash2, Loader2, CornerDownRight, MessageSquare, AlertCircle, Smile, Pin } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import { safeFetch } from '../utils/apiClient';
 
 interface Comment {
   id: string;
@@ -246,11 +247,9 @@ export function CommentDrawer({
     try {
       const cursorParams = !reset && nextCursor ? `&cursor=${nextCursor}` : '';
       // Limit set to 30 for optimized server-to-client JSON serialization & layout density
-      const response = await fetch(`/api/comments?video_id=${videoId}&limit=30${cursorParams}`);
-      if (!response.ok) throw new Error('Failed to load comments');
-      const json = await response.json();
+      const json = await safeFetch(`/api/comments?video_id=${videoId}&limit=30${cursorParams}`);
       
-      const parsed = (json.data || []).map((item: any) => parseComment(item));
+      const parsed = (json?.data || []).map((item: any) => parseComment(item));
       
       let finalComments = [];
       if (reset) {
@@ -438,7 +437,7 @@ export function CommentDrawer({
         }
       }
 
-      const response = await fetch('/api/comments', {
+      const json = await safeFetch('/api/comments', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -450,12 +449,7 @@ export function CommentDrawer({
         }),
       });
 
-      if (!response.ok) {
-        const errorJson = await response.json();
-        throw new Error(errorJson.error || 'Failed to post comment');
-      }
-
-      const json = await response.json();
+      if (!json?.comment) throw new Error('Invalid response from server');
       const newComment = parseComment(json.comment);
 
       let wasDuplicate = false;
@@ -514,7 +508,7 @@ export function CommentDrawer({
       const sessionData = await supabase.auth.getSession();
       const token = sessionData.data.session?.access_token;
 
-      const response = await fetch(`/api/comments/${commentId}/pin`, {
+      const resJson = await safeFetch(`/api/comments/${commentId}/pin`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -522,13 +516,7 @@ export function CommentDrawer({
         },
       });
 
-      if (!response.ok) {
-        const resJson = await response.json();
-        throw new Error(resJson.error || 'Failed to pin comment');
-      }
-
-      const resJson = await response.json();
-      const isPinnedNewValue = resJson.is_pinned;
+      const isPinnedNewValue = resJson?.is_pinned;
 
       setComments((prev) => {
         const updated = prev.map((c) => {
@@ -570,17 +558,12 @@ export function CommentDrawer({
       const sessionData = await supabase.auth.getSession();
       const token = sessionData.data.session?.access_token;
 
-      const response = await fetch(`/api/comments/${commentId}`, {
+      await safeFetch(`/api/comments/${commentId}`, {
         method: 'DELETE',
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       });
-
-      if (!response.ok) {
-        const resJson = await response.json();
-        throw new Error(resJson.error || 'Failed to delete comment');
-      }
 
       // Determine how many ROOT comments are deleted
       let deletedRootCount = 0;
@@ -665,22 +648,22 @@ export function CommentDrawer({
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-        className="bg-[#121212] w-full max-w-md h-[75vh] sm:h-[70vh] rounded-t-[24px] border-t border-white/10 flex flex-col shadow-[0_-8px_30px_rgba(0,0,0,0.5)] overflow-hidden relative"
+        className="bg-[#121212] w-full max-w-md h-[75vh] sm:h-[70vh] rounded-t-[24px] border-t border-border-subtle flex flex-col shadow-[0_-8px_30px_rgba(0,0,0,0.5)] overflow-hidden relative"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Pull Drawer Bar Accent */}
         <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mt-4 mb-2 shrink-0" />
 
         {/* Header */}
-        <div className="px-5 pb-4 border-b border-white/5 flex items-center justify-between shrink-0">
+        <div className="px-5 pb-4 border-b border-border-subtle flex items-center justify-between shrink-0">
           <div className="w-6" /> {/* Spacer */}
-          <h3 className="text-white font-sans font-bold text-[15px] tracking-wide">
+          <h3 className="text-text-primary font-sans font-bold text-[15px] tracking-wide">
             {totalComments} comments
           </h3>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 -mr-1 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
+            className="p-1 -mr-1 rounded-full hover:bg-surface-1 text-text-secondary hover:text-text-primary transition-colors"
           >
             <X className="size-5" />
           </button>
@@ -696,13 +679,13 @@ export function CommentDrawer({
           )}
 
           {loading ? (
-            <div className="h-full flex flex-col items-center justify-center py-20 text-zinc-400 gap-2">
-              <Loader2 className="size-6 animate-spin text-[#ff5a36]" />
+            <div className="h-full flex flex-col items-center justify-center py-20 text-text-secondary gap-2">
+              <Loader2 className="size-6 animate-spin text-brand-primary" />
             </div>
           ) : rootComments.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center py-20 text-zinc-400 gap-2">
-              <p className="text-sm font-sans font-medium text-white/80">No comments yet.</p>
-              <p className="text-xs text-zinc-400">Start the conversation.</p>
+            <div className="h-full flex flex-col items-center justify-center py-20 text-text-secondary gap-2">
+              <p className="text-sm font-sans font-medium text-text-primary/80">No comments yet.</p>
+              <p className="text-xs text-text-secondary">Start the conversation.</p>
             </div>
           ) : (
             <div className="space-y-5 pt-2 pb-6">
@@ -717,7 +700,7 @@ export function CommentDrawer({
                     {/* Root Comment Row */}
                     <div className="flex items-start gap-2.5 group">
                       {/* Avatar */}
-                      <div className="size-8 rounded-full bg-zinc-800 overflow-hidden shrink-0 mt-0.5 relative">
+                      <div className="size-8 rounded-full bg-surface-2 overflow-hidden shrink-0 mt-0.5 relative">
                         {comment.profiles?.avatar_url ? (
                           <img                             src={comment.profiles.avatar_url}
                             alt=""
@@ -725,13 +708,13 @@ export function CommentDrawer({
                             referrerPolicy="no-referrer"
                           loading="lazy" decoding="async" />
                         ) : (
-                          <div className="size-full flex items-center justify-center bg-zinc-700 text-white font-semibold text-[10px] italic">
+                          <div className="size-full flex items-center justify-center bg-surface-2 text-text-primary font-semibold text-[10px] italic">
                             {comment.profiles?.username?.charAt(0).toLowerCase() || 'u'}
                           </div>
                         )}
                         {comment.user_id === videoOwnerId && (
-                          <div className="absolute -bottom-0.5 -right-0.5 bg-[#ff5a36] rounded-full p-[2px] border border-[#121212]">
-                            <Pin className="size-1.5 text-white fill-white" />
+                          <div className="absolute -bottom-0.5 -right-0.5 bg-brand-primary rounded-full p-[2px] border border-[#121212]">
+                            <Pin className="size-1.5 text-text-primary fill-white" />
                           </div>
                         )}
                       </div>
@@ -739,7 +722,7 @@ export function CommentDrawer({
                       {/* Content Wrapper */}
                       <div className="flex-1 space-y-0.5">
                         <div className="flex items-baseline gap-1.5 flex-wrap">
-                          <span className="text-white/60 text-xs font-semibold tracking-wide">
+                          <span className="text-text-primary/60 text-xs font-semibold tracking-wide">
                             {comment.profiles?.username || 'user'}
                           </span>
                           {comment.profiles?.is_brand && (
@@ -748,33 +731,33 @@ export function CommentDrawer({
                             </span>
                           )}
                           {comment.user_id === videoOwnerId && (
-                            <span className="px-1 text-[8px] bg-[#ff5a36]/20 text-[#ff5a36] font-bold uppercase tracking-wider rounded">
+                            <span className="px-1 text-[8px] bg-brand-primary/20 text-brand-primary font-bold uppercase tracking-wider rounded">
                               Creator
                             </span>
                           )}
-                          <span className="text-[10px] text-white/60 font-medium">
+                          <span className="text-[10px] text-text-primary/60 font-medium">
                             {new Date(comment.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                           </span>
                         </div>
 
                         {/* Pinned Indicator badge */}
                         {comment.is_pinned && (
-                          <div className="flex items-center gap-1 text-[#ff5a36] font-bold text-[10px] pt-0.5 tracking-wide uppercase">
-                            <Pin className="size-2.5 fill-[#ff5a36]" />
+                          <div className="flex items-center gap-1 text-brand-primary font-bold text-[10px] pt-0.5 tracking-wide uppercase">
+                            <Pin className="size-2.5 fill-brand-primary" />
                             <span>Pinned by creator</span>
                           </div>
                         )}
 
-                        <p className="text-white/90 text-[14px] leading-snug whitespace-pre-wrap font-sans pt-0.5">
+                        <p className="text-text-primary/90 text-[14px] leading-snug whitespace-pre-wrap font-sans pt-0.5">
                           {renderCommentText(comment.content)}
                         </p>
 
                         {/* Action details bar */}
-                        <div className="flex items-center gap-4 text-[11px] font-bold text-white/60 pt-1 flex-wrap">
+                        <div className="flex items-center gap-4 text-[11px] font-bold text-text-primary/60 pt-1 flex-wrap">
                           <button
                             type="button"
                             onClick={() => handleReplyClick(comment)}
-                            className="hover:text-white/80 transition-colors cursor-pointer"
+                            className="hover:text-text-primary/80 transition-colors cursor-pointer"
                           >
                             Reply
                           </button>
@@ -783,9 +766,9 @@ export function CommentDrawer({
                             <button
                               type="button"
                               onClick={() => handlePinComment(comment.id)}
-                              className={`${comment.is_pinned ? 'text-[#ff5a36]' : 'hover:text-white/80'} transition-colors flex items-center gap-0.5 cursor-pointer`}
+                              className={`${comment.is_pinned ? 'text-brand-primary' : 'hover:text-text-primary/80'} transition-colors flex items-center gap-0.5 cursor-pointer`}
                             >
-                              <Pin className={`size-3 ${comment.is_pinned ? 'fill-[#ff5a36]' : ''}`} />
+                              <Pin className={`size-3 ${comment.is_pinned ? 'fill-brand-primary' : ''}`} />
                               <span>{comment.is_pinned ? 'Unpin' : 'Pin'}</span>
                             </button>
                           )}
@@ -795,11 +778,11 @@ export function CommentDrawer({
                               type="button"
                               disabled={deletingCommentId !== null}
                               onClick={() => handleDeleteComment(comment.id)}
-                              className={`${confirmDeleteId === comment.id ? 'text-red-500 font-bold' : 'text-white/60 hover:text-red-400'} disabled:opacity-40 transition-colors flex items-center gap-1 cursor-pointer`}
+                              className={`${confirmDeleteId === comment.id ? 'text-red-500 font-bold' : 'text-text-primary/60 hover:text-red-400'} disabled:opacity-40 transition-colors flex items-center gap-1 cursor-pointer`}
                             >
                               {deletingCommentId === comment.id ? (
                                 <span className="flex items-center gap-1">
-                                  <Loader2 className="size-3 animate-spin text-[#ff5a36]" />
+                                  <Loader2 className="size-3 animate-spin text-brand-primary" />
                                   <span>Deleting...</span>
                                 </span>
                               ) : (
@@ -818,9 +801,9 @@ export function CommentDrawer({
                           <button
                             type="button"
                             onClick={() => toggleReplies(comment.id)}
-                            className="flex items-center gap-2 text-xs font-bold text-zinc-400 hover:text-zinc-300 transition-colors focus:outline-none py-1"
+                            className="flex items-center gap-2 text-xs font-bold text-text-secondary hover:text-text-primary transition-colors focus:outline-none py-1"
                           >
-                            <span className="w-5 h-[1.5px] bg-zinc-800 inline-block shrink-0" />
+                            <span className="w-5 h-[1.5px] bg-surface-2 inline-block shrink-0" />
                             <span>
                               {isExpanded ? 'Hide replies' : `View replies (${commentReplies.length})`}
                             </span>
@@ -828,14 +811,14 @@ export function CommentDrawer({
                         </div>
 
                         {isExpanded && (
-                          <div className="pl-10 space-y-3 pt-1 border-l-2 border-zinc-800/40 ml-[15px]">
+                          <div className="pl-10 space-y-3 pt-1 border-l-2 border-border-subtle/40 ml-[15px]">
                             {commentReplies.map((reply) => {
                               const isReplyOwnerOrVideoOwner = user?.id === reply.user_id || user?.id === videoOwnerId;
 
                               return (
                                 <div key={reply.id} className="flex items-start gap-2.5 group pl-1">
                                   {/* Avatar */}
-                                  <div className="size-6 rounded-full bg-zinc-800 overflow-hidden shrink-0 mt-0.5">
+                                  <div className="size-6 rounded-full bg-surface-2 overflow-hidden shrink-0 mt-0.5">
                                     {reply.profiles?.avatar_url ? (
                                       <img                                         src={reply.profiles.avatar_url}
                                         alt=""
@@ -843,7 +826,7 @@ export function CommentDrawer({
                                         referrerPolicy="no-referrer"
                                       loading="lazy" decoding="async" />
                                     ) : (
-                                      <div className="size-full flex items-center justify-center bg-zinc-700 text-white font-semibold text-[9px] italic">
+                                      <div className="size-full flex items-center justify-center bg-surface-2 text-text-primary font-semibold text-[9px] italic">
                                         {reply.profiles?.username?.charAt(0).toLowerCase() || 'u'}
                                       </div>
                                     )}
@@ -852,7 +835,7 @@ export function CommentDrawer({
                                   {/* Reply content details */}
                                   <div className="flex-1 space-y-0.5">
                                     <div className="flex items-baseline gap-1.5 flex-wrap">
-                                      <span className="text-white/60 text-xs font-semibold tracking-wide">
+                                      <span className="text-text-primary/60 text-xs font-semibold tracking-wide">
                                         {reply.profiles?.username || 'user'}
                                       </span>
                                       {reply.profiles?.is_brand && (
@@ -861,15 +844,15 @@ export function CommentDrawer({
                                         </span>
                                       )}
                                       {reply.user_id === videoOwnerId && (
-                                        <span className="px-1 text-[8px] bg-[#ff5a36]/20 text-[#ff5a36] font-bold uppercase tracking-wider rounded">
+                                        <span className="px-1 text-[8px] bg-brand-primary/20 text-brand-primary font-bold uppercase tracking-wider rounded">
                                           Creator
                                         </span>
                                       )}
-                                      <span className="text-[10px] text-white/60 font-medium">
+                                      <span className="text-[10px] text-text-primary/60 font-medium">
                                         {new Date(reply.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                                       </span>
                                     </div>
-                                    <p className="text-white/90 text-[14px] leading-snug whitespace-pre-wrap font-sans">
+                                    <p className="text-text-primary/90 text-[14px] leading-snug whitespace-pre-wrap font-sans">
                                       {reply.reply_to_username && (
                                         <span className="text-sky-400 font-semibold mr-1">
                                           @{reply.reply_to_username}
@@ -879,11 +862,11 @@ export function CommentDrawer({
                                     </p>
 
                                     {/* Sub-reply features */}
-                                    <div className="flex items-center gap-4 text-[11px] font-bold text-white/60 pt-1">
+                                    <div className="flex items-center gap-4 text-[11px] font-bold text-text-primary/60 pt-1">
                                       <button
                                         type="button"
                                         onClick={() => handleReplyClick(reply)}
-                                        className="hover:text-white/80 transition-colors cursor-pointer"
+                                        className="hover:text-text-primary/80 transition-colors cursor-pointer"
                                       >
                                         Reply
                                       </button>
@@ -893,11 +876,11 @@ export function CommentDrawer({
                                           type="button"
                                           disabled={deletingCommentId !== null}
                                           onClick={() => handleDeleteComment(reply.id)}
-                                          className={`${confirmDeleteId === reply.id ? 'text-red-500 font-bold' : 'text-white/60 hover:text-red-400'} disabled:opacity-40 transition-colors flex items-center gap-1 cursor-pointer`}
+                                          className={`${confirmDeleteId === reply.id ? 'text-red-500 font-bold' : 'text-text-primary/60 hover:text-red-400'} disabled:opacity-40 transition-colors flex items-center gap-1 cursor-pointer`}
                                         >
                                           {deletingCommentId === reply.id ? (
                                             <span className="flex items-center gap-1">
-                                              <Loader2 className="size-3 animate-spin text-[#ff5a36]" />
+                                              <Loader2 className="size-3 animate-spin text-brand-primary" />
                                               <span>Deleting...</span>
                                             </span>
                                           ) : (
@@ -924,14 +907,14 @@ export function CommentDrawer({
                   <button
                     onClick={() => fetchComments()}
                     disabled={loadingMore}
-                    className="px-5 py-2.5 bg-white/5 hover:bg-white/10 active:scale-95 transition-all rounded-full flex items-center gap-2 border border-white/10 group"
+                    className="px-5 py-2.5 bg-white/5 hover:bg-surface-1 active:scale-95 transition-all rounded-full flex items-center gap-2 border border-border-subtle group"
                   >
                     {loadingMore ? (
-                      <Loader2 className="size-4 animate-spin text-white/60" />
+                      <Loader2 className="size-4 animate-spin text-text-primary/60" />
                     ) : (
-                      <CornerDownRight className="size-4 text-white/60 group-hover:text-white" />
+                      <CornerDownRight className="size-4 text-text-primary/60 group-hover:text-text-primary" />
                     )}
-                    <span className="text-sm font-semibold tracking-wide text-white/80 group-hover:text-white">
+                    <span className="text-sm font-semibold tracking-wide text-text-primary/80 group-hover:text-text-primary">
                       View previous comments
                     </span>
                   </button>
@@ -950,9 +933,9 @@ export function CommentDrawer({
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
-              className="mx-3 mb-2 bg-[#1c1c1e] border border-white/10 rounded-xl overflow-hidden shadow-2xl z-20 overflow-y-auto max-h-[160px]"
+              className="mx-3 mb-2 bg-surface-2 border border-border-subtle rounded-xl overflow-hidden shadow-2xl z-20 overflow-y-auto max-h-[160px]"
             >
-              <div className="px-3.5 py-2 text-[11px] font-sans font-bold text-zinc-400 uppercase tracking-wider border-b border-white/5">
+              <div className="px-3.5 py-2 text-[11px] font-sans font-bold text-text-secondary uppercase tracking-wider border-b border-border-subtle">
                 Suggested Mentions
               </div>
               <div className="flex flex-col py-1">
@@ -961,10 +944,10 @@ export function CommentDrawer({
                     key={username}
                     type="button"
                     onClick={() => handleSelectMention(username)}
-                    className="px-4 py-2 text-left text-[13.5px] font-sans text-white hover:bg-white/5 flex items-center justify-between transition-colors cursor-pointer group"
+                    className="px-4 py-2 text-left text-[13.5px] font-sans text-text-primary hover:bg-surface-1 flex items-center justify-between transition-colors cursor-pointer group"
                   >
-                    <span className="font-semibold text-white/90 group-hover:text-white">@{username}</span>
-                    <span className="text-[11px] text-[#ff5a36] group-hover:text-[#f4284d] font-semibold">Select</span>
+                    <span className="font-semibold text-text-primary/90 group-hover:text-text-primary">@{username}</span>
+                    <span className="text-[11px] text-brand-primary group-hover:text-[#f4284d] font-semibold">Select</span>
                   </button>
                 ))}
               </div>
@@ -979,9 +962,9 @@ export function CommentDrawer({
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="bg-[#18181c] border-t border-white/5 px-4 py-3 flex items-center gap-3 shrink-0"
+              className="bg-[#18181c] border-t border-border-subtle px-4 py-3 flex items-center gap-3 shrink-0"
             >
-              <div className="size-8 rounded-full bg-zinc-800 overflow-hidden shrink-0">
+              <div className="size-8 rounded-full bg-surface-2 overflow-hidden shrink-0">
                 {replyingTo.profiles?.avatar_url ? (
                   <img                     src={replyingTo.profiles.avatar_url}
                     alt=""
@@ -989,19 +972,19 @@ export function CommentDrawer({
                     referrerPolicy="no-referrer"
                   loading="lazy" decoding="async" />
                 ) : (
-                  <div className="size-full flex items-center justify-center bg-zinc-700 text-white font-semibold text-xs italic">
+                  <div className="size-full flex items-center justify-center bg-surface-2 text-text-primary font-semibold text-xs italic">
                     {replyingTo.profiles?.username?.charAt(0).toLowerCase() || 'u'}
                   </div>
                 )}
               </div>
               <div className="flex-1 min-w-0 pr-2">
-                <div className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
+                <div className="text-[10px] text-text-secondary font-bold uppercase tracking-wider">
                   Replying to thread
                 </div>
-                <div className="text-[13px] font-semibold text-white truncate max-w-xs">
+                <div className="text-[13px] font-semibold text-text-primary truncate max-w-xs">
                   @{replyingTo.profiles?.username}
                 </div>
-                <div className="text-[11.5px] text-zinc-400 truncate max-w-sm font-sans mt-0.5">
+                <div className="text-[11.5px] text-text-secondary truncate max-w-sm font-sans mt-0.5">
                   {replyingTo.content}
                 </div>
               </div>
@@ -1013,7 +996,7 @@ export function CommentDrawer({
                   setInputText('');
                   setSelectedMentions([]);
                 }}
-                className="text-white/60 hover:text-white size-6 flex items-center justify-center rounded-full bg-white/5 border border-white/10 active:scale-90 transition-all cursor-pointer"
+                className="text-text-primary/60 hover:text-text-primary size-6 flex items-center justify-center rounded-full bg-white/5 border border-border-subtle active:scale-90 transition-all cursor-pointer"
                 title="Cancel reply"
               >
                 <X className="size-3.5" />
@@ -1023,10 +1006,10 @@ export function CommentDrawer({
         </AnimatePresence>
 
         {/* Form Input Footer */}
-        <div className="p-3 bg-[#121212] border-t border-white/10 shrink-0 pb-safe">
+        <div className="p-3 bg-[#121212] border-t border-border-subtle shrink-0 pb-safe">
           <form onSubmit={handlePostComment} className="flex items-start gap-3">
             {/* User Profile avatar */}
-            <div className="size-8 rounded-full bg-zinc-800 overflow-hidden shrink-0 mt-1">
+            <div className="size-8 rounded-full bg-surface-2 overflow-hidden shrink-0 mt-1">
               {user?.user_metadata?.avatar_url ? (
                 <img                   src={user.user_metadata.avatar_url}
                   alt="My Profile"
@@ -1034,7 +1017,7 @@ export function CommentDrawer({
                   referrerPolicy="no-referrer"
                 loading="lazy" decoding="async" />
               ) : (
-                <div className="size-full bg-zinc-700 flex items-center justify-center text-white italic font-bold text-xs">
+                <div className="size-full bg-surface-2 flex items-center justify-center text-text-primary italic font-bold text-xs">
                   {user?.user_metadata?.username?.charAt(0).toLowerCase() || 'u'}
                 </div>
               )}
@@ -1047,7 +1030,7 @@ export function CommentDrawer({
               {selectedMentions.map((mention, index) => (
                 <div 
                   key={index}
-                  className="bg-[#ff5a36]/15 text-[#ff5a36] pl-2.5 pr-1 py-0.5 rounded-full text-xs font-bold flex items-center gap-1 shrink-0 border border-[#ff5a36]/30 select-none font-sans"
+                  className="bg-brand-primary/15 text-brand-primary pl-2.5 pr-1 py-0.5 rounded-full text-xs font-bold flex items-center gap-1 shrink-0 border border-brand-primary/30 select-none font-sans"
                 >
                   <span>@{mention.username}</span>
                   <button 
@@ -1067,12 +1050,12 @@ export function CommentDrawer({
                 onChange={(e) => setInputText(e.target.value)}
                 placeholder={replyingTo || selectedMentions.length > 0 ? "" : "Add comment..."}
                 disabled={isSubmitting}
-                className="bg-transparent border-none text-white placeholder-white/40 text-[14px] focus:outline-none flex-1 min-w-[80px] h-7 leading-none"
+                className="bg-transparent border-none text-text-primary placeholder-white/40 text-[14px] focus:outline-none flex-1 min-w-[80px] h-7 leading-none"
               />
               <button
                 type="submit"
                 disabled={isSubmitting || (!inputText.trim() && selectedMentions.length === 0)}
-                className="p-1 text-[#ff5a36] hover:text-[#f4284d] disabled:text-white/20 transition-colors disabled:scale-100 active:scale-90 ml-auto"
+                className="p-1 text-brand-primary hover:text-[#f4284d] disabled:text-text-primary/20 transition-colors disabled:scale-100 active:scale-90 ml-auto"
               >
                 {isSubmitting ? (
                   <Loader2 className="size-4 animate-spin" />

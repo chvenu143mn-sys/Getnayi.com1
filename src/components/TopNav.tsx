@@ -21,13 +21,13 @@ export function TopNav() {
   };
 
   return (
-    <div className="sticky top-0 z-50 w-full bg-[#0c0c0e]/80 backdrop-blur-md border-b border-white/10 px-4 h-14 flex items-center shrink-0">
+    <div className="sticky top-0 z-50 w-full bg-bg-base/80 backdrop-blur-md border-b border-border-subtle px-4 h-14 flex items-center shrink-0">
       <button 
         onClick={handleBack} 
-        className="p-2 rounded-full hover:bg-white/10 transition-colors active:scale-95 flex items-center justify-center -ml-2"
+        className="p-2 rounded-full hover:bg-surface-1 transition-colors active:scale-95 flex items-center justify-center -ml-2"
         aria-label="Go back"
       >
-        <ChevronLeft className="size-6 text-white" />
+        <ChevronLeft className="size-6 text-text-primary" />
       </button>
     </div>
   );

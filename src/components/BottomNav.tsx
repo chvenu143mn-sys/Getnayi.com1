@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { supabase } from '../lib/supabase';
+import { theme } from '../styles/theme';
 
 export function BottomNav() {
   const location = useLocation();
@@ -45,32 +46,32 @@ export function BottomNav() {
   }, [location]);
 
   return (
-    <div className="md:hidden fixed bottom-0 w-full z-40 bg-[#0c0c0e] pb-[env(safe-area-inset-bottom)] border-t border-white/5">
+    <div className={cn("md:hidden fixed bottom-0 w-full z-40 backdrop-blur-xl pb-[env(safe-area-inset-bottom)] border-t", theme.colors.bgBase, "bg-opacity-90", theme.colors.borderSubtle)}>
       <div className="flex items-center justify-between h-[64px] px-4 sm:max-w-md sm:mx-auto">
         <Link
           to="/"
           className={cn(
             "flex-1 flex flex-col items-center justify-center gap-y-1 transition-all duration-300 group h-full",
-            location.pathname === '/' ? "text-[#f8fafc]" : "text-zinc-500 hover:text-[#f8fafc]"
+            location.pathname === '/' ? theme.colors.textPrimary : cn(theme.colors.textSecondary, "hover:text-text-primary")
           )}
         >
-          <div className={cn("p-1.5 rounded-[8px] transition-all duration-300", location.pathname === '/' ? "bg-zinc-800 shadow-sm" : "group-hover:bg-white/5")}>
-            <Home className="size-[24px]" strokeWidth={location.pathname === '/' ? 2.5 : 2} />
+          <div className="transition-all duration-300">
+            <Home className="size-[24px]" strokeWidth={location.pathname === '/' ? 3 : 2} />
           </div>
-          <span className="text-[10px] font-sans font-medium tracking-wide">Home</span>
+          <span className={cn("text-[10px] tracking-wide", theme.typography.label)}>Home</span>
         </Link>
         
         <Link
           to="/explore"
           className={cn(
             "flex-1 flex flex-col items-center justify-center gap-y-1 transition-all duration-300 group h-full",
-            location.pathname === '/explore' ? "text-[#f8fafc]" : "text-zinc-500 hover:text-[#f8fafc]"
+            location.pathname === '/explore' ? theme.colors.textPrimary : cn(theme.colors.textSecondary, "hover:text-text-primary")
           )}
         >
-          <div className={cn("p-1.5 rounded-[8px] transition-all duration-300", location.pathname === '/explore' ? "bg-zinc-800 shadow-sm" : "group-hover:bg-white/5")}>
-            <Search className="size-[24px]" strokeWidth={location.pathname === '/explore' ? 2.5 : 2} />
+          <div className="transition-all duration-300">
+            <Search className="size-[24px]" strokeWidth={location.pathname === '/explore' ? 3 : 2} />
           </div>
-          <span className="text-[10px] font-sans font-medium tracking-wide">Explore</span>
+          <span className={cn("text-[10px] tracking-wide", theme.typography.label)}>Explore</span>
         </Link>
 
         {/* Upload Button */}
@@ -79,8 +80,8 @@ export function BottomNav() {
           className="flex-[1.2] flex flex-col items-center justify-center group h-full px-2"
           aria-label="Upload"
         >
-          <div className="relative flex items-center justify-center w-[52px] h-[36px] bg-[#ff5a36] rounded-[12px] transition-transform group-active:scale-95 shadow-sm hover:bg-[#ff7b5c]">
-            <Plus className="size-6 text-white" strokeWidth={2.5} />
+          <div className="relative flex items-center justify-center w-[48px] h-[32px] rounded-xl shadow-sm hover:opacity-90 bg-text-primary">
+            <Plus className="size-5 text-bg-base" strokeWidth={3} />
           </div>
         </Link>
 
@@ -88,29 +89,29 @@ export function BottomNav() {
           to="/notifications"
           className={cn(
             "flex-1 flex flex-col items-center justify-center gap-y-1 transition-all duration-300 relative group h-full",
-            location.pathname === '/notifications' ? "text-[#f8fafc]" : "text-zinc-500 hover:text-[#f8fafc]"
+            location.pathname === '/notifications' ? theme.colors.textPrimary : cn(theme.colors.textSecondary, "hover:text-text-primary")
           )}
         >
-          <div className={cn("relative p-1.5 rounded-[8px] transition-all duration-300", location.pathname === '/notifications' ? "bg-zinc-800 shadow-sm" : "group-hover:bg-white/5")}>
-            <MessageSquare className="size-[24px]" strokeWidth={location.pathname === '/notifications' ? 2.5 : 2} />
+          <div className="relative transition-all duration-300">
+            <MessageSquare className="size-[24px]" strokeWidth={location.pathname === '/notifications' ? 3 : 2} />
             {hasUnread && (
-               <div className="absolute top-1 right-1 size-2.5 bg-[#ff5a36] rounded-full border-2 border-[#0c0c0e]"></div>
+               <div className={cn("absolute top-0 -right-1 size-2 rounded-full border-[1.5px] border-bg-base", theme.colors.brandPrimary)}></div>
             )}
           </div>
-          <span className="text-[10px] font-sans font-medium tracking-wide">Inbox</span>
+          <span className={cn("text-[10px] tracking-wide", theme.typography.label)}>Inbox</span>
         </Link>
 
         <Link
           to="/profile"
           className={cn(
             "flex-1 flex flex-col items-center justify-center gap-y-1 transition-all duration-300 group h-full",
-            location.pathname === '/profile' ? "text-[#f8fafc]" : "text-zinc-500 hover:text-[#f8fafc]"
+            location.pathname === '/profile' ? theme.colors.textPrimary : cn(theme.colors.textSecondary, "hover:text-text-primary")
           )}
         >
-          <div className={cn("p-1.5 rounded-[8px] transition-all duration-300", location.pathname === '/profile' ? "bg-zinc-800 shadow-sm" : "group-hover:bg-white/5")}>
-            <User className="size-[24px]" strokeWidth={location.pathname === '/profile' ? 2.5 : 2} />
+          <div className="transition-all duration-300">
+            <User className="size-[24px]" strokeWidth={location.pathname === '/profile' ? 3 : 2} />
           </div>
-          <span className="text-[10px] font-sans font-medium tracking-wide">Profile</span>
+          <span className={cn("text-[10px] tracking-wide", theme.typography.label)}>Profile</span>
         </Link>
       </div>
     </div>

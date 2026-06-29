@@ -20,7 +20,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     // Check if Playwright has injected a mock user to bypass Supabase loading lag
     // @ts-ignore
-    if (window.__MOCK_USER__) {
+    if (import.meta.env.DEV && window.__MOCK_USER__) {
       // @ts-ignore
       const mockUser = window.__MOCK_USER__;
       setUser(mockUser);

@@ -28,28 +28,28 @@ export default function AdminSpam({
   return (
     <div className="gap-y-6 animate-in fade-in duration-500">
       <div>
-        <h1 className="text-2xl font-bold text-white tracking-tight">AI & Risk Spam Detection</h1>
-        <p className="text-zinc-400 text-xs mt-1">Real-time content scoring scans capturing keyword payloads, safety discrepancies, and domain violations.</p>
+        <h1 className="text-2xl font-bold text-text-primary tracking-tight">AI & Risk Spam Detection</h1>
+        <p className="text-text-secondary text-xs mt-1">Real-time content scoring scans capturing keyword payloads, safety discrepancies, and domain violations.</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-[#141416] border border-white/5 rounded-2xl p-5 flex flex-col justify-between">
+        <div className="bg-[#141416] border border-border-subtle rounded-2xl p-5 flex flex-col justify-between">
           <div>
-            <span className="text-zinc-400 text-[10px] uppercase font-mono tracking-wider">Scanned Assets</span>
-            <p className="text-2xl font-bold text-white mt-1">{spamItems.length}</p>
+            <span className="text-text-secondary text-[10px] uppercase font-mono tracking-wider">Scanned Assets</span>
+            <p className="text-2xl font-bold text-text-primary mt-1">{spamItems.length}</p>
           </div>
           <AlertTriangle className="size-5 text-zinc-650 mt-2" />
         </div>
-        <div className="bg-[#141416] border border-white/5 rounded-2xl p-5 flex flex-col justify-between">
+        <div className="bg-[#141416] border border-border-subtle rounded-2xl p-5 flex flex-col justify-between">
           <div>
-            <span className="text-zinc-400 text-[10px] uppercase font-mono tracking-wider">Risk Flag Count</span>
+            <span className="text-text-secondary text-[10px] uppercase font-mono tracking-wider">Risk Flag Count</span>
             <p className="text-2xl font-bold text-[#EF4444] mt-1">{spamItems.filter(i => i.riskScore >= 70).length}</p>
           </div>
           <ShieldAlert className="size-5 text-red-500/20 mt-2" />
         </div>
-        <div className="bg-[#141416] border border-white/5 rounded-2xl p-5 flex flex-col justify-between max-w-full">
+        <div className="bg-[#141416] border border-border-subtle rounded-2xl p-5 flex flex-col justify-between max-w-full">
           <div>
-            <span className="text-zinc-400 text-[10px] uppercase font-mono tracking-wider">Average Compliance Rating</span>
+            <span className="text-text-secondary text-[10px] uppercase font-mono tracking-wider">Average Compliance Rating</span>
             <p className="text-2xl font-bold text-green-500 mt-1">98.4%</p>
           </div>
           <div className="size-2.5 rounded-full bg-green-500 animate-pulse mt-2" />
@@ -62,7 +62,7 @@ export default function AdminSpam({
           placeholder="Keyword string match filter..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-4 pr-10 py-2.5 bg-[#141416]/90 border border-white/5 focus:border-white/15 focus:ring-1 focus:ring-white/10 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none transition-all"
+          className="w-full pl-4 pr-10 py-2.5 bg-[#141416]/90 border border-border-subtle focus:border-border-subtle focus:ring-1 focus:ring-white/10 rounded-xl text-sm text-text-primary placeholder-zinc-500 focus:outline-none transition-all"
         />
       </div>
 
@@ -77,13 +77,13 @@ export default function AdminSpam({
             <div>
               <div className="flex items-center gap-3">
                 {item.video?.thumbnail_url ? (
-                  <img src={item.video.thumbnail_url} className="w-12 h-16 rounded-lg object-cover bg-neutral-900 border border-white/5" referrerPolicy="no-referrer"  alt="" loading="lazy" decoding="async" />
+                  <img src={item.video.thumbnail_url} className="w-12 h-16 rounded-lg object-cover bg-neutral-900 border border-border-subtle" referrerPolicy="no-referrer"  alt="" loading="lazy" decoding="async" />
                 ) : (
-                  <div className="w-12 h-16 rounded-lg bg-white/5 border border-white/5" />
+                  <div className="w-12 h-16 rounded-lg bg-white/5 border border-border-subtle" />
                 )}
                 <div className="min-w-0">
-                  <p className="text-white font-semibold text-sm truncate max-w-[150px]">{parseVideoProduct(item.video?.caption).captionText || 'Untitled Video'}</p>
-                  <p className="text-zinc-400 text-[10px] font-mono mt-0.5">by @{item.video?.profiles?.username || 'uploader'}</p>
+                  <p className="text-text-primary font-semibold text-sm truncate max-w-[150px]">{parseVideoProduct(item.video?.caption).captionText || 'Untitled Video'}</p>
+                  <p className="text-text-secondary text-[10px] font-mono mt-0.5">by @{item.video?.profiles?.username || 'uploader'}</p>
                   {item.video?.product_url && (
                     <p className="text-[#F97316] text-[10px] font-mono truncate max-w-[150px] mt-1 hover:underline">
                       {item.video.product_url}
@@ -93,11 +93,11 @@ export default function AdminSpam({
               </div>
 
               {/* Reasons list */}
-              <div className="mt-4 bg-[#0c0c0e] border border-white/5 rounded-xl p-3 gap-y-2">
-                <span className="text-zinc-400 text-[10px] font-mono uppercase tracking-wider">Classification analysis:</span>
+              <div className="mt-4 bg-bg-base border border-border-subtle rounded-xl p-3 gap-y-2">
+                <span className="text-text-secondary text-[10px] font-mono uppercase tracking-wider">Classification analysis:</span>
                 <ul className="gap-y-1.5 mt-1">
                   {item.reasons.map((reason: string, idx: number) => (
-                    <li key={idx} className="text-zinc-400 text-xs flex items-start gap-1.5 leading-relaxed font-serif">
+                    <li key={idx} className="text-text-secondary text-xs flex items-start gap-1.5 leading-relaxed font-serif">
                       <span className="size-1.5 rounded-full bg-[#EF4444] mt-1.5 shrink-0" />
                       <span>{reason}</span>
                     </li>
@@ -107,10 +107,10 @@ export default function AdminSpam({
             </div>
 
             {/* Actions */}
-            <div className="flex items-center justify-end gap-2 mt-5 pt-4 border-t border-white/5">
+            <div className="flex items-center justify-end gap-2 mt-5 pt-4 border-t border-border-subtle">
               <button type="button" aria-label="button" 
                 onClick={() => handleViewVideo(item.video)}
-                className="px-3 py-1.5 bg-white/5 border border-white/5 hover:border-white/10 hover:bg-white/10 text-xs text-white rounded-lg flex items-center gap-1 font-semibold transition"
+                className="px-3 py-1.5 bg-white/5 border border-border-subtle hover:border-border-subtle hover:bg-surface-1 text-xs text-text-primary rounded-lg flex items-center gap-1 font-semibold transition"
               >
                 <Eye className="size-3.5" /> Inspect File
               </button>
@@ -132,9 +132,9 @@ export default function AdminSpam({
           </div>
         ))}
         {filtered.length === 0 && (
-          <div className="col-span-2 py-16 bg-[#141416]/50 border border-dashed border-white/5 rounded-2xl text-center">
+          <div className="col-span-2 py-16 bg-[#141416]/50 border border-dashed border-border-subtle rounded-2xl text-center">
             <AlertTriangle className="size-10 text-zinc-650 mx-auto mb-3" />
-            <p className="text-zinc-400 font-semibold mb-1">Risk dashboard intact</p>
+            <p className="text-text-secondary font-semibold mb-1">Risk dashboard intact</p>
             <p className="text-zinc-6 text-xs max-w-[280px] mx-auto leading-relaxed">System scan returns zero flagged commercial spam or dangerous links in current queues.</p>
           </div>
         )}

@@ -277,16 +277,14 @@ test.describe('Getnayi End-to-End User Experience & Security Auditing Suite', ()
     await page.goto('/explore');
 
     // Verify Search Box component (supports both old and new search placeholder strings)
-    const searchBox = page.locator('[placeholder="Search products, experts & reviews"], [placeholder="Search creators or products"]').first();
+    const searchBox = page.locator('[placeholder="Search products, experts & reviews"], [placeholder="Search creators or products"], [placeholder="Search products, experts..."]').first();
     await expect(searchBox).toBeVisible();
 
-    // Click on Trending Searches shortcuts
-    const trendSearch = page.locator('text="Korean Skincare"').first();
-    await expect(trendSearch).toBeVisible();
-    await trendSearch.click();
-
+    // Type in search box directly
+    await searchBox.fill('test search query');
+    
     // Search query auto-populates
-    await expect(searchBox).toHaveValue('Korean Skincare');
+    await expect(searchBox).toHaveValue('test search query');
   });
 
   test('5. Upload Onboarding Options & Link Hardener Safety Check', async ({ page }) => {

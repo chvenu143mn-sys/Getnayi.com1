@@ -39,7 +39,6 @@ import { cn } from "../lib/utils";
 import * as tus from "tus-js-client";
 import { Profile, CreatorApplication } from "../types";
 import validator from "validator";
-import { GuestGate } from "../components/GuestGate";
 import { safeStorage } from "../utils/storage";
 import { motion, AnimatePresence } from "motion/react";
 import { extractStoreName } from "../utils/videoUtils";
@@ -47,6 +46,7 @@ import { CreatorVerificationFlow } from "../components/upload/CreatorVerificatio
 import { UploadSuccessState } from "../components/upload/UploadSuccessState";
 import { useSubscriptionStatus } from "../hooks/useSubscriptionStatus";
 import { toast } from "sonner";
+import { safeFetch } from "../utils/apiClient";
 
 export default function Upload() {
   const { user } = useAuth();
@@ -223,7 +223,7 @@ export default function Upload() {
           `Cleaning up orphaned video upload ${videoId} before unload/unmount...`,
         );
         // Use keepalive: true so the fetch completes even if navigated away
-        fetch(`/api/bunny/delete/${videoId}`, {
+        safeFetch(`/api/bunny/delete/${videoId}`, {
           method: "DELETE",
           credentials: "include",
           keepalive: true,
@@ -318,19 +318,12 @@ export default function Upload() {
           return;
         }
 
-        const response = await fetch("/api/link-preview", {
+        const data = await safeFetch("/api/link-preview", {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ url: targetUrl }),
         });
-
-        if (!response.ok) {
-          const errData = await response.json().catch(() => ({}));
-          throw new Error(errData.error || "Failed to verify URL");
-        }
-
-        const data = await response.json();
 
         setIsUrlValid(true);
         setUrlMetadata({
@@ -353,6 +346,7 @@ export default function Upload() {
           setMainProductPreview(data.productImage);
           try {
             // Fetch via a backend proxy to avoid CORS
+            // explicitly using fetch() here instead of safeFetch() because this expects a binary blob, not JSON.
             const imgRes = await fetch(
               `/api/proxy-image?url=${encodeURIComponent(data.productImage)}`,
             );
@@ -495,7 +489,7 @@ export default function Upload() {
           try {
             const sessionData = await supabase.auth.getSession();
             const token = sessionData.data.session?.access_token;
-            await fetch("/api/user/grant-and-approve", {
+            await safeFetch("/api/user/grant-and-approve", {
               method: "POST",
               credentials: "include",
               headers: {
@@ -964,7 +958,7 @@ export default function Upload() {
       const sessionData = await supabase.auth.getSession();
       const token = sessionData.data.session?.access_token;
 
-      const createRes = await fetch("/api/bunny/create", {
+      const createData = await safeFetch("/api/bunny/create", {
         method: "POST",
         credentials: "include",
         headers: {
@@ -974,12 +968,6 @@ export default function Upload() {
         body: JSON.stringify({ title: file.name }),
       });
 
-      if (!createRes.ok) {
-        const text = await createRes.text();
-        throw new Error(`Failed to initialize upload: ${text}`);
-      }
-
-      const createData = await createRes.json();
       const {
         videoId,
         libraryId,
@@ -1022,7 +1010,7 @@ export default function Upload() {
 
       const uploadImageToBunny = async (f: File) => {
         // Step 1: Get presigned URL
-        const presignRes = await fetch("/api/bunny/presign-image", {
+        const presignData = await safeFetch("/api/bunny/presign-image", {
           method: "POST",
           credentials: "include",
           headers: {
@@ -1031,17 +1019,14 @@ export default function Upload() {
           },
           body: JSON.stringify({ filename: f.name }),
         });
-        if (!presignRes.ok) throw new Error("Failed to generate presigned URL");
-        const { presignedUrl } = await presignRes.json();
+        const presignedUrl = presignData.presignedUrl;
 
         // Step 2: PUT blob directly
-        const uploadRes = await fetch(presignedUrl, {
+        const uploadData = await safeFetch(presignedUrl, {
           method: "PUT",
           headers: { "Content-Type": "application/octet-stream" },
           body: f,
         });
-        if (!uploadRes.ok) throw new Error("Failed to upload blob");
-        const uploadData = await uploadRes.json();
         return uploadData.url;
       };
 
@@ -1083,61 +1068,51 @@ export default function Upload() {
       const combinedTags = [...new Set(userTagsList)];
 
       // Insert into DB using backend for strict URL validation
-      const insertResponse = await fetch("/api/videos", {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${sessionData.data.session?.access_token}`,
-        },
-        body: JSON.stringify({
-          video_url: videoUrl,
-          thumbnail_url: customThumbnailUrl || undefined,
-          main_product_image_url: finalMainProductImageUrl || undefined,
-          caption: JSON.stringify({
-            captionText: DOMPurify.sanitize(caption.trim()),
-            product_name: DOMPurify.sanitize(productName.trim()),
-            product_price: productPrice
-              ? parseFloat(productPrice.replace(/[^\d.]/g, ""))
-              : null,
-            product_uses: DOMPurify.sanitize(productUses),
-            things_know: DOMPurify.sanitize(thingsToKnow),
-            coupon_code: DOMPurify.sanitize(couponCode.trim().toUpperCase()),
-            coupon_discount_value: DOMPurify.sanitize(
-              couponDiscountValue.trim(),
-            ),
-            coupon_discount_type: couponDiscountType,
-            coupon_instructions: DOMPurify.sanitize(couponInstructions.trim()),
-            coupon_terms: DOMPurify.sanitize(couponTerms.trim()),
-            trim_start: trimStart,
-            trim_end: trimEnd,
-          }),
-          product_url: DOMPurify.sanitize(submitProductUrl),
-          real_life_image_url: finalRealLifeImageUrl || undefined,
-          is_verified_real: finalRealLifeImageUrl ? true : false,
-          force_unverified_url: forceUnverified,
-          category_id: categoryId || undefined,
-          tags: combinedTags.length > 0 ? combinedTags : undefined,
-        }),
-      });
-
       let insertData;
       try {
-        insertData = await insertResponse.json();
-      } catch (e) {
-        throw new Error(
-          `Server connection failed (${insertResponse.status}) while saving video data.`,
-        );
-      }
-
-      if (!insertResponse.ok) {
-        if (insertData.requires_upgrade) {
+        insertData = await safeFetch("/api/videos", {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${sessionData.data.session?.access_token}`,
+          },
+          body: JSON.stringify({
+            video_url: videoUrl,
+            thumbnail_url: customThumbnailUrl || undefined,
+            main_product_image_url: finalMainProductImageUrl || undefined,
+            caption: JSON.stringify({
+              captionText: DOMPurify.sanitize(caption.trim()),
+              product_name: DOMPurify.sanitize(productName.trim()),
+              product_price: productPrice
+                ? parseFloat(productPrice.replace(/[^\d.]/g, ""))
+                : null,
+              product_uses: DOMPurify.sanitize(productUses),
+              things_know: DOMPurify.sanitize(thingsToKnow),
+              coupon_code: DOMPurify.sanitize(couponCode.trim().toUpperCase()),
+              coupon_discount_value: DOMPurify.sanitize(
+                couponDiscountValue.trim(),
+              ),
+              coupon_discount_type: couponDiscountType,
+              coupon_instructions: DOMPurify.sanitize(couponInstructions.trim()),
+              coupon_terms: DOMPurify.sanitize(couponTerms.trim()),
+              trim_start: trimStart,
+              trim_end: trimEnd,
+            }),
+            product_url: DOMPurify.sanitize(submitProductUrl),
+            real_life_image_url: finalRealLifeImageUrl || undefined,
+            is_verified_real: finalRealLifeImageUrl ? true : false,
+            force_unverified_url: forceUnverified,
+            category_id: categoryId || undefined,
+            tags: combinedTags.length > 0 ? combinedTags : undefined,
+          }),
+        });
+      } catch (err: any) {
+        if (err.data?.requires_upgrade) {
           setRequiresUpgrade(true);
-          throw new Error(
-            insertData.error || "Upgrade required to upload more videos.",
-          );
+          throw new Error(err.message || "Upgrade required to upload more videos.");
         }
-        throw new Error(insertData.error || "Failed to publish video");
+        throw new Error(err.message || "Failed to publish video");
       }
 
       let finalStatusMsg = "Published";
@@ -1163,12 +1138,11 @@ export default function Upload() {
       if (createdBunnyVideoId) {
         // Attempt to clean up the orphaned video on Bunny Stream
         currentUploadVideoIdRef.current = null; // Clear to prevent double delete
-        fetch(`/api/bunny/delete/${createdBunnyVideoId}`, {
+        safeFetch(`/api/bunny/delete/${createdBunnyVideoId}`, {
           method: "DELETE",
           credentials: "include",
           keepalive: true,
         })
-          .then((res) => res.json())
           .then(() =>
             console.log(
               `Cleaned up failed video upload ${createdBunnyVideoId}`,
@@ -1214,13 +1188,29 @@ export default function Upload() {
   }, [user, approvalStatus, isOnboarding, navigate]);
 
   if (!user) {
-    return <GuestGate type="upload" />;
+    return (
+      <div className="flex-1 w-full bg-bg-base text-text-primary font-sans h-full flex flex-col items-center justify-center p-6">
+        <div className="size-20 bg-surface-2 rounded-full flex items-center justify-center mb-6">
+          <UploadCloud className="size-10 text-text-secondary" strokeWidth={1.5} />
+        </div>
+        <h1 className="text-[24px] font-display font-bold mb-3">Upload</h1>
+        <p className="text-[15px] text-text-secondary text-center mb-8 max-w-[280px]">
+          Sign up to apply as a creator, share your amazing finds, and monetize your content.
+        </p>
+        <button 
+          onClick={() => navigate('/auth')}
+          className="w-full max-w-[280px] bg-brand-primary text-bg-base font-bold text-[16px] h-12 rounded-[12px] flex items-center justify-center active:scale-95 transition-transform"
+        >
+          Sign Up / Log In
+        </button>
+      </div>
+    );
   }
 
   if (approvalStatus === "loading") {
     return (
-      <div className="flex-1 flex items-center justify-center p-8 bg-[#0c0c0e]">
-        <Loader2 className="w-8 h-8 animate-spin text-[#ff5a36]" />
+      <div className="flex-1 flex items-center justify-center p-8 bg-bg-base">
+        <Loader2 className="w-8 h-8 animate-spin text-brand-primary" />
       </div>
     );
   }
@@ -1243,9 +1233,9 @@ export default function Upload() {
   }
 
   return (
-    <div className="flex-1 w-full bg-[#0c0c0e] text-white flex flex-col h-full font-sans">
+    <div className="flex-1 w-full bg-bg-base text-text-primary flex flex-col h-full font-sans">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 pt-6 sticky top-0 bg-[#0c0c0e] z-20">
+      <header className="flex items-center justify-between px-6 py-4 pt-6 sticky top-0 bg-bg-base z-20">
         <button
           type="button"
           aria-label="button"
@@ -1254,7 +1244,7 @@ export default function Upload() {
               ? navigate(-1)
               : navigate("/", { replace: true })
           }
-          className="text-white hover:text-zinc-300 transition-colors p-1 -ml-2"
+          className="text-text-primary hover:text-text-primary transition-colors p-1 -ml-2"
         >
           <svg
             width="24"
@@ -1278,7 +1268,7 @@ export default function Upload() {
               ? navigate(-1)
               : navigate("/", { replace: true })
           }
-          className="text-white hover:text-zinc-300 transition-colors p-1 -mr-2"
+          className="text-text-primary hover:text-text-primary transition-colors p-1 -mr-2"
         >
           <svg
             width="24"
@@ -1299,7 +1289,7 @@ export default function Upload() {
       <div className="flex-1 overflow-y-auto w-full px-5 pb-16 max-w-2xl mx-auto">
         <div
           className={cn(
-            "relative mx-auto bg-zinc-900 rounded-2xl overflow-hidden mb-6 border border-white/5 shadow-md flex items-center justify-center",
+            "relative mx-auto bg-surface-1 rounded-2xl overflow-hidden mb-6 border border-border-subtle shadow-md flex items-center justify-center",
             preview
               ? "w-full max-w-[253px] aspect-[9/16] h-auto"
               : "w-full aspect-[16/10]",
@@ -1338,7 +1328,7 @@ export default function Upload() {
               <button
                 type="button"
                 onClick={removeVideo}
-                className="absolute top-3 right-3 bg-black/60 p-2 rounded-full text-white/80 hover:text-white transition-colors z-10"
+                className="absolute top-3 right-3 bg-black/60 p-2 rounded-full text-text-primary/80 hover:text-text-primary transition-colors z-10"
               >
                 <Trash2 className="size-4" />
               </button>
@@ -1359,7 +1349,7 @@ export default function Upload() {
             </>
           ) : (
             <>
-              <div className="text-zinc-400 font-medium text-sm flex flex-col items-center">
+              <div className="text-text-secondary font-medium text-sm flex flex-col items-center">
                 <UploadCloud className="size-8 mb-2" />
                 Select a video
               </div>
@@ -1375,16 +1365,16 @@ export default function Upload() {
 
         {/* Video Trimmer */}
         {preview && videoDuration > 0 && (
-          <div className="flex flex-col bg-[#151518] p-4 rounded-2xl border border-white/5 shadow-sm gap-y-3 mb-6">
-            <span className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide flex justify-between items-center">
+          <div className="flex flex-col bg-surface-1 p-4 rounded-2xl border border-border-subtle shadow-sm gap-y-3 mb-6">
+            <span className="text-[14px] font-medium text-text-primary font-sans tracking-wide flex justify-between items-center">
               Trim Video
-              <span className="text-zinc-400 font-normal text-xs bg-black/20 px-2 py-1 rounded">
+              <span className="text-text-secondary font-normal text-xs bg-black/20 px-2 py-1 rounded">
                 {formatSeconds(trimEnd - trimStart)}s length
               </span>
             </span>
             <div className="flex gap-4">
               <div className="flex-1 flex flex-col gap-1">
-                <label className="text-[11px] text-zinc-400 uppercase font-bold tracking-wider mb-1 flex justify-between">
+                <label className="text-[11px] text-text-secondary uppercase font-bold tracking-wider mb-1 flex justify-between">
                   Start{" "}
                   <span className="text-purple-400">
                     {formatSeconds(trimStart)}s
@@ -1404,11 +1394,11 @@ export default function Upload() {
                         previewVideoRef.current.currentTime = val;
                     }
                   }}
-                  className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                  className="w-full h-1.5 bg-surface-2 rounded-lg appearance-none cursor-pointer accent-purple-500"
                 />
               </div>
               <div className="flex-1 flex flex-col gap-1">
-                <label className="text-[11px] text-zinc-400 uppercase font-bold tracking-wider mb-1 flex justify-between">
+                <label className="text-[11px] text-text-secondary uppercase font-bold tracking-wider mb-1 flex justify-between">
                   End{" "}
                   <span className="text-purple-400">{formatSeconds(trimEnd)}s</span>
                 </label>
@@ -1426,7 +1416,7 @@ export default function Upload() {
                         previewVideoRef.current.currentTime = val;
                     }
                   }}
-                  className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                  className="w-full h-1.5 bg-surface-2 rounded-lg appearance-none cursor-pointer accent-purple-500"
                 />
               </div>
             </div>
@@ -1435,16 +1425,16 @@ export default function Upload() {
 
         {/* Video Cover Thumbnail Selection Section */}
         {preview && (
-          <div className="flex flex-col bg-[#151518] p-4 rounded-2xl border border-white/5 shadow-sm gap-y-3 mb-6">
-            <span className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide">
+          <div className="flex flex-col bg-surface-1 p-4 rounded-2xl border border-border-subtle shadow-sm gap-y-3 mb-6">
+            <span className="text-[14px] font-medium text-text-primary font-sans tracking-wide">
               Video Cover Thumbnail
             </span>
-            <p className="text-xs text-zinc-400 leading-relaxed">
+            <p className="text-xs text-text-secondary leading-relaxed">
               Select a frame from your video or upload a custom image.
             </p>
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-4">
-                <div className="size-[84px] rounded-xl overflow-hidden border border-white/10 relative bg-zinc-900 shrink-0">
+                <div className="size-[84px] rounded-xl overflow-hidden border border-border-subtle relative bg-surface-1 shrink-0">
                   {thumbnailPreview ? (
                     <img
                       src={thumbnailPreview}
@@ -1454,13 +1444,13 @@ export default function Upload() {
                       decoding="async"
                     />
                   ) : (
-                    <div className="size-full flex items-center justify-center bg-zinc-900 text-zinc-650 text-xs">
+                    <div className="size-full flex items-center justify-center bg-surface-1 text-zinc-650 text-xs">
                       Generating...
                     </div>
                   )}
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label className="px-4 py-2 bg-zinc-900 border border-zinc-800 text-[12.5px] font-semibold text-white/95 rounded-xl hover:bg-zinc-800 transition-colors cursor-pointer text-center">
+                  <label className="px-4 py-2 bg-surface-1 border border-border-subtle text-[12.5px] font-semibold text-text-primary/95 rounded-xl hover:bg-surface-2 transition-colors cursor-pointer text-center">
                     Upload Custom Cover
                     <input
                       type="file"
@@ -1486,8 +1476,8 @@ export default function Upload() {
               </div>
 
               {filmstripFrames.length > 0 && (
-                <div className="border-t border-white/5 pt-4 mt-2">
-                  <span className="text-[12px] font-medium text-zinc-400 mb-3 block uppercase tracking-wider">
+                <div className="border-t border-border-subtle pt-4 mt-2">
+                  <span className="text-[12px] font-medium text-text-secondary mb-3 block uppercase tracking-wider">
                     Or select an auto-generated frame:
                   </span>
                   <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
@@ -1501,7 +1491,7 @@ export default function Upload() {
                               (idx + 1),
                           )
                         }
-                        className="shrink-0 w-[72px] aspect-[10/16] bg-zinc-900 rounded-lg overflow-hidden ring-1 ring-white/10 hover:ring-white/40 focus:ring-purple-500 transition-all focus:outline-none"
+                        className="shrink-0 w-[72px] aspect-[10/16] bg-surface-1 rounded-lg overflow-hidden ring-1 ring-white/10 hover:ring-white/40 focus:ring-purple-500 transition-all focus:outline-none"
                       >
                         <img
                           src={frame}
@@ -1522,11 +1512,11 @@ export default function Upload() {
         {/* Inputs */}
         <div className="flex flex-col gap-6">
           {/* Post Content Details Section */}
-          <div className="flex flex-col gap-6 bg-[#0c0c0e]">
+          <div className="flex flex-col gap-6 bg-bg-base">
             {/* Video Title */}
             <div className="flex flex-col">
               <div className="flex justify-between items-end mb-2">
-                <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide pl-1">
+                <label className="text-[14px] font-medium text-text-primary font-sans tracking-wide pl-1">
                   Video Title *
                 </label>
               </div>
@@ -1535,13 +1525,13 @@ export default function Upload() {
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
                 placeholder="Give your video a catchy title..."
-                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3.5 text-[15px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm min-h-[70px]"
+                className="w-full bg-surface-1 text-text-primary/90 placeholder-zinc-500 rounded-xl px-4 py-3.5 text-[15px] focus:outline-none border border-border-subtle font-sans tracking-wide shadow-sm min-h-[70px]"
               />
 
               {/* Quick Add category-specific hashtags */}
               {categoryId && (
                 <div className="mt-2.5 flex flex-wrap gap-1.5 pl-1">
-                  <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider py-1 pr-1 flex items-center">
+                  <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider py-1 pr-1 flex items-center">
                     Quick Add:
                   </span>
                   {(categories.find((c) => c.id === categoryId)?.name ===
@@ -1566,7 +1556,7 @@ export default function Upload() {
                           prev.filter((t) => t !== tag),
                         );
                       }}
-                      className="text-[11.5px] px-2.5 py-1 bg-white/5 text-zinc-300 font-medium rounded-full border border-white/10 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+                      className="text-[11.5px] px-2.5 py-1 bg-white/5 text-text-primary font-medium rounded-full border border-border-subtle hover:bg-surface-1 hover:text-text-primary transition-colors cursor-pointer"
                     >
                       {tag}
                     </button>
@@ -1578,7 +1568,7 @@ export default function Upload() {
             {/* Tags UI */}
             <div className="flex flex-col">
               <div className="flex justify-between items-end mb-2">
-                <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide pl-1">
+                <label className="text-[14px] font-medium text-text-primary font-sans tracking-wide pl-1">
                   Tags & Hashtags (Optional)
                 </label>
               </div>
@@ -1587,22 +1577,22 @@ export default function Upload() {
                 value={manualTags}
                 onChange={(e) => handleTagsInputChange(e.target.value)}
                 placeholder="tech, #gadget, review"
-                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3.5 text-[15px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm"
+                className="w-full bg-surface-1 text-text-primary/90 placeholder-zinc-500 rounded-xl px-4 py-3.5 text-[15px] focus:outline-none border border-border-subtle font-sans tracking-wide shadow-sm"
               />
-              <p className="text-[12px] text-zinc-400 mt-1 pl-1">
+              <p className="text-[12px] text-text-secondary mt-1 pl-1">
                 Separate tags with commas.
               </p>
             </div>
 
             {/* Category */}
             <div className="flex flex-col">
-              <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1">
+              <label className="text-[14px] font-medium text-text-primary font-sans tracking-wide mb-2 pl-1">
                 Category *
               </label>
               <select
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full bg-[#151518] text-white/90 rounded-xl px-4 py-3.5 text-[15px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm"
+                className="w-full bg-surface-1 text-text-primary/90 rounded-xl px-4 py-3.5 text-[15px] focus:outline-none border border-border-subtle font-sans tracking-wide shadow-sm"
                 required
               >
                 <option value="" disabled>
@@ -1621,13 +1611,13 @@ export default function Upload() {
 
           {/* Product Details Section */}
           <div className="flex flex-col gap-6">
-            <h3 className="text-[16px] font-bold text-white/90 tracking-wide -mb-2">
+            <h3 className="text-[16px] font-bold text-text-primary/90 tracking-wide -mb-2">
               Linked Product Details
             </h3>
 
             {/* Product Link */}
             <div className="flex flex-col">
-              <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1">
+              <label className="text-[14px] font-medium text-text-primary font-sans tracking-wide mb-2 pl-1">
                 Product Link (Required) *
               </label>
               <div className="relative">
@@ -1636,17 +1626,17 @@ export default function Upload() {
                   value={productUrl}
                   onChange={(e) => setProductUrl(e.target.value)}
                   placeholder="e.g. amazon.in/products/item or https://..."
-                  className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3.5 text-[15px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm pr-10"
+                  className="w-full bg-surface-1 text-text-primary/90 placeholder-zinc-500 rounded-xl px-4 py-3.5 text-[15px] focus:outline-none border border-border-subtle font-sans tracking-wide shadow-sm pr-10"
                 />
                 {isVerifyingUrl && (
                   <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
-                    <Loader2 className="size-4 text-zinc-400 animate-spin" />
+                    <Loader2 className="size-4 text-text-secondary animate-spin" />
                   </div>
                 )}
               </div>
               {isVerifyingUrl && (
-                <p className="text-zinc-400 text-[11px] mt-1 pl-1 font-sans animate-pulse flex items-center gap-1">
-                  <RefreshCw className="size-3 animate-spin text-[#ff5a36]" />{" "}
+                <p className="text-text-secondary text-[11px] mt-1 pl-1 font-sans animate-pulse flex items-center gap-1">
+                  <RefreshCw className="size-3 animate-spin text-brand-primary" />{" "}
                   Verifying website link & scraping metadata...
                 </p>
               )}
@@ -1654,7 +1644,7 @@ export default function Upload() {
                 <p
                   className={cn(
                     "text-xs mt-1 pl-1 font-sans flex items-start gap-1",
-                    isUrlValid ? "text-amber-400" : "text-red-400",
+                    isUrlValid ? "text-brand-primarymber-400" : "text-red-400",
                   )}
                 >
                   <AlertCircle className="size-3.5 shrink-0 mt-0.5" />
@@ -1677,13 +1667,13 @@ export default function Upload() {
                         decoding="async"
                       />
                     ) : (
-                      <Globe className="size-5 text-zinc-400 shrink-0" />
+                      <Globe className="size-5 text-text-secondary shrink-0" />
                     )}
                     <div className="min-w-0">
-                      <p className="text-zinc-200 text-xs font-semibold truncate font-sans">
+                      <p className="text-text-primary text-xs font-semibold truncate font-sans">
                         {urlMetadata.title}
                       </p>
-                      <p className="text-zinc-400 text-[10px] uppercase tracking-wider font-bold font-mono flex flex-wrap items-center gap-1.5 mt-0.5">
+                      <p className="text-text-secondary text-[10px] uppercase tracking-wider font-bold font-mono flex flex-wrap items-center gap-1.5 mt-0.5">
                         <span>{urlMetadata.domain}</span>
                         {extractStoreName(productUrl) &&
                           extractStoreName(productUrl) !== "Store" && (
@@ -1706,7 +1696,7 @@ export default function Upload() {
 
             {/* Product Name */}
             <div className="flex flex-col">
-              <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1">
+              <label className="text-[14px] font-medium text-text-primary font-sans tracking-wide mb-2 pl-1">
                 Product Name *
               </label>
               <input
@@ -1715,17 +1705,17 @@ export default function Upload() {
                 value={productName}
                 onChange={(e) => setProductName(e.target.value)}
                 placeholder="e.g. Premium Wireless Earbuds"
-                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3.5 text-[15px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm"
+                className="w-full bg-surface-1 text-text-primary/90 placeholder-zinc-500 rounded-xl px-4 py-3.5 text-[15px] focus:outline-none border border-border-subtle font-sans tracking-wide shadow-sm"
               />
             </div>
 
             {/* Product Price */}
             <div className="flex flex-col">
-              <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1">
+              <label className="text-[14px] font-medium text-text-primary font-sans tracking-wide mb-2 pl-1">
                 Product Price (INR ₹) *
               </label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 font-sans font-bold text-[16px]">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary font-sans font-bold text-[16px]">
                   ₹
                 </span>
                 <input
@@ -1739,23 +1729,23 @@ export default function Upload() {
                     );
                   }}
                   placeholder="999"
-                  className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl pl-8 pr-4 py-3.5 text-[15px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm font-semibold"
+                  className="w-full bg-surface-1 text-text-primary/90 placeholder-zinc-500 rounded-xl pl-8 pr-4 py-3.5 text-[15px] focus:outline-none border border-border-subtle font-sans tracking-wide shadow-sm font-semibold"
                 />
               </div>
             </div>
 
             {/* Product Images */}
             <div className="flex flex-col mt-2">
-              <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-3 pl-1">
+              <label className="text-[14px] font-medium text-text-primary font-sans tracking-wide mb-3 pl-1">
                 Product Images
               </label>
               <div className="flex gap-4">
                 <div className="flex flex-col gap-2">
-                  <span className="text-[12px] text-zinc-400 font-medium pl-1">
+                  <span className="text-[12px] text-text-secondary font-medium pl-1">
                     Product Photo *
                   </span>
                   {mainProductPreview ? (
-                    <div className="size-[84px] rounded-2xl overflow-hidden shrink-0 border border-white/5 shadow-sm bg-zinc-900 relative">
+                    <div className="size-[84px] rounded-2xl overflow-hidden shrink-0 border border-border-subtle shadow-sm bg-surface-1 relative">
                       <img
                         src={mainProductPreview}
                         className="size-full object-cover"
@@ -1770,13 +1760,13 @@ export default function Upload() {
                           setMainProductFile(null);
                           setMainProductPreview(null);
                         }}
-                        className="absolute top-1 right-1 bg-[#0c0c0e]/50 rounded-full p-1"
+                        className="absolute top-1 right-1 bg-bg-base/50 rounded-full p-1"
                       >
                         <X className="size-4" />
                       </button>
                     </div>
                   ) : (
-                    <label className="size-[84px] rounded-2xl shrink-0 border border-white/10 bg-[#151518] flex items-center justify-center hover:bg-white/5 transition-colors cursor-pointer shadow-sm relative">
+                    <label className="size-[84px] rounded-2xl shrink-0 border border-border-subtle bg-surface-1 flex items-center justify-center hover:bg-surface-1 transition-colors cursor-pointer shadow-sm relative">
                       <svg
                         width="24"
                         height="24"
@@ -1786,7 +1776,7 @@ export default function Upload() {
                         strokeWidth="2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        className="text-zinc-400"
+                        className="text-text-secondary"
                       >
                         <path d="M5 12h14" />
                         <path d="M12 5v14" />
@@ -1801,11 +1791,11 @@ export default function Upload() {
                   )}
                 </div>
                 <div className="flex flex-col gap-2">
-                  <span className="text-[12px] text-zinc-400 font-medium pl-1">
+                  <span className="text-[12px] text-text-secondary font-medium pl-1">
                     Real Photo (Optional)
                   </span>
                   {realLifePreview ? (
-                    <div className="size-[84px] rounded-2xl overflow-hidden shrink-0 border border-white/5 shadow-sm bg-zinc-900 relative">
+                    <div className="size-[84px] rounded-2xl overflow-hidden shrink-0 border border-border-subtle shadow-sm bg-surface-1 relative">
                       <img
                         src={realLifePreview}
                         className="size-full object-cover"
@@ -1820,13 +1810,13 @@ export default function Upload() {
                           setRealLifeFile(null);
                           setRealLifePreview(null);
                         }}
-                        className="absolute top-1 right-1 bg-[#0c0c0e]/50 rounded-full p-1"
+                        className="absolute top-1 right-1 bg-bg-base/50 rounded-full p-1"
                       >
                         <X className="size-4" />
                       </button>
                     </div>
                   ) : (
-                    <label className="size-[84px] rounded-2xl shrink-0 border border-white/10 bg-[#151518] flex items-center justify-center hover:bg-white/5 transition-colors cursor-pointer shadow-sm relative">
+                    <label className="size-[84px] rounded-2xl shrink-0 border border-border-subtle bg-surface-1 flex items-center justify-center hover:bg-surface-1 transition-colors cursor-pointer shadow-sm relative">
                       <svg
                         width="24"
                         height="24"
@@ -1836,7 +1826,7 @@ export default function Upload() {
                         strokeWidth="2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        className="text-zinc-400"
+                        className="text-text-secondary"
                       >
                         <path d="M5 12h14" />
                         <path d="M12 5v14" />
@@ -1855,37 +1845,37 @@ export default function Upload() {
 
             {/* Tested Use Cases */}
             <div className="flex flex-col mt-4">
-              <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1 flex justify-between items-center">
+              <label className="text-[14px] font-medium text-text-primary font-sans tracking-wide mb-2 pl-1 flex justify-between items-center">
                 <span>Tested Use Cases (Optional)</span>
-                <span className="text-[11px] text-zinc-500 font-normal">One per line or separated by bullets</span>
+                <span className="text-[11px] text-text-secondary font-normal">One per line or separated by bullets</span>
               </label>
               <textarea
                 value={productUses}
                 onChange={(e) => setProductUses(e.target.value)}
                 placeholder="• Stunning festive design with a graceful silhouette&#10;• Crafted from premium fabric with beautiful detailing&#10;• Perfect outfit for weddings, Diwali, and festive celebrations"
                 rows={3}
-                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm leading-relaxed"
+                className="w-full bg-surface-1 text-text-primary/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-border-subtle font-sans tracking-wide shadow-sm leading-relaxed"
               />
             </div>
 
             {/* Things to Know (Pros & Cons) */}
             <div className="flex flex-col mt-4">
-              <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1 flex justify-between items-center">
+              <label className="text-[14px] font-medium text-text-primary font-sans tracking-wide mb-2 pl-1 flex justify-between items-center">
                 <span>Things to Know / Pros & Cons (Optional)</span>
-                <span className="text-[11px] text-zinc-500 font-normal">Use Pros:, Cons:, Things to know: headings</span>
+                <span className="text-[11px] text-text-secondary font-normal">Use Pros:, Cons:, Things to know: headings</span>
               </label>
               <textarea
                 value={thingsToKnow}
                 onChange={(e) => setThingsToKnow(e.target.value)}
                 placeholder="Pros:&#10;- Beautiful festive design with a dreamy, elegant flow.&#10;- Lightweight and comfortable to wear for long events.&#10;&#10;Cons:&#10;- Delicate embroidery requires careful handling and dry cleaning.&#10;- Sizing may require minor alterations for a perfect fit.&#10;&#10;Things to know:&#10;- Best paired with statement traditional jewelry and heels to elevate the look."
                 rows={8}
-                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm leading-relaxed font-mono text-xs"
+                className="w-full bg-surface-1 text-text-primary/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-border-subtle font-sans tracking-wide shadow-sm leading-relaxed font-mono text-xs"
               />
             </div>
 
             {/* Promo Coupon */}
             <div className="flex flex-col mt-4">
-              <label className="text-[14px] font-medium text-zinc-300 font-sans tracking-wide mb-2 pl-1">
+              <label className="text-[14px] font-medium text-text-primary font-sans tracking-wide mb-2 pl-1">
                 Promo Coupon Code (Optional)
               </label>
               <div className="flex gap-2 mb-3">
@@ -1894,12 +1884,12 @@ export default function Upload() {
                   value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                   placeholder="Enter coupon code"
-                  className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm font-semibold uppercase tracking-widest text-emerald-400"
+                  className="w-full bg-surface-1 text-text-primary/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-border-subtle font-sans tracking-wide shadow-sm font-semibold uppercase tracking-widest text-emerald-400"
                 />
               </div>
 
               <div className="flex flex-col mb-3">
-                <label className="text-[13px] font-medium text-zinc-400 font-sans tracking-wide mb-2 pl-1">
+                <label className="text-[13px] font-medium text-text-secondary font-sans tracking-wide mb-2 pl-1">
                   Discount Amount (e.g. "USE THIS COUPON TO SAVE 20%" or "USE
                   THIS COUPON TO SAVE ₹500")
                 </label>
@@ -1909,12 +1899,12 @@ export default function Upload() {
                     value={couponDiscountValue}
                     onChange={(e) => setCouponDiscountValue(e.target.value)}
                     placeholder="Amount"
-                    className="flex-1 bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm"
+                    className="flex-1 bg-surface-1 text-text-primary/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-border-subtle font-sans tracking-wide shadow-sm"
                   />
                   <select
                     value={couponDiscountType}
                     onChange={(e) => setCouponDiscountType(e.target.value)}
-                    className="w-[110px] bg-[#151518] text-white/90 rounded-xl px-3 py-3 text-[14px] focus:outline-none border border-white/5 font-sans shadow-sm appearance-none"
+                    className="w-[110px] bg-surface-1 text-text-primary/90 rounded-xl px-3 py-3 text-[14px] focus:outline-none border border-border-subtle font-sans shadow-sm appearance-none"
                   >
                     <option value="percentage">% Off</option>
                     <option value="rupees">₹ Off</option>
@@ -1926,16 +1916,16 @@ export default function Upload() {
                 value={couponInstructions}
                 onChange={(e) => setCouponInstructions(e.target.value)}
                 placeholder="Coupon Details & Terms (e.g. Valid on first order only)"
-                className="w-full bg-[#151518] text-white/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-white/5 font-sans tracking-wide shadow-sm min-h-[70px]"
+                className="w-full bg-surface-1 text-text-primary/90 placeholder-zinc-500 rounded-xl px-4 py-3 text-[14px] focus:outline-none border border-border-subtle font-sans tracking-wide shadow-sm min-h-[70px]"
               />
             </div>
 
-            <div className="bg-[#101014] border border-white/5 rounded-2xl p-4 mt-2">
+            <div className="bg-[#101014] border border-border-subtle rounded-2xl p-4 mt-2">
               <h4 className="text-[14px] font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-400 mb-1 flex items-center gap-2">
                 <Sparkles className="size-4 text-purple-400" />
                 AI Discovery & Smart Tags
               </h4>
-              <p className="text-[12px] text-zinc-400 leading-relaxed font-sans mt-2">
+              <p className="text-[12px] text-text-secondary leading-relaxed font-sans mt-2">
                 Based on the URL, video, and your review, our AI will
                 automatically structure this product, generate search metadata,
                 find optimal hashtags, and generate discovery signals behind the
@@ -1946,14 +1936,14 @@ export default function Upload() {
         </div>
 
         {/* Footer Action */}
-        <div className="mt-8 pb-32 pt-4 border-t border-white/5">
+        <div className="mt-8 pb-32 pt-4 border-t border-border-subtle">
           {error && (
             <div className="text-center mb-3">
               <p className="text-red-400 text-xs mb-2">{error}</p>
               {requiresUpgrade && (
                 <button
                   onClick={() => navigate("/subscription")}
-                  className="bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold py-2 px-6 rounded-full transition-colors flex items-center justify-center gap-2 mx-auto"
+                  className="bg-purple-600 hover:bg-purple-500 text-text-primary text-xs font-bold py-2 px-6 rounded-full transition-colors flex items-center justify-center gap-2 mx-auto"
                   type="button"
                 >
                   <Zap className="size-3" />
@@ -1968,7 +1958,7 @@ export default function Upload() {
               aria-label="Preview"
               onClick={() => setShowPreviewModal(true)}
               disabled={!preview}
-              className="w-1/3 bg-[#151518] hover:bg-[#1a1a20] active:scale-[0.98] border border-white/10 disabled:opacity-50 text-white font-bold py-4 px-2 rounded-2xl transition-all text-[15px] shadow-sm flex items-center justify-center gap-2"
+              className="w-1/3 bg-surface-1 hover:bg-[#1a1a20] active:scale-[0.98] border border-border-subtle disabled:opacity-50 text-text-primary font-bold py-4 px-2 rounded-2xl transition-all text-[15px] shadow-sm flex items-center justify-center gap-2"
             >
               Preview
             </button>
@@ -1984,7 +1974,7 @@ export default function Upload() {
                 !productPrice.trim() ||
                 isUploading
               }
-              className="flex-1 w-full bg-[#ff5a36] hover:bg-[#f4284d] disabled:opacity-50 active:scale-[0.98] text-white font-bold py-4 px-6 rounded-2xl transition-all flex items-center justify-center text-[16px] shadow-[0_4px_14px_rgba(239,41,80,0.5)] tracking-wide"
+              className="flex-1 w-full bg-brand-primary hover:bg-[#f4284d] disabled:opacity-50 active:scale-[0.98] text-text-primary font-bold py-4 px-6 rounded-2xl transition-all flex items-center justify-center text-[16px] shadow-[0_4px_14px_rgba(239,41,80,0.5)] tracking-wide"
             >
               {isUploading ? (
                 <Loader2 className="size-5 animate-spin" />
@@ -1998,10 +1988,10 @@ export default function Upload() {
 
       {/* Full-Screen Loading Overlay */}
       {isUploading && (
-        <div className="fixed inset-0 bg-[#0c0c0e]/90 backdrop-blur-md z-[120] flex flex-col items-center justify-center p-6 animate-fade-in">
+        <div className="fixed inset-0 bg-bg-base/90 backdrop-blur-md z-[120] flex flex-col items-center justify-center p-6 animate-fade-in">
           <div className="flex flex-col items-center gap-6 w-full max-w-sm">
             <div className="relative size-20">
-              <div className="absolute inset-0 rounded-full border-4 border-white/5"></div>
+              <div className="absolute inset-0 rounded-full border-4 border-border-subtle"></div>
               <svg
                 className="absolute inset-0 size-full -rotate-90 transform"
                 viewBox="0 0 100 100"
@@ -2010,23 +2000,23 @@ export default function Upload() {
                   cx="50"
                   cy="50"
                   r="46"
-                  className="fill-none stroke-[#ff5a36] transition-all duration-300 ease-out"
+                  className="fill-none stroke-[var(--color-brand-primary)] transition-all duration-300 ease-out"
                   strokeWidth="8"
                   strokeLinecap="round"
                   strokeDasharray={`${progress * 2.89} 289`}
                 />
               </svg>
-              <div className="absolute inset-0 flex items-center justify-center text-white font-bold font-sans text-xl">
+              <div className="absolute inset-0 flex items-center justify-center text-text-primary font-bold font-sans text-xl">
                 {Math.round(progress)}%
               </div>
             </div>
 
             <div className="text-center flex flex-col items-center gap-1.5 w-full">
-              <h3 className="text-lg font-bold text-white tracking-wide flex items-center gap-2">
-                <Loader2 className="size-5 animate-spin text-[#ff5a36]" />
+              <h3 className="text-lg font-bold text-text-primary tracking-wide flex items-center gap-2">
+                <Loader2 className="size-5 animate-spin text-brand-primary" />
                 {uploadStatusText}
               </h3>
-              <p className="text-zinc-400 text-[13px] text-center max-w-[280px]">
+              <p className="text-text-secondary text-[13px] text-center max-w-[280px]">
                 Please stay on this page while we process your content.
               </p>
             </div>
@@ -2037,13 +2027,13 @@ export default function Upload() {
       {/* Modern High-End Validation Alert Popup Panel overlay */}
       {validationPopup && (
         <div
-          className="fixed inset-0 bg-[#0c0c0e]/85 backdrop-blur-sm z-[100] flex items-center justify-center p-6 animate-fade-in"
+          className="fixed inset-0 bg-bg-base/85 backdrop-blur-sm z-[100] flex items-center justify-center p-6 animate-fade-in"
           onClick={(e) => {
             e.stopPropagation();
           }}
         >
-          <div className="bg-[#151518] border border-red-500/25 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl relative">
-            <div className="size-12 bg-red-500/10 text-[#ff5a36] rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+          <div className="bg-surface-1 border border-red-500/25 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl relative">
+            <div className="size-12 bg-red-500/10 text-brand-primary rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
               <svg
                 className="size-5"
                 fill="none"
@@ -2058,13 +2048,13 @@ export default function Upload() {
                 />
               </svg>
             </div>
-            <h3 className="font-bold text-[17px] text-white mb-2 tracking-wide text-center">
+            <h3 className="font-bold text-[17px] text-text-primary mb-2 tracking-wide text-center">
               Video Format & Limit Warning
             </h3>
-            <div className="gap-y-1.5 mb-6 text-zinc-400 text-xs leading-relaxed text-left max-h-[160px] overflow-y-auto pl-1 pr-1">
+            <div className="gap-y-1.5 mb-6 text-text-secondary text-xs leading-relaxed text-left max-h-[160px] overflow-y-auto pl-1 pr-1">
               {validationPopup.map((err, idx) => (
-                <p key={idx} className="flex items-start gap-2 text-zinc-300">
-                  <span className="text-[#ff5a36] shrink-0 font-bold">•</span>
+                <p key={idx} className="flex items-start gap-2 text-text-primary">
+                  <span className="text-brand-primary shrink-0 font-bold">•</span>
                   <span>{err}</span>
                 </p>
               ))}
@@ -2076,7 +2066,7 @@ export default function Upload() {
                 e.stopPropagation();
                 setValidationPopup(null);
               }}
-              className="w-full bg-[#ff5a36] hover:bg-[#f4284d] text-white font-bold py-3 px-4 rounded-xl transition-all shadow-[0_4px_10px_rgba(239,41,80,0.3)] hover:scale-[1.01]"
+              className="w-full bg-brand-primary hover:bg-[#f4284d] text-text-primary font-bold py-3 px-4 rounded-xl transition-all shadow-[0_4px_10px_rgba(239,41,80,0.3)] hover:scale-[1.01]"
             >
               Understand & Adjust
             </button>
@@ -2100,20 +2090,20 @@ export default function Upload() {
                 title="Go Back"
                 aria-label="Close"
                 onClick={() => setShowPreviewModal(false)}
-                className="text-white hover:text-white/80 p-1"
+                className="text-text-primary hover:text-text-primary/80 p-1"
               >
                 <ArrowLeft className="size-6 drop-shadow-md" />
               </button>
               <div className="flex gap-5 drop-shadow-md font-sans">
-                <span className="text-white font-bold text-[17px] tracking-wide relative after:content-[''] after:absolute after:-bottom-1.5 after:left-1/2 after:-translate-x-1/2 after:w-5 after:h-1 after:bg-white after:rounded-full">
+                <span className="text-text-primary font-bold text-[17px] tracking-wide relative after:content-[''] after:absolute after:-bottom-1.5 after:left-1/2 after:-translate-x-1/2 after:w-5 after:h-1 after:bg-white after:rounded-full">
                   For You
                 </span>
-                <span className="text-white/60 font-bold text-[17px] tracking-wide">
+                <span className="text-text-primary/60 font-bold text-[17px] tracking-wide">
                   Following
                 </span>
               </div>
               <div className="w-8 flex justify-end">
-                <Search className="size-6 text-white drop-shadow-md" />
+                <Search className="size-6 text-text-primary drop-shadow-md" />
               </div>
             </div>
 
@@ -2140,13 +2130,13 @@ export default function Upload() {
               {/* Bottom Left Info Panel */}
               <div className="absolute bottom-[80px] left-0 right-[60px] p-4 flex flex-col justify-end z-10 pointer-events-auto pb-safe">
                 <div className="flex items-center">
-                  <span className="font-bold text-white text-[16px] tracking-wide drop-shadow-md">
+                  <span className="font-bold text-text-primary text-[16px] tracking-wide drop-shadow-md">
                     {user?.user_metadata?.username || "user"}
                   </span>
                 </div>
                 {caption && (
                   <div className="mt-2 text-left pointer-events-auto">
-                    <p className="text-white/95 text-[14px] font-sans drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] leading-[1.3] line-clamp-2 font-normal pr-2">
+                    <p className="text-text-primary/95 text-[14px] font-sans drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] leading-[1.3] line-clamp-2 font-normal pr-2">
                       {caption}
                     </p>
                   </div>
@@ -2159,7 +2149,7 @@ export default function Upload() {
                       .map((tag, i) => (
                         <span
                           key={i}
-                          className="text-[#ff5a36] font-semibold text-[13px] drop-shadow-md shadow-black font-sans"
+                          className="text-brand-primary font-semibold text-[13px] drop-shadow-md shadow-black font-sans"
                         >
                           {tag.trim().startsWith("#")
                             ? tag.trim()
@@ -2169,8 +2159,8 @@ export default function Upload() {
                   </div>
                 )}
                 <div className="flex flex-col gap-2 mt-4 pointer-events-auto">
-                  <div className="group flex items-center bg-[#0c0c0e]/45 backdrop-blur-md rounded-xl p-1.5 pr-4 w-fit border border-white/10 shadow-md text-left">
-                    <div className="size-10 rounded-lg overflow-hidden shrink-0 flex items-center justify-center mr-3 border border-white/5 bg-zinc-900">
+                  <div className="group flex items-center bg-bg-base/45 backdrop-blur-md rounded-xl p-1.5 pr-4 w-fit border border-border-subtle shadow-md text-left">
+                    <div className="size-10 rounded-lg overflow-hidden shrink-0 flex items-center justify-center mr-3 border border-border-subtle bg-surface-1">
                       {mainProductPreview ? (
                         <img
                           src={mainProductPreview}
@@ -2180,11 +2170,11 @@ export default function Upload() {
                           decoding="async"
                         />
                       ) : (
-                        <ShoppingBag className="size-5 text-white/50" />
+                        <ShoppingBag className="size-5 text-text-primary/50" />
                       )}
                     </div>
                     <div className="flex flex-col items-start justify-center max-w-[170px]">
-                      <span className="text-[13px] font-sans font-semibold text-white/95 leading-tight truncate w-full">
+                      <span className="text-[13px] font-sans font-semibold text-text-primary/95 leading-tight truncate w-full">
                         {productName || "Product Name"}
                       </span>
                       <span className="text-[12px] font-sans text-rose-450 font-bold mt-0.5">
@@ -2200,8 +2190,8 @@ export default function Upload() {
               {/* Right Side Icons */}
               <div className="absolute bottom-[80px] right-2 w-14 flex flex-col items-center gap-y-5 z-20 pointer-events-auto pb-safe">
                 <div className="relative mb-2">
-                  <div className="size-[48px] rounded-full border-[1.5px] border-white/80 bg-zinc-800 overflow-hidden shrink-0 shadow-sm flex flex-col justify-center items-center">
-                    <span className="text-white text-xl font-bold">
+                  <div className="size-[48px] rounded-full border-[1.5px] border-white/80 bg-surface-2 overflow-hidden shrink-0 shadow-sm flex flex-col justify-center items-center">
+                    <span className="text-text-primary text-xl font-bold">
                       {user?.user_metadata?.username
                         ? user.user_metadata.username.charAt(0).toUpperCase()
                         : "U"}
@@ -2210,20 +2200,20 @@ export default function Upload() {
                   <button
                     type="button"
                     title="Follow"
-                    className="absolute -bottom-2 left-1/2 -translate-x-1/2 size-6 rounded-full bg-[#ff5a36] text-white flex items-center justify-center shadow-md border-[2px] border-black transition-transform active:scale-95 z-20"
+                    className="absolute -bottom-2 left-1/2 -translate-x-1/2 size-6 rounded-full bg-brand-primary text-text-primary flex items-center justify-center shadow-md border-[2px] border-black transition-transform active:scale-95 z-20"
                   >
                     <Plus className="size-4" strokeWidth={3} />
                   </button>
                 </div>
                 <div className="flex flex-col items-center group">
-                  <Heart className="size-9 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]" />
-                  <span className="text-white font-sans text-[13px] font-semibold drop-shadow-md">
+                  <Heart className="size-9 text-text-primary drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]" />
+                  <span className="text-text-primary font-sans text-[13px] font-semibold drop-shadow-md">
                     0
                   </span>
                 </div>
                 <div className="flex flex-col items-center group mt-1">
-                  <Bookmark className="size-9 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]" />
-                  <span className="text-white font-sans text-[13px] font-semibold drop-shadow-md">
+                  <Bookmark className="size-9 text-text-primary drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]" />
+                  <span className="text-text-primary font-sans text-[13px] font-semibold drop-shadow-md">
                     0
                   </span>
                 </div>
@@ -2237,7 +2227,7 @@ export default function Upload() {
                   >
                     <path d="M21 12l-7-7v4C7 10 4 15 3 20c2.5-3.5 6-5.1 11-5.1V19l7-7z" />
                   </svg>
-                  <span className="text-white font-sans text-[13px] font-semibold drop-shadow-md">
+                  <span className="text-text-primary font-sans text-[13px] font-semibold drop-shadow-md">
                     0
                   </span>
                 </div>
@@ -2250,12 +2240,12 @@ export default function Upload() {
       {/* Link Verification Warning Popup */}
       {showLinkWarning && (
         <div
-          className="fixed inset-0 bg-[#0c0c0e]/85 backdrop-blur-sm z-[100] flex items-center justify-center p-6 animate-fade-in"
+          className="fixed inset-0 bg-bg-base/85 backdrop-blur-sm z-[100] flex items-center justify-center p-6 animate-fade-in"
           onClick={(e) => {
             e.stopPropagation();
           }}
         >
-          <div className="bg-[#151518] border border-yellow-500/30 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl relative">
+          <div className="bg-surface-1 border border-yellow-500/30 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl relative">
             <div className="size-12 bg-yellow-500/10 text-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-yellow-500/20">
               <svg
                 className="size-6"
@@ -2271,10 +2261,10 @@ export default function Upload() {
                 />
               </svg>
             </div>
-            <h3 className="font-bold text-[17px] text-white mb-2 tracking-wide text-center">
+            <h3 className="font-bold text-[17px] text-text-primary mb-2 tracking-wide text-center">
               Unrecognized Product Link
             </h3>
-            <p className="text-zinc-400 text-sm leading-relaxed text-center mb-6">
+            <p className="text-text-secondary text-sm leading-relaxed text-center mb-6">
               This link doesn't look like a standard e-commerce or product page.
               Are you sure you want to proceed?
               <br />
@@ -2290,7 +2280,7 @@ export default function Upload() {
                   e.stopPropagation();
                   setShowLinkWarning(false);
                 }}
-                className="w-full bg-[#ff5a36] hover:bg-[#f4284d] text-white font-bold py-3 px-4 rounded-xl transition-all shadow-[0_4px_10px_rgba(239,41,80,0.3)] hover:scale-[1.01]"
+                className="w-full bg-brand-primary hover:bg-[#f4284d] text-text-primary font-bold py-3 px-4 rounded-xl transition-all shadow-[0_4px_10px_rgba(239,41,80,0.3)] hover:scale-[1.01]"
               >
                 Change Link
               </button>
@@ -2302,7 +2292,7 @@ export default function Upload() {
                   setShowLinkWarning(false);
                   handleUpload(undefined, true);
                 }}
-                className="w-full bg-[#2a2a2f] hover:bg-[#35353c] text-white font-semibold py-3 px-4 rounded-xl transition-all hover:scale-[1.01]"
+                className="w-full bg-[#2a2a2f] hover:bg-[#35353c] text-text-primary font-semibold py-3 px-4 rounded-xl transition-all hover:scale-[1.01]"
               >
                 Upload Anyway (Needs Admin Review)
               </button>

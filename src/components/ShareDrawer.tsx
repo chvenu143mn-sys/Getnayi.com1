@@ -93,15 +93,15 @@ export function ShareDrawer({
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="bg-[#1c1c1e] w-full max-w-md rounded-t-3xl flex flex-col shadow-2xl relative pb-safe"
+            className="bg-surface-2 w-full max-w-md rounded-t-3xl flex flex-col shadow-2xl relative pb-safe"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto mt-4 mb-2 shrink-0" />
 
-            <div className="px-6 py-4 flex justify-between items-center text-white border-b border-white/10 shrink-0">
+            <div className="px-6 py-4 flex justify-between items-center text-text-primary border-b border-border-subtle shrink-0">
               <div className="flex flex-col">
                 <h3 className="font-bold text-lg">Share Content</h3>
-                <p className="text-sm text-zinc-400">Share to other platforms or copy the link.</p>
+                <p className="text-sm text-text-secondary">Share to other platforms or copy the link.</p>
               </div>
               <button 
                 onClick={onClose} 
@@ -116,17 +116,17 @@ export function ShareDrawer({
               
               {/* Copy Link Section */}
               <div className="flex flex-col gap-2">
-                <span className="text-xs font-semibold text-zinc-400 uppercase tracking-widest pl-1">Direct Video Link</span>
-                <div className="flex flex-col sm:flex-row items-center bg-black/40 rounded-xl p-2 border border-white/5 relative gap-2 sm:gap-0">
+                <span className="text-xs font-semibold text-text-secondary uppercase tracking-widest pl-1">Direct Video Link</span>
+                <div className="flex flex-col sm:flex-row items-center bg-black/40 rounded-xl p-2 border border-border-subtle relative gap-2 sm:gap-0">
                   <input 
                     type="text" 
                     readOnly 
                     value={url} 
-                    className="w-full sm:flex-1 bg-transparent text-sm text-white/90 outline-none px-2 truncate cursor-text"
+                    className="w-full sm:flex-1 bg-transparent text-sm text-text-primary/90 outline-none px-2 truncate cursor-text"
                   />
                   <button 
                     onClick={handleCopyLink}
-                    className="w-full sm:w-auto ml-0 sm:ml-2 flex items-center justify-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white font-medium text-sm transition-all"
+                    className="w-full sm:w-auto ml-0 sm:ml-2 flex items-center justify-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-text-primary font-medium text-sm transition-all"
                   >
                     <AnimatePresence mode="wait">
                       {copied ? (
@@ -154,10 +154,10 @@ export function ShareDrawer({
                   Share via...
                 </button>
               ) : (
-                <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-center flex flex-col items-center justify-center">
-                  <Share2 className="w-6 h-6 text-zinc-400 mb-2" />
-                  <p className="text-sm font-medium text-zinc-400">Your device doesn't support the native Web Share API.</p>
-                  <p className="text-xs text-zinc-400 mt-1">Please use the copy link button above.</p>
+                <div className="p-4 rounded-xl bg-white/5 border border-border-subtle text-center flex flex-col items-center justify-center">
+                  <Share2 className="w-6 h-6 text-text-secondary mb-2" />
+                  <p className="text-sm font-medium text-text-secondary">Your device doesn't support the native Web Share API.</p>
+                  <p className="text-xs text-text-secondary mt-1">Please use the copy link button above.</p>
                 </div>
               )}
             </div>

@@ -31,7 +31,7 @@ export default function AdminModeration({
         <h1 className="text-2xl font-bold text-emerald-400 tracking-tight flex items-center gap-2">
           Moderation Queue
         </h1>
-        <p className="text-zinc-400 text-xs mt-1">
+        <p className="text-text-secondary text-xs mt-1">
           Review flagged videos that were automatically captured from non-allowlisted e-commerce platforms. Approve or reject their feed entry.
         </p>
       </div>

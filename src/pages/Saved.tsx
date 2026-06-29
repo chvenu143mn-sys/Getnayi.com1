@@ -121,7 +121,7 @@ export default function Saved() {
             id: video.id,
             name: productName,
             price: productPriceText,
-            image: video.main_product_image_url || video.thumbnail_url || 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=400&q=80',
+            image: video.main_product_image_url || video.thumbnail_url || '',
             url: video.product_url,
             creator: video.profiles?.username || 'Creator'
           };
@@ -170,28 +170,28 @@ export default function Saved() {
   };
 
   return (
-    <div className="flex-1 w-full bg-[#0c0c0e] text-white font-sans flex flex-col h-full bg-[#0c0c0e]">
+    <div className="flex-1 w-full bg-bg-base text-text-primary font-sans flex flex-col h-full bg-bg-base">
       {/* Header Tabs */}
-      <div className="sticky top-0 z-20 bg-[#0c0c0e] pt-6 pb-1">
+      <div className="sticky top-0 z-20 bg-bg-base pt-6 pb-1">
         <div className="flex items-center px-4 md:px-8 mb-2">
-            <GlobalBackButton className="p-2 -ml-2 bg-transparent hover:bg-white/5 border-transparent" />
-            <h2 className="text-[17px] font-semibold text-white ml-2 tracking-wide">Saved Items</h2>
+            <GlobalBackButton className="p-2 -ml-2 bg-transparent hover:bg-surface-1 border-transparent" />
+            <h2 className="text-[17px] font-semibold text-text-primary ml-2 tracking-wide">Saved Items</h2>
         </div>
 
-        <div className="flex px-5 md:px-8 gap-x-7 overflow-x-auto scrollbar-none pb-3 border-b border-white/5">
+        <div className="flex px-5 md:px-8 gap-x-7 overflow-x-auto scrollbar-none pb-3 border-b border-border-subtle">
           {tabs.map((tab) => (
             <button type="button" aria-label="button" 
                key={tab}
                onClick={() => setActiveTab(tab)}
                className={`relative pb-2 text-[15px] font-medium tracking-wide whitespace-nowrap transition-colors ${
-                 activeTab === tab ? 'text-white' : 'text-zinc-400 hover:text-white/80'
+                 activeTab === tab ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary/80'
                }`}
             >
               {tab}
               {activeTab === tab && (
                 <motion.div
                   layoutId="activeTabBadgeSaved"
-                  className="absolute bottom-[-2px] left-0 right-0 h-[3px] bg-[#ff5a36] rounded-t-full"
+                  className="absolute bottom-[-2px] left-0 right-0 h-[3px] bg-brand-primary rounded-t-full"
                   initial={false}
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 />
@@ -203,8 +203,8 @@ export default function Saved() {
 
       <div className="flex-1 overflow-y-auto no-scrollbar pt-5 px-5 md:px-8">
         {loading ? (
-          <div className="py-20 flex flex-col items-center justify-center text-zinc-400 gap-y-3">
-            <Loader2 className="size-8 animate-spin text-[#ff5a36]" />
+          <div className="py-20 flex flex-col items-center justify-center text-text-secondary gap-y-3">
+            <Loader2 className="size-8 animate-spin text-brand-primary" />
             <p className="text-sm font-medium">Loading saved items...</p>
           </div>
         ) : (
@@ -215,46 +215,46 @@ export default function Saved() {
                 {products.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-20 text-center px-4 md:px-8 h-full min-h-[350px]">
                     <div className="relative mb-6">
-                      <div className="absolute inset-0 bg-[#ff5a36]/5 rounded-full blur-2xl transform scale-150 animate-pulse" />
-                      <div className="relative size-20 rounded-3xl bg-zinc-900 border border-white/5 flex items-center justify-center text-zinc-400 shadow-xl">
-                        <ShoppingBag className="size-9 text-zinc-400" strokeWidth={1.5} />
+                      <div className="absolute inset-0 bg-brand-primary/5 rounded-full blur-2xl transform scale-150 animate-pulse" />
+                      <div className="relative size-20 rounded-3xl bg-surface-1 border border-border-subtle flex items-center justify-center text-text-secondary shadow-xl">
+                        <ShoppingBag className="size-9 text-text-secondary" strokeWidth={1.5} />
                       </div>
                     </div>
-                    <h3 className="text-[17px] font-bold text-white tracking-wide mb-2 drop-shadow-sm">No saved products yet</h3>
-                    <p className="text-[14px] text-zinc-400 max-w-xs leading-relaxed font-medium">
+                    <h3 className="text-[17px] font-bold text-text-primary tracking-wide mb-2 drop-shadow-sm">No saved products yet</h3>
+                    <p className="text-[14px] text-text-secondary max-w-xs leading-relaxed font-medium">
                       Bookmark review videos to save their products here for easy access.
                     </p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 mb-6">
                     {products.map((product, idx) => (
-                      <div key={`${product.id}-${idx}`} className="flex flex-col bg-[#151518] border border-white/5 rounded-2xl overflow-hidden shadow-lg group relative">
+                      <div key={`${product.id}-${idx}`} className="flex flex-col bg-surface-1 border border-border-subtle rounded-2xl overflow-hidden shadow-lg group relative">
                         <button type="button" aria-label="button"  
                           onClick={(e) => { e.stopPropagation(); openCollectionModal(product.savedVideoId as string); }}
-                          className="absolute top-2 right-2 bg-[#0c0c0e]/60 p-1.5 rounded-full z-10 hover:bg-[#0c0c0e]/80 transition-colors"
+                          className="absolute top-2 right-2 bg-bg-base/60 p-1.5 rounded-full z-10 hover:bg-bg-base/80 transition-colors"
                         >
-                          <FolderPlus className="size-4 text-white" />
+                          <FolderPlus className="size-4 text-text-primary" />
                         </button>
-                        <div className="w-full aspect-square overflow-hidden bg-zinc-900 relative">
+                        <div className="w-full aspect-square overflow-hidden bg-surface-1 relative">
                           <img src={product.image} alt={product.name} className="size-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" decoding="async" />
-                          <div className="absolute inset-0 bg-[#0c0c0e]/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <div className="absolute inset-0 bg-bg-base/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                             <a 
                               href={product.url} 
                               target="_blank" 
                               rel="noopener noreferrer"
                               onClick={(e) => e.stopPropagation()}
-                              className="p-2.5 bg-[#ff5a36] text-white rounded-full hover:bg-[#f4284d] active:scale-95 transition-all shadow-lg"
+                              className="p-2.5 bg-brand-primary text-text-primary rounded-full hover:bg-[#f4284d] active:scale-95 transition-all shadow-lg"
                             >
                               <ExternalLink className="size-4" />
                             </a>
                           </div>
                         </div>
                         <div className="p-3.5 flex flex-col flex-1">
-                           <h4 className="text-[14px] font-semibold text-white truncate tracking-tight">{product.name}</h4>
-                           <span className="text-[11px] font-medium text-zinc-400 mt-0.5">by @{product.creator.toLowerCase()}</span>
-                           <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-white/5">
-                             <span className="text-[12px] font-semibold text-[#ff5a36] bg-[#ff5a36]/10 px-2 py-0.5 rounded-md">{product.price}</span>
-                             <button type="button" aria-label="button"  onClick={() => navigate(`/video/${product.id}`)} className="text-[11px] text-zinc-400 hover:text-white flex items-center gap-0.5">
+                           <h4 className="text-[14px] font-semibold text-text-primary truncate tracking-tight">{product.name}</h4>
+                           <span className="text-[11px] font-medium text-text-secondary mt-0.5">by @{product.creator.toLowerCase()}</span>
+                           <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-border-subtle">
+                             <span className="text-[12px] font-semibold text-brand-primary bg-brand-primary/10 px-2 py-0.5 rounded-md">{product.price}</span>
+                             <button type="button" aria-label="button"  onClick={() => navigate(`/video/${product.id}`)} className="text-[11px] text-text-secondary hover:text-text-primary flex items-center gap-0.5">
                                Watch <ChevronRight className="size-3" />
                              </button>
                            </div>
@@ -272,13 +272,13 @@ export default function Saved() {
                 {savedVideos.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-20 text-center px-4 md:px-8 h-full min-h-[350px]">
                     <div className="relative mb-6">
-                      <div className="absolute inset-0 bg-[#ff5a36]/5 rounded-full blur-2xl transform scale-150 animate-pulse" />
-                      <div className="relative size-20 rounded-3xl bg-zinc-900 border border-white/5 flex items-center justify-center text-zinc-400 shadow-xl">
-                        <VideoIcon className="size-9 text-zinc-400" strokeWidth={1.5} />
+                      <div className="absolute inset-0 bg-brand-primary/5 rounded-full blur-2xl transform scale-150 animate-pulse" />
+                      <div className="relative size-20 rounded-3xl bg-surface-1 border border-border-subtle flex items-center justify-center text-text-secondary shadow-xl">
+                        <VideoIcon className="size-9 text-text-secondary" strokeWidth={1.5} />
                       </div>
                     </div>
-                    <h3 className="text-[17px] font-bold text-white tracking-wide mb-2 drop-shadow-sm">No saved videos yet</h3>
-                    <p className="text-[14px] text-zinc-400 max-w-xs leading-relaxed font-medium">
+                    <h3 className="text-[17px] font-bold text-text-primary tracking-wide mb-2 drop-shadow-sm">No saved videos yet</h3>
+                    <p className="text-[14px] text-text-secondary max-w-xs leading-relaxed font-medium">
                       Videos you bookmark from the home feed will show here.
                     </p>
                   </div>
@@ -288,23 +288,23 @@ export default function Saved() {
                       <div 
                         key={item.id} 
                         onClick={() => navigate(`/video/${item.video.id}`)}
-                        className="aspect-[3/4] bg-zinc-900 overflow-hidden relative rounded-xl border border-white/5 group cursor-pointer"
+                        className="aspect-[3/4] bg-surface-1 overflow-hidden relative rounded-xl border border-border-subtle group cursor-pointer"
                       >
                         <button type="button" aria-label="button"  
                           onClick={(e) => { e.stopPropagation(); openCollectionModal(item.id); }}
-                          className="absolute top-1 right-1 bg-[#0c0c0e]/60 p-1.5 rounded-full z-10 hover:bg-[#0c0c0e]/80 transition-colors"
+                          className="absolute top-1 right-1 bg-bg-base/60 p-1.5 rounded-full z-10 hover:bg-bg-base/80 transition-colors"
                         >
-                          <FolderPlus className="size-3.5 text-white" />
+                          <FolderPlus className="size-3.5 text-text-primary" />
                         </button>
                         {item.video.thumbnail_url || item.video.main_product_image_url ? (
                           <img src={item.video.thumbnail_url || item.video.main_product_image_url} alt="Video thumbnail" className="size-full object-cover" loading="lazy" decoding="async" />
                         ) : (
-                          <div className="size-full flex items-center justify-center bg-zinc-800 text-zinc-400">No Image</div>
+                          <div className="size-full flex items-center justify-center bg-surface-2 text-text-secondary">No Image</div>
                         )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-85 pointer-events-none" />
                         <div className="absolute bottom-2 left-2 flex items-center shadow-sm">
-                          <Play className="size-3.5 fill-white text-white opacity-90 mr-1" />
-                          <span className="text-white text-[12px] font-bold tracking-wide">
+                          <Play className="size-3.5 fill-white text-text-primary opacity-90 mr-1" />
+                          <span className="text-text-primary text-[12px] font-bold tracking-wide">
                             {item.video.views > 999 ? (item.video.views / 1000).toFixed(1) + 'K' : item.video.views || 0}
                           </span>
                         </div>
@@ -321,13 +321,13 @@ export default function Saved() {
                 {followedCreators.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-20 text-center px-4 md:px-8 h-full min-h-[350px]">
                     <div className="relative mb-6">
-                      <div className="absolute inset-0 bg-[#ff5a36]/5 rounded-full blur-2xl transform scale-150 animate-pulse" />
-                      <div className="relative size-20 rounded-3xl bg-zinc-900 border border-white/5 flex items-center justify-center text-zinc-400 shadow-xl">
-                        <svg className="size-9 text-zinc-400" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
+                      <div className="absolute inset-0 bg-brand-primary/5 rounded-full blur-2xl transform scale-150 animate-pulse" />
+                      <div className="relative size-20 rounded-3xl bg-surface-1 border border-border-subtle flex items-center justify-center text-text-secondary shadow-xl">
+                        <svg className="size-9 text-text-secondary" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
                       </div>
                     </div>
-                    <h3 className="text-[17px] font-bold text-white tracking-wide mb-2 drop-shadow-sm">No followed creators yet</h3>
-                    <p className="text-[14px] text-zinc-400 max-w-xs leading-relaxed font-medium">
+                    <h3 className="text-[17px] font-bold text-text-primary tracking-wide mb-2 drop-shadow-sm">No followed creators yet</h3>
+                    <p className="text-[14px] text-text-secondary max-w-xs leading-relaxed font-medium">
                       Creators you follow will appear here.
                     </p>
                   </div>
@@ -337,22 +337,22 @@ export default function Saved() {
                       <button type="button" aria-label="button"  
                         key={profile.id} 
                         onClick={() => navigate(`/profile`)} 
-                        className="w-full flex items-center p-4 bg-[#151518] hover:bg-white/5 rounded-2xl transition-all text-left border border-white/5 shadow-md"
+                        className="w-full flex items-center p-4 bg-surface-1 hover:bg-surface-1 rounded-2xl transition-all text-left border border-border-subtle shadow-md"
                       >
-                        <div className="size-[50px] rounded-full overflow-hidden bg-zinc-850 shrink-0 mr-4 border border-white/10">
+                        <div className="size-[50px] rounded-full overflow-hidden bg-zinc-850 shrink-0 mr-4 border border-border-subtle">
                           {profile.avatar_url ? (
                             <img src={profile.avatar_url} alt={profile.username} className="size-full object-cover" loading="lazy" decoding="async" />
                           ) : (
-                            <div className="size-full flex items-center justify-center text-white/60 bg-zinc-800 text-lg uppercase font-semibold">
+                            <div className="size-full flex items-center justify-center text-text-primary/60 bg-surface-2 text-lg uppercase font-semibold">
                               {profile.username?.charAt(0)}
                             </div>
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-white text-[15px] tracking-tight">{profile.username}</h4>
-                          {profile.bio && <p className="text-zinc-400 text-[13px] truncate whitespace-nowrap overflow-hidden pr-2 mt-0.5">{profile.bio}</p>}
+                          <h4 className="font-semibold text-text-primary text-[15px] tracking-tight">{profile.username}</h4>
+                          {profile.bio && <p className="text-text-secondary text-[13px] truncate whitespace-nowrap overflow-hidden pr-2 mt-0.5">{profile.bio}</p>}
                         </div>
-                        <ChevronRight className="size-5 text-zinc-400 group-hover:text-white transition-colors" />
+                        <ChevronRight className="size-5 text-text-secondary group-hover:text-text-primary transition-colors" />
                       </button>
                     ))}
                   </div>
@@ -366,13 +366,13 @@ export default function Saved() {
                 {collections.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-20 text-center px-4 md:px-8 h-full min-h-[350px]">
                     <div className="relative mb-6">
-                      <div className="absolute inset-0 bg-[#ff5a36]/5 rounded-full blur-2xl transform scale-150 animate-pulse" />
-                      <div className="relative size-20 rounded-3xl bg-zinc-900 border border-white/5 flex items-center justify-center text-zinc-400 shadow-xl">
-                        <FolderPlus className="size-9 text-zinc-400" strokeWidth={1.5} />
+                      <div className="absolute inset-0 bg-brand-primary/5 rounded-full blur-2xl transform scale-150 animate-pulse" />
+                      <div className="relative size-20 rounded-3xl bg-surface-1 border border-border-subtle flex items-center justify-center text-text-secondary shadow-xl">
+                        <FolderPlus className="size-9 text-text-secondary" strokeWidth={1.5} />
                       </div>
                     </div>
-                    <h3 className="text-[17px] font-bold text-white tracking-wide mb-2 drop-shadow-sm">No collections yet</h3>
-                    <p className="text-[14px] text-zinc-400 max-w-xs leading-relaxed font-medium">
+                    <h3 className="text-[17px] font-bold text-text-primary tracking-wide mb-2 drop-shadow-sm">No collections yet</h3>
+                    <p className="text-[14px] text-text-secondary max-w-xs leading-relaxed font-medium">
                       Create collections to organize your saved products.
                     </p>
                   </div>
@@ -384,18 +384,18 @@ export default function Saved() {
                         className="flex flex-col cursor-pointer group"
                         onClick={() => navigate(`/collection/${collection.id}`)}
                       >
-                        <div className="w-full aspect-[4/3] rounded-2xl overflow-hidden border border-white/5 shadow-md bg-zinc-900 border-b-0 rounded-b-none relative">
+                        <div className="w-full aspect-[4/3] rounded-2xl overflow-hidden border border-border-subtle shadow-md bg-surface-1 border-b-0 rounded-b-none relative">
                           {collection.image_url ? (
                             <img src={collection.image_url} alt={collection.name} className="size-full object-cover" loading="lazy" decoding="async" />
                           ) : (
-                            <div className="size-full flex items-center justify-center bg-[#151518] text-zinc-400">
+                            <div className="size-full flex items-center justify-center bg-surface-1 text-text-secondary">
                                <Bookmark className="size-8 text-zinc-700" strokeWidth={1.5} />
                             </div>
                           )}
                         </div>
-                        <div className="bg-[#151518] border border-white/5 border-t-0 p-3.5 pt-2 rounded-b-2xl -mt-[11px] shadow-lg flex-1">
-                           <h4 className="text-[14px] font-semibold text-white truncate tracking-tight">{collection.name}</h4>
-                           <span className="text-[11px] font-medium text-zinc-400 block mt-0.5">Collection</span>
+                        <div className="bg-surface-1 border border-border-subtle border-t-0 p-3.5 pt-2 rounded-b-2xl -mt-[11px] shadow-lg flex-1">
+                           <h4 className="text-[14px] font-semibold text-text-primary truncate tracking-tight">{collection.name}</h4>
+                           <span className="text-[11px] font-medium text-text-secondary block mt-0.5">Collection</span>
                         </div>
                       </div>
                     ))}
@@ -405,9 +405,9 @@ export default function Saved() {
                 {/* New Collection Button */}
                 <button type="button" aria-label="button"  
                   onClick={handleCreateCollection}
-                  className="w-full flex items-center justify-center gap-x-2 bg-[#151518] border border-white/5 text-white/90 font-medium text-[15px] py-4 rounded-xl hover:bg-white/5 transition-all active:scale-[0.98] mb-8 shadow-sm"
+                  className="w-full flex items-center justify-center gap-x-2 bg-surface-1 border border-border-subtle text-text-primary/90 font-medium text-[15px] py-4 rounded-xl hover:bg-surface-1 transition-all active:scale-[0.98] mb-8 shadow-sm"
                 >
-                  <Plus className="size-4 text-white/70" />
+                  <Plus className="size-4 text-text-primary/70" />
                   <span>New Collection</span>
                 </button>
               </div>
@@ -423,7 +423,7 @@ export default function Saved() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-[#0c0c0e]/60 backdrop-blur-sm flex justify-center items-end sm:items-center sm:p-4"
+            className="fixed inset-0 z-50 bg-bg-base/60 backdrop-blur-sm flex justify-center items-end sm:items-center sm:p-4"
             onClick={() => setCollectionModalOpen(false)}
           >
             <motion.div
@@ -431,16 +431,16 @@ export default function Saved() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="bg-[#0c0c0e] w-full max-w-md rounded-t-3xl sm:rounded-3xl border border-white/10 p-6 pb-safe max-h-[85vh] overflow-hidden flex flex-col"
+              className="bg-bg-base w-full max-w-md rounded-t-3xl sm:rounded-3xl border border-border-subtle p-6 pb-safe max-h-[85vh] overflow-hidden flex flex-col"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4 mt-2">
-                <h3 className="text-xl font-bold text-white tracking-tight">Save to Collection</h3>
+                <h3 className="text-xl font-bold text-text-primary tracking-tight">Save to Collection</h3>
                 <button type="button" aria-label="button"  
                   onClick={() => setCollectionModalOpen(false)}
-                  className="p-2 -mr-2 bg-white/5 rounded-full hover:bg-white/10"
+                  className="p-2 -mr-2 bg-white/5 rounded-full hover:bg-surface-1"
                 >
-                  <X className="size-5 text-white" />
+                  <X className="size-5 text-text-primary" />
                 </button>
               </div>
 
@@ -449,12 +449,12 @@ export default function Saved() {
                   onClick={() => {
                     handleCreateCollection();
                   }}
-                  className="w-full flex items-center p-4 bg-white/5 hover:bg-white/10 rounded-2xl transition-colors border border-white/10 border-dashed"
+                  className="w-full flex items-center p-4 bg-white/5 hover:bg-surface-1 rounded-2xl transition-colors border border-border-subtle border-dashed"
                 >
-                  <div className="size-12 rounded-xl bg-[#ff5a36]/20 flex items-center justify-center mr-4">
-                    <Plus className="size-6 text-[#ff5a36]" />
+                  <div className="size-12 rounded-xl bg-brand-primary/20 flex items-center justify-center mr-4">
+                    <Plus className="size-6 text-brand-primary" />
                   </div>
-                  <span className="font-semibold text-white/90">Create New Collection</span>
+                  <span className="font-semibold text-text-primary/90">Create New Collection</span>
                 </button>
 
                 {collections.map(col => (
@@ -462,19 +462,19 @@ export default function Saved() {
                     key={col.id}
                     onClick={() => handleAddToCollection(col.id)}
                     disabled={savingToCollection}
-                    className="w-full flex items-center p-3 bg-[#151518] hover:bg-white/5 border border-white/5 rounded-2xl transition-colors disabled:opacity-50"
+                    className="w-full flex items-center p-3 bg-surface-1 hover:bg-surface-1 border border-border-subtle rounded-2xl transition-colors disabled:opacity-50"
                   >
-                    <div className="size-14 rounded-xl overflow-hidden bg-zinc-900 border border-white/5 shrink-0">
+                    <div className="size-14 rounded-xl overflow-hidden bg-surface-1 border border-border-subtle shrink-0">
                       {col.image_url ? (
                         <img src={col.image_url} alt={col.name} className="size-full object-cover" loading="lazy" decoding="async" />
                       ) : (
                         <div className="size-full flex items-center justify-center">
-                          <Bookmark className="size-5 text-zinc-400" />
+                          <Bookmark className="size-5 text-text-secondary" />
                         </div>
                       )}
                     </div>
                     <div className="flex-1 ml-4 text-left">
-                      <h4 className="font-semibold text-white tracking-tight">{col.name}</h4>
+                      <h4 className="font-semibold text-text-primary tracking-tight">{col.name}</h4>
                     </div>
                   </button>
                 ))}

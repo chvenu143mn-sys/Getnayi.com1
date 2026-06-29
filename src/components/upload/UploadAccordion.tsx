@@ -14,7 +14,7 @@ interface UploadAccordionProps {
 
 export function UploadAccordion({ title, icon, isOpen, onToggle, children, className }: UploadAccordionProps) {
   return (
-    <div className={cn("border border-zinc-900 bg-[#111113] rounded-2xl overflow-hidden", className)}>
+    <div className={cn("border border-border-subtle bg-[#111113] rounded-2xl overflow-hidden", className)}>
       <button
         type="button"
         onClick={onToggle}
@@ -24,13 +24,13 @@ export function UploadAccordion({ title, icon, isOpen, onToggle, children, class
           <div className="size-8 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
             {icon}
           </div>
-          <span className="text-[15px] font-bold text-white tracking-wide">{title}</span>
+          <span className="text-[15px] font-bold text-text-primary tracking-wide">{title}</span>
         </div>
         <motion.div
           animate={{ rotate: isOpen ? 90 : 0 }}
           transition={{ duration: 0.2 }}
         >
-          <ChevronRight className="size-5 text-zinc-400 shrink-0" />
+          <ChevronRight className="size-5 text-text-secondary shrink-0" />
         </motion.div>
       </button>
       <AnimatePresence initial={false}>

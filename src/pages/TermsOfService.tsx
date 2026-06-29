@@ -6,12 +6,12 @@ export default function TermsOfService() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-[#0c0c0e] text-zinc-100 font-sans pb-16 pt-8 px-4">
+    <div className="min-h-screen bg-bg-base text-text-primary font-sans pb-16 pt-8 px-4">
       <div className="max-w-3xl mx-auto">
         {/* Back Button */}
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-x-2 text-zinc-400 hover:text-white mb-8 transition-colors group text-sm"
+          className="flex items-center gap-x-2 text-text-secondary hover:text-text-primary mb-8 transition-colors group text-sm"
         >
           <ChevronLeft className="size-4 group-hover:-translate-x-1 transition-transform" />
           Back
@@ -23,41 +23,41 @@ export default function TermsOfService() {
             <Scale className="size-8" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-white">Terms of Service</h1>
-            <p className="text-zinc-400 text-xs mt-1">Last Updated: June 24, 2026</p>
+            <h1 className="text-brand-primaryxl font-bold tracking-tight text-text-primary">Terms of Service</h1>
+            <p className="text-text-secondary text-xs mt-1">Last Updated: June 24, 2026</p>
           </div>
         </div>
 
         {/* General Highlights */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
-          <div className="bg-[#121214] border border-white/5 rounded-2xl p-4 flex flex-col gap-y-2">
+          <div className="bg-[#121214] border border-border-subtle rounded-2xl p-4 flex flex-col gap-y-2">
             <Info className="size-5 text-purple-400 shrink-0" />
             <div>
-              <h3 className="text-sm font-semibold text-zinc-200">User Conduct</h3>
-              <p className="text-zinc-400 text-xs mt-1">All members must respect copyright standards and refrain from abusive crawling behaviors.</p>
+              <h3 className="text-sm font-semibold text-text-primary">User Conduct</h3>
+              <p className="text-text-secondary text-xs mt-1">All members must respect copyright standards and refrain from abusive crawling behaviors.</p>
             </div>
           </div>
-          <div className="bg-[#121214] border border-white/5 rounded-2xl p-4 flex flex-col gap-y-2">
-            <ShieldAlert className="size-5 text-amber-400 shrink-0" />
+          <div className="bg-[#121214] border border-border-subtle rounded-2xl p-4 flex flex-col gap-y-2">
+            <ShieldAlert className="size-5 text-brand-primarymber-400 shrink-0" />
             <div>
-              <h3 className="text-sm font-semibold text-zinc-200">Account Security</h3>
-              <p className="text-zinc-400 text-xs mt-1">You are solely responsible for guarding your login credentials and salted password records.</p>
+              <h3 className="text-sm font-semibold text-text-primary">Account Security</h3>
+              <p className="text-text-secondary text-xs mt-1">You are solely responsible for guarding your login credentials and salted password records.</p>
             </div>
           </div>
-          <div className="bg-[#121214] border border-white/5 rounded-2xl p-4 flex flex-col gap-y-2">
+          <div className="bg-[#121214] border border-border-subtle rounded-2xl p-4 flex flex-col gap-y-2">
             <CreditCard className="size-5 text-blue-400 shrink-0" />
             <div>
-              <h3 className="text-sm font-semibold text-zinc-200">Razorpay Billing</h3>
-              <p className="text-zinc-400 text-xs mt-1">All payments, pricing adjustments, and cancelations are managed securely by Razorpay.</p>
+              <h3 className="text-sm font-semibold text-text-primary">Razorpay Billing</h3>
+              <p className="text-text-secondary text-xs mt-1">All payments, pricing adjustments, and cancelations are managed securely by Razorpay.</p>
             </div>
           </div>
         </div>
 
         {/* Sections */}
-        <div className="space-y-8 text-zinc-300 text-sm leading-relaxed">
+        <div className="space-y-8 text-text-primary text-sm leading-relaxed">
           {/* Section 1 */}
-          <section className="bg-[#121214] border border-white/5 rounded-2xl p-6">
-            <h2 className="text-lg font-semibold text-white mb-3 flex items-center gap-x-2">
+          <section className="bg-[#121214] border border-border-subtle rounded-2xl p-6">
+            <h2 className="text-lg font-semibold text-text-primary mb-3 flex items-center gap-x-2">
               <span className="text-purple-500">1.</span> Agreement to Terms
             </h2>
             <p className="mb-2">
@@ -69,30 +69,30 @@ export default function TermsOfService() {
           </section>
 
           {/* Section 2 */}
-          <section className="bg-[#121214] border border-white/5 rounded-2xl p-6">
-            <h2 className="text-lg font-semibold text-white mb-3 flex items-center gap-x-2">
+          <section className="bg-[#121214] border border-border-subtle rounded-2xl p-6">
+            <h2 className="text-lg font-semibold text-text-primary mb-3 flex items-center gap-x-2">
               <span className="text-purple-500">2.</span> Account Credentials & Safety
             </h2>
             <p className="mb-2">
               When registering for an account, you must provide accurate, active, and complete credential information. You represent and warrant that your profile is not registered using automated bots, crawlers, or spoofed email records.
             </p>
-            <p className="mb-2 text-zinc-400">
+            <p className="mb-2 text-text-secondary">
               We employ military-grade server-side encryption and standard bcrypt-12 hashing to safeguard authentication tokens. However, you are solely responsible for protecting your password and preventing unauthorized local or device level breaches.
             </p>
-            <p className="text-zinc-400">
+            <p className="text-text-secondary">
               Getnayi will not be liable for any losses caused by credentials shared with or compromised by external actors.
             </p>
           </section>
 
           {/* Section 3 */}
-          <section className="bg-[#121214] border border-white/5 rounded-2xl p-6">
-            <h2 className="text-lg font-semibold text-white mb-3 flex items-center gap-x-2">
+          <section className="bg-[#121214] border border-border-subtle rounded-2xl p-6">
+            <h2 className="text-lg font-semibold text-text-primary mb-3 flex items-center gap-x-2">
               <span className="text-purple-500">3.</span> Permitted Uses & Asset Protection
             </h2>
             <p className="mb-2">
               GetNayi is designed to allow members to discover real products through content creators. You are permitted to explore public catalogs, manage video libraries, and maintain custom item collections provided that:
             </p>
-            <ul className="list-disc list-inside space-y-2 text-zinc-400 pl-2">
+            <ul className="list-disc list-inside space-y-2 text-text-secondary pl-2">
               <li>No uploads, profile edits, or bookmarks contain malicious payloads, script tags, or virus files.</li>
               <li>No automated scrapers, web spiders, or data extraction utilities are deployed to harvest media assets in bulk.</li>
               <li>No intellectual property of other creators, developers, or Getnayi is cloned or published without clear written authorization.</li>
@@ -100,25 +100,25 @@ export default function TermsOfService() {
           </section>
 
           {/* Section 4 */}
-          <section className="bg-[#121214] border border-white/5 rounded-2xl p-6">
-            <h2 className="text-lg font-semibold text-white mb-3 flex items-center gap-x-2">
+          <section className="bg-[#121214] border border-border-subtle rounded-2xl p-6">
+            <h2 className="text-lg font-semibold text-text-primary mb-3 flex items-center gap-x-2">
               <span className="text-purple-500">4.</span> Premium Tiers & Payments
             </h2>
             <p className="mb-2">
               Specific, highly curated collection tools and dashboard customizers inside GetNayi may require standard subscription payments. All transactional logic, invoices, and credit card processing are handled entirely by Razorpay.
             </p>
-            <p className="text-zinc-400">
+            <p className="text-text-secondary">
               By initiating a premium tier purchase, you authorize Razorpay to charge your nominated bank card. All pricing scales and refund thresholds are detailed in your checkout view. You can manage, update, or cancel active subscription tiers inside the settings menu.
             </p>
           </section>
 
           {/* Section 5 */}
-          <section className="bg-[#121214] border border-white/5 rounded-2xl p-6">
-            <h2 className="text-lg font-semibold text-white mb-3 flex items-center gap-x-2">
+          <section className="bg-[#121214] border border-border-subtle rounded-2xl p-6">
+            <h2 className="text-lg font-semibold text-text-primary mb-3 flex items-center gap-x-2">
               <span className="text-purple-500">5.</span> Disclaimer of Warranties
             </h2>
-            <p className="flex items-start gap-x-3 bg-amber-500/5 border border-amber-500/10 p-3.5 rounded-xl text-zinc-400 text-xs">
-              <AlertCircle className="size-5 text-amber-400 shrink-0 mt-0.5" />
+            <p className="flex items-start gap-x-3 bg-amber-500/5 border border-brand-primarymber-500/10 p-3.5 rounded-xl text-text-secondary text-xs">
+              <AlertCircle className="size-5 text-brand-primarymber-400 shrink-0 mt-0.5" />
               <span>
                 THE SERVICES AND ALL PRODUCT DISCOVERY MEDIA ARE PROVIDED ON AN "AS IS" AND "AS AVAILABLE" BASIS. AISLES PLATFORM DISCLAIMS ALL WARRANTIES, BOTH EXPRESS AND IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, SECURITY CORRECTION, ACCURACY, AND PERFORMANCE STABILITY.
               </span>
@@ -126,18 +126,18 @@ export default function TermsOfService() {
           </section>
 
           {/* Section 6 */}
-          <section className="bg-[#121214] border border-white/5 rounded-2xl p-6">
-            <h2 className="text-lg font-semibold text-white mb-3 flex items-center gap-x-2">
+          <section className="bg-[#121214] border border-border-subtle rounded-2xl p-6">
+            <h2 className="text-lg font-semibold text-text-primary mb-3 flex items-center gap-x-2">
               <span className="text-purple-500">6.</span> Limitation of Liability
             </h2>
-            <p className="mb-2 text-zinc-400">
+            <p className="mb-2 text-text-secondary">
               IN NO EVENT SHALL AISLES PLATFORM, ITS DIRECTORS, OR ITS OUTSOURCED ASSOCIATES BE LIABLE FOR DIRECT, INDIRECT, CONSEQUENTIAL, OR SPECIAL DAMAGES (INCLUDING DATA CORRUPTION, PAYMENT CONTRADICTIONS, OR PROFIT LOSSES) ARISING FROM OR RELATED TO YOUR DEPENDENCY ON GETNAYI VIDEOS, UNENCRYPTED MOBILE STORAGE, OR SERVICE DOWNTIME.
             </p>
           </section>
 
           {/* Section 7 */}
-          <section className="bg-[#121214] border border-white/5 rounded-2xl p-6">
-            <h2 className="text-lg font-semibold text-white mb-3 flex items-center gap-x-2">
+          <section className="bg-[#121214] border border-border-subtle rounded-2xl p-6">
+            <h2 className="text-lg font-semibold text-text-primary mb-3 flex items-center gap-x-2">
               <span className="text-purple-500">7.</span> Governance & Contact Info
             </h2>
             <p className="mb-3">

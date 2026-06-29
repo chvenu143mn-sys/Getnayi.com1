@@ -5,9 +5,9 @@ import { Loader2, Zap, ShieldCheck, PlaySquare, TrendingUp, Users } from 'lucide
 import { toast } from 'sonner';
 import { SubscriptionPricingTable } from '../components/subscription/SubscriptionPricingTable';
 import { SubscriptionFAQ } from '../components/subscription/SubscriptionFAQ';
-import { SubscriptionTestimonial } from '../components/subscription/SubscriptionTestimonial';
 import confetti from 'canvas-confetti';
 import { supabase } from '../lib/supabase';
+import { safeFetch } from '../utils/apiClient';
 
 import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
 
@@ -45,12 +45,12 @@ export default function Subscription() {
       confetti({
         ...defaults, particleCount,
         origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
-        colors: ['#ff5a36', '#ffffff', '#ffd700']
+        colors: ['var(--color-brand-primary)', '#ffffff', '#ffd700']
       });
       confetti({
         ...defaults, particleCount,
         origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
-        colors: ['#ff5a36', '#ffffff', '#ffd700']
+        colors: ['var(--color-brand-primary)', '#ffffff', '#ffd700']
       });
     }, 250);
   };
@@ -66,17 +66,19 @@ export default function Subscription() {
     const initToastId = toast.loading('Initiating secure checkout...');
     try {
       // 1. Create subscription on server
-      const res = await fetch('/api/subscription/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token || ''}`
-        },
-        body: JSON.stringify({ plan_id: planId }) 
-      });
-      
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      let data: any;
+      try {
+        data = await safeFetch('/api/subscription/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token || ''}`
+          },
+          body: JSON.stringify({ plan_id: planId }) 
+        });
+      } catch (err: any) {
+        throw new Error(err.message || 'Failed to create subscription');
+      }
       
       const orderId = data.order_id;
       
@@ -84,7 +86,7 @@ export default function Subscription() {
       
       // 2. Open Razorpay Checkout
       const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_placeholder',
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID || '',
         order_id: orderId,
         name: planId === import.meta.env.VITE_RAZORPAY_CREATOR_PLAN_ID || planId === 'plan_creator_yearly' ? 'GetNayi Creator' : 'GetNayi Pro',
         description: 'Premium Video Platform Access',
@@ -92,7 +94,7 @@ export default function Subscription() {
         handler: async function (response: any) {
           const loadingToastId = toast.loading('Verifying payment...');
           try {
-            const verifyRes = await fetch('/api/subscription/verify', {
+            const vData = await safeFetch('/api/subscription/verify', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -105,21 +107,16 @@ export default function Subscription() {
                 plan_id: planId
               })
             });
-            const vData = await verifyRes.json();
-            if (verifyRes.ok) {
-              triggerConfetti();
-              toast.success('Successfully upgraded to premium!', {
-                id: loadingToastId,
-                description: 'Your new benefits have been activated.',
-                duration: 5000,
-              });
-              // Redirect to upload page after successful subscription to enjoy new logic
-              setTimeout(() => navigate('/upload'), 3500);
-            } else {
-              toast.error(vData.error || 'Verification failed', { id: loadingToastId });
-            }
-          } catch(e) {
-            toast.error('Verification failed', { id: loadingToastId });
+            triggerConfetti();
+            toast.success('Successfully upgraded to premium!', {
+              id: loadingToastId,
+              description: 'Your new benefits have been activated.',
+              duration: 5000,
+            });
+            // Redirect to upload page after successful subscription to enjoy new logic
+            setTimeout(() => navigate('/upload'), 3500);
+          } catch(e: any) {
+            toast.error(e.message || 'Verification failed', { id: loadingToastId });
           }
         },
         prefill: {
@@ -127,7 +124,7 @@ export default function Subscription() {
           email: user.email || '',
         },
         theme: {
-          color: '#ff5a36'
+          color: 'var(--color-brand-primary)'
         },
         modal: {
           ondismiss: function() {
@@ -161,23 +158,23 @@ export default function Subscription() {
   const handleSelectFree = () => navigate('/upload?onboarding=true');
 
   return (
-    <div className="min-h-screen bg-[#0c0c0e] text-white selection:bg-[#ff5a36]/30 py-20 px-4 pb-32">
+    <div className="min-h-screen bg-bg-base text-text-primary selection:bg-brand-primary/30 py-20 px-4 pb-32">
       
       {/* Hero Section */}
       <div className="max-w-4xl mx-auto text-center mb-24">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#ff5a36]/10 text-[#ff5a36] border border-[#ff5a36]/20 text-sm font-semibold mb-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-primary/10 text-brand-primary border border-brand-primary/20 text-sm font-semibold mb-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <Zap className="size-4" /> 
           Supercharge your reach
         </div>
         
-        <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6 animate-in fade-in slide-in-from-bottom-6 duration-700">
+        <h1 className="text-4xl md:text-brand-primaryxl font-extrabold tracking-tight mb-6 animate-in fade-in slide-in-from-bottom-6 duration-700">
           Turn videos into <br className="hidden md:block" />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#ff5a36] to-orange-500">
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-primary to-orange-500">
             revenue streams
           </span>
         </h1>
         
-        <p className="text-lg md:text-xl text-zinc-400 max-w-2xl mx-auto leading-relaxed animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
+        <p className="text-lg md:text-xl text-text-secondary max-w-2xl mx-auto leading-relaxed animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
           Upgrade your account to instantly remove upload limits, jump the manual verification queue, and get priority exposure on our Trending feeds.
         </p>
       </div>
@@ -185,35 +182,35 @@ export default function Subscription() {
       {/* Value Props */}
       <div className="max-w-5xl mx-auto grid md:grid-cols-3 gap-10 mb-24 animate-in fade-in duration-1000 delay-200">
         <div className="flex flex-col items-center text-center">
-          <div className="size-14 rounded-2xl bg-[#ff5a36]/10 flex items-center justify-center mb-5 text-[#ff5a36] border border-[#ff5a36]/20">
+          <div className="size-14 rounded-2xl bg-brand-primary/10 flex items-center justify-center mb-5 text-brand-primary border border-brand-primary/20">
             <ShieldCheck className="size-6" />
           </div>
           <h3 className="text-xl font-bold mb-3">Auto-Approval</h3>
-          <p className="text-zinc-400">Skip the line. Pro creators get automatic approval for all video uploads, empowering you to post instantly.</p>
+          <p className="text-text-secondary">Skip the line. Pro creators get automatic approval for all video uploads, empowering you to post instantly.</p>
         </div>
         
         <div className="flex flex-col items-center text-center">
-          <div className="size-14 rounded-2xl bg-[#ff5a36]/10 flex items-center justify-center mb-5 text-[#ff5a36] border border-[#ff5a36]/20">
+          <div className="size-14 rounded-2xl bg-brand-primary/10 flex items-center justify-center mb-5 text-brand-primary border border-brand-primary/20">
             <TrendingUp className="size-6" />
           </div>
           <h3 className="text-xl font-bold mb-3">Priority Exposure</h3>
-          <p className="text-zinc-400">Get an algorithmic boost. Pro videos are prioritized in user feeds, significantly increasing organic discovery.</p>
+          <p className="text-text-secondary">Get an algorithmic boost. Pro videos are prioritized in user feeds, significantly increasing organic discovery.</p>
         </div>
         
         <div className="flex flex-col items-center text-center">
-          <div className="size-14 rounded-2xl bg-[#ff5a36]/10 flex items-center justify-center mb-5 text-[#ff5a36] border border-[#ff5a36]/20">
+          <div className="size-14 rounded-2xl bg-brand-primary/10 flex items-center justify-center mb-5 text-brand-primary border border-brand-primary/20">
             <PlaySquare className="size-6" />
           </div>
           <h3 className="text-xl font-bold mb-3">Unlimited Uploads</h3>
-          <p className="text-zinc-400">No more rate limits. Post as many high-quality, shoppable videos as you want and grow your audience.</p>
+          <p className="text-text-secondary">No more rate limits. Post as many high-quality, shoppable videos as you want and grow your audience.</p>
         </div>
       </div>
 
       {/* Pricing Table */}
       <div className="animate-in fade-in duration-1000 delay-300">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold mb-4">Simple, transparent pricing</h2>
-          <p className="text-zinc-400">Pick the plan that's right for your goals.</p>
+          <h2 className="text-brand-primaryxl font-bold mb-4">Simple, transparent pricing</h2>
+          <p className="text-text-secondary">Pick the plan that's right for your goals.</p>
         </div>
         
         <SubscriptionPricingTable 
@@ -225,12 +222,10 @@ export default function Subscription() {
           isFetching={isFetchingPlan}
         />
       </div>
-
-      <SubscriptionTestimonial />
       
       <SubscriptionFAQ />
       
-      <div className="max-w-6xl mx-auto mt-16 text-center text-sm text-zinc-400 flex flex-col items-center">
+      <div className="max-w-6xl mx-auto mt-16 text-center text-sm text-text-secondary flex flex-col items-center">
         <img src="/razorpay-logo.png" alt="Secured by Razorpay" className="h-6 opacity-40 mb-3 grayscale" onError={(e) => e.currentTarget.style.display='none'} loading="lazy" decoding="async" />
         <p>100% secure payment processing via Razorpay.</p>
         <p className="mt-1">Subscriptions renew automatically. Cancel anytime from your settings.</p>

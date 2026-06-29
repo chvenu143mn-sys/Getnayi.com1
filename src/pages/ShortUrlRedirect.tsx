@@ -39,17 +39,17 @@ export default function ShortUrlRedirect() {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center p-8 text-center h-[50vh]">
-        <h1 className="text-2xl font-bold text-white mb-2">Link Unavailable</h1>
+        <h1 className="text-2xl font-bold text-text-primary mb-2">Link Unavailable</h1>
         <p className="text-gray-400">{error}</p>
-        <button type="button" aria-label="button"  onClick={() => navigate('/')} className="mt-4 px-4 py-2 bg-white/10 rounded-full text-white">Go Home</button>
+        <button type="button" aria-label="button"  onClick={() => navigate('/')} className="mt-4 px-4 py-2 bg-white/10 rounded-full text-text-primary">Go Home</button>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-[100dvh] bg-[#0c0c0e] text-white">
-      <Loader2 className="size-8 animate-spin text-white/50 mb-4" />
-      <p className="text-white/60">Redirecting...</p>
+    <div className="flex flex-col items-center justify-center h-[100dvh] bg-bg-base text-text-primary">
+      <Loader2 className="size-8 animate-spin text-text-primary/50 mb-4" />
+      <p className="text-text-primary/60">Redirecting...</p>
     </div>
   );
 }

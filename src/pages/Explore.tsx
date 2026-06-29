@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Search, Loader2, X, Bookmark, TrendingUp } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { safeFetch } from "../utils/apiClient";
 import { GlobalBackButton } from "../components/GlobalBackButton";
 
 const categoryChips = [
@@ -38,8 +39,7 @@ export default function Explore() {
 
   useEffect(() => {
     if (!exploreVideos.length) {
-      fetch("/api/feed?limit=6")
-        .then((res) => res.json())
+      safeFetch("/api/feed?limit=6")
         .then((data) => {
           if (data && Array.isArray(data.data)) {
             setExploreVideos(data.data);
@@ -47,8 +47,7 @@ export default function Explore() {
         })
         .catch(console.error);
 
-      fetch("/api/feed?tab=trending&limit=4")
-        .then((res) => res.json())
+      safeFetch("/api/feed?tab=trending&limit=4")
         .then((data) => {
           if (data && Array.isArray(data.data)) {
             setTrendingVideos(data.data);
@@ -113,10 +112,9 @@ export default function Explore() {
         const queryParams = new URLSearchParams();
         queryParams.append("q", searchQuery.trim());
 
-        const req = await fetch(`/api/search?${queryParams.toString()}`, {
+        const data = await safeFetch(`/api/search?${queryParams.toString()}`, {
           signal: controller.signal,
         });
-        const data = await req.json();
 
         if (activeRequestRef.current === requestId) {
           if (data && data.videos) {
@@ -147,14 +145,14 @@ export default function Explore() {
   const isSearchActive = searchQuery.trim() !== "";
 
   return (
-    <div className="flex-1 w-full bg-[#0c0c0e] text-white font-sans h-full flex flex-col overflow-hidden">
+    <div className="flex-1 w-full bg-bg-base text-text-primary font-sans h-full flex flex-col overflow-hidden">
       {/* SECTION 1: SEARCH + CATEGORY ENTRY (Header Part) */}
-      <div className="sticky top-0 z-30 bg-[#0c0c0e]/95 backdrop-blur-md pt-4 pb-3 px-4 md:px-8 shrink-0 border-b border-white/5 shadow-sm">
+      <div className="sticky top-0 z-30 bg-bg-base/95 backdrop-blur-md pt-4 pb-3 px-4 md:px-8 shrink-0 border-b border-border-subtle shadow-sm">
         <div className="flex items-center gap-3">
           <GlobalBackButton />
-          <div className="relative w-full border border-white/5 bg-[#18181b] rounded-full overflow-hidden flex items-center pr-3 focus-within:border-zinc-500 focus-within:bg-[#202024] transition-all shadow-inner">
+          <div className="relative w-full border border-border-subtle bg-surface-1 rounded-full overflow-hidden flex items-center pr-3 focus-within:border-brand-primary/50 focus-within:bg-surface-2 transition-all shadow-inner">
             <div className="pl-4 pr-1.5 flex items-center justify-center shrink-0">
-              <Search className="size-4 text-zinc-400" />
+              <Search className="size-4 text-text-secondary" />
             </div>
             <input
               type="text"
@@ -163,13 +161,13 @@ export default function Explore() {
               onFocus={() => setIsSearchFocused(true)}
               onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full min-h-[44px] bg-transparent text-white placeholder-zinc-400 py-2.5 text-[14px] font-medium focus:outline-none"
+              className="w-full min-h-[44px] bg-transparent text-text-primary placeholder-text-secondary py-2.5 text-[14px] font-medium focus:outline-none"
             />
             {searchQuery && (
               <button
                 aria-label="Clear Search text"
                 onClick={() => handleSearchChange("")}
-                className="shrink-0 p-1 text-zinc-400 hover:text-white transition-colors"
+                className="shrink-0 p-1 text-text-secondary hover:text-text-primary transition-colors"
               >
                 <X className="size-4" />
               </button>
@@ -189,8 +187,8 @@ export default function Explore() {
               className={cn(
                 "whitespace-nowrap px-4 md:px-8 py-2 rounded-full text-xs font-bold font-sans transition-all snap-start shrink-0 border",
                 selectedCategory === chip.id
-                  ? "bg-white text-black border-white"
-                  : "bg-[#161619] text-zinc-400 border-white/5 hover:text-white",
+                  ? "bg-text-primary text-bg-base border-text-primary"
+                  : "bg-surface-1 text-text-secondary border-border-subtle hover:text-text-primary hover:bg-surface-2",
               )}
             >
               {chip.name}
@@ -200,12 +198,12 @@ export default function Explore() {
       </div>
 
       {/* Main Grid / Body content area under scroll limit */}
-      <div className="flex-1 overflow-y-auto w-full min-h-0 bg-[#0c0c0e] pb-32">
+      <div className="flex-1 overflow-y-auto w-full min-h-0 bg-bg-base pb-32">
         {isSearchActive ? (
           // Active Search Result Layer
           <div className="p-4 animate-in fade-in duration-300">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-zinc-400 text-xs font-black tracking-wider uppercase">
+              <span className="text-text-secondary text-xs font-black tracking-wider uppercase">
                 Fuzzy Match Results
               </span>
               <button
@@ -218,8 +216,8 @@ export default function Explore() {
 
             {isSearching ? (
               <div className="flex flex-col items-center justify-center py-20 gap-2">
-                <Loader2 className="size-6 text-[#ff5a36] animate-spin" />
-                <span className="text-xs text-zinc-400">
+                <Loader2 className="size-6 text-brand-primary animate-spin" />
+                <span className="text-xs text-text-secondary">
                   Cross-referencing databases...
                 </span>
               </div>
@@ -228,33 +226,35 @@ export default function Explore() {
                 {searchResults.map((item: any, idx: number) => (
                   <div
                     key={item.id || idx}
-                    onClick={() =>
-                      navigate(item.id ? `/video/${item.id}` : `/video/dummy`)
-                    }
-                    className="bg-zinc-900/50 border border-white/5 rounded-2xl overflow-hidden cursor-pointer group hover:border-white/10 transition-colors"
+                    onClick={() => {
+                      if (item.id) {
+                        navigate(`/video/${item.id}`);
+                      }
+                    }}
+                    className="bg-surface-1 border border-border-subtle rounded-2xl overflow-hidden cursor-pointer group hover:border-brand-primary/50 transition-colors shadow-sm"
                   >
-                    <div className="relative aspect-[4/3] bg-zinc-800">
+                    <div className="relative aspect-[4/3] bg-surface-2">
                       <img
                         src={
                           item.thumbnail_url ||
-                          "https://picsum.photos/seed/product/400/500"
+                          ""
                         }
-                        className="size-full object-cover"
+                        className="size-full object-cover group-hover:scale-105 transition-transform duration-500"
                         loading="lazy"
                         decoding="async"
                         alt=""
                       />
                     </div>
                     <div className="p-3">
-                      <h4 className="text-xs font-bold text-white line-clamp-1 leading-snug">
-                        {item.caption || item.product_name}
+                      <h4 className="text-sm font-bold text-text-primary line-clamp-1 leading-snug">
+                        {item.caption || item.product_name || ""}
                       </h4>
                       <div className="flex items-center justify-between mt-2.5">
-                        <span className="text-red-500 text-xs font-black">
-                          {item.product_price || "Product Specs"}
+                        <span className="text-brand-primary text-xs font-black">
+                          {item.product_price || ""}
                         </span>
-                        <span className="text-[10px] text-zinc-400">
-                          {item.profiles?.username || "Verified review"}
+                        <span className="text-[10px] text-text-secondary">
+                          {item.profiles?.username || ""}
                         </span>
                       </div>
                     </div>
@@ -263,8 +263,8 @@ export default function Explore() {
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-20 text-center">
-                <Search className="size-8 text-zinc-650 mb-3" />
-                <p className="text-xs text-zinc-400">
+                <Search className="size-8 text-text-secondary mb-3" />
+                <p className="text-xs text-text-secondary">
                   No strict matches for "{searchQuery}" on Getnayi.
                 </p>
               </div>
@@ -274,13 +274,13 @@ export default function Explore() {
           // Focused Architecture
           <div className="flex flex-col gap-8 pt-3 pb-8">
             {/* SECTION 2: FOR YOU */}
-            <div className="h-2 w-full bg-[#151518] border-y border-white/5 my-4" />
+            <div className="h-[1px] w-full bg-border-subtle my-4" />
             <section className="px-4 md:px-8">
               <div className="mb-6">
-                <h2 className="text-[22px] font-display font-bold text-white tracking-tight">
+                <h2 className="text-2xl font-display font-bold text-text-primary tracking-tight">
                   For you
                 </h2>
-                <p className="text-[14px] text-zinc-400 mt-1 font-medium">
+                <p className="text-sm text-text-secondary mt-1 font-medium">
                   Curated products matching your style
                 </p>
               </div>
@@ -295,7 +295,7 @@ export default function Explore() {
                     const name =
                       product.product_name ||
                       product.caption ||
-                      "Video Product";
+                      "";
                     const price = product.product_price;
 
                     const isSaved = productId ? savedProductIds.includes(productId) : false;
@@ -304,10 +304,10 @@ export default function Explore() {
                       <div
                         key={productId}
                         onClick={() => navigate(`/video/${productId}`)}
-                        className="bg-zinc-900/40 rounded-2xl overflow-hidden cursor-pointer hover:bg-zinc-900/80 transition-colors duration-300 flex flex-col group relative"
+                        className="bg-surface-1 border border-border-subtle rounded-2xl overflow-hidden cursor-pointer hover:border-brand-primary/40 hover:shadow-lg transition-all duration-300 flex flex-col group relative"
                       >
                         {/* Image Box */}
-                        <div className="relative aspect-[4/5] bg-zinc-800 overflow-hidden">
+                        <div className="relative aspect-[4/5] bg-surface-2 overflow-hidden">
                           <img
                             src={image}
                             className="size-full object-cover"
@@ -329,8 +329,8 @@ export default function Explore() {
                               className={cn(
                                 "size-[18px]",
                                 isSaved
-                                  ? "fill-white text-white"
-                                  : "text-white",
+                                  ? "fill-white text-text-primary"
+                                  : "text-text-primary",
                               )}
                               strokeWidth={isSaved ? 0 : 2}
                             />
@@ -340,17 +340,17 @@ export default function Explore() {
                         {/* Info Part */}
                         <div className="p-4 flex-1 flex flex-col justify-between">
                           <div>
-                            <h3 className="text-[15px] font-semibold text-white/90 line-clamp-2 leading-snug group-hover:text-white transition-colors">
+                            <h3 className="text-sm font-semibold text-text-primary/90 line-clamp-2 leading-snug group-hover:text-text-primary transition-colors">
                               {name}
                             </h3>
-                            <p className="text-[14px] font-medium text-zinc-400 mt-1">
+                            <p className="text-sm font-medium text-text-secondary mt-1">
                               {price}
                             </p>
                           </div>
 
                           {/* Creator card inside */}
-                          <div className="pt-4 mt-auto flex items-center justify-between">
-                            <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="pt-4 mt-auto flex items-center justify-between border-t border-border-subtle mt-4">
+                            <div className="flex items-center gap-2.5 min-w-0 mt-3">
                               <img
                                 src={product.profiles?.avatar_url}
                                 className="size-6 rounded-full object-cover shrink-0"
@@ -359,7 +359,7 @@ export default function Explore() {
                                 decoding="async"
                               />
                               <div className="min-w-0">
-                                <span className="text-[12px] text-white font-medium block truncate tracking-tight">
+                                <span className="text-xs text-text-primary font-medium block truncate tracking-tight">
                                   {creatorName}
                                 </span>
                               </div>
@@ -370,10 +370,10 @@ export default function Explore() {
                                 handleToggleFollowCreator(creatorName, e)
                               }
                               className={cn(
-                                "px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all shrink-0",
+                                "px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all shrink-0 mt-3",
                                 isFollowing
-                                  ? "bg-white/10 text-white"
-                                  : "bg-white text-black active:scale-95 hover:bg-zinc-200",
+                                  ? "bg-surface-2 text-text-primary"
+                                  : "bg-text-primary text-bg-base active:scale-95 hover:bg-text-primary/90",
                               )}
                             >
                               {isFollowing ? "Following" : "Follow"}
@@ -385,7 +385,7 @@ export default function Explore() {
                   })}
                 </div>
               ) : (
-                <div className="bg-[#121215] border border-white/5 rounded-2xl p-8 text-center text-zinc-400 text-xs">
+                <div className="bg-surface-1 border border-border-subtle rounded-2xl p-8 text-center text-text-secondary text-xs">
                   No products categorized in "{selectedCategory}" yet.
                 </div>
               )}
@@ -395,10 +395,10 @@ export default function Explore() {
             {currentTrending.length > 0 && (
               <section className="pt-6">
                 <div className="px-4 md:px-8 mb-5">
-                  <h2 className="text-[22px] font-display font-bold text-white tracking-tight">
+                  <h2 className="text-2xl font-display font-bold text-text-primary tracking-tight">
                     Trending
                   </h2>
-                  <p className="text-[14px] text-zinc-400 mt-1 font-medium">
+                  <p className="text-sm text-text-secondary mt-1 font-medium">
                     Most discussed products this week
                   </p>
                 </div>
@@ -414,9 +414,9 @@ export default function Explore() {
                       <div
                         key={product.id}
                         onClick={() => navigate(`/video/${product.id}`)}
-                        className="snap-start shrink-0 w-[160px] bg-zinc-900/40 rounded-[16px] overflow-hidden cursor-pointer hover:bg-zinc-900/80 transition-all group"
+                        className="snap-start shrink-0 w-[160px] bg-surface-1 border border-border-subtle rounded-2xl overflow-hidden cursor-pointer hover:border-brand-primary/40 hover:shadow-lg transition-all group"
                       >
-                        <div className="aspect-[4/5] bg-zinc-800 relative overflow-hidden">
+                        <div className="aspect-[4/5] bg-surface-2 relative overflow-hidden">
                           <img
                             src={image}
                             className="size-full object-cover group-hover:scale-105 transition-transform duration-500"
@@ -427,23 +427,23 @@ export default function Explore() {
                           <div className="absolute inset-0 bg-black/5" />
                           <div className="absolute top-2 left-2 bg-black/40 backdrop-blur-md px-2 py-1 rounded-md flex items-center gap-1.5">
                             <TrendingUp
-                              className="size-3 text-[#ff5a36]"
+                              className="size-3 text-brand-primary"
                               strokeWidth={2.5}
                             />
-                            <span className="text-[10px] font-bold text-white uppercase tracking-wide">
+                            <span className="text-[10px] font-bold text-text-primary uppercase tracking-wide">
                               Trending
                             </span>
                           </div>
                         </div>
                         <div className="p-3.5">
-                          <h3 className="text-[13px] font-medium text-white/90 line-clamp-2 leading-snug group-hover:text-white transition-colors">
+                          <h3 className="text-xs font-semibold text-text-primary line-clamp-2 leading-snug group-hover:text-brand-primary transition-colors">
                             {name}
                           </h3>
-                          <div className="flex flex-col mt-2">
-                            <span className="text-[13px] font-semibold text-white">
+                          <div className="flex flex-col mt-2 pt-2 border-t border-border-subtle">
+                            <span className="text-sm font-bold text-text-primary">
                               {price}
                             </span>
-                            <span className="text-[11px] font-medium text-zinc-500 mt-0.5">{`${product.likes?.[0]?.count || 0} likes`}</span>
+                            <span className="text-[10px] font-medium text-text-secondary mt-0.5">{`${product.likes?.[0]?.count || 0} likes`}</span>
                           </div>
                         </div>
                       </div>

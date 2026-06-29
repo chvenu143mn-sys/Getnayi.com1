@@ -2,6 +2,8 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { ArrowLeft, Crown } from 'lucide-react';
+import { cn } from '../lib/utils';
+import { theme } from '../styles/theme';
 
 interface GuestGateProps {
   type?: 'upload' | 'profile' | 'action';
@@ -22,15 +24,15 @@ export function GuestGate({ type, title, description, onClose }: GuestGateProps)
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0c0c0e] overflow-hidden font-sans">
+    <div className={cn("fixed inset-0 z-[100] flex items-center justify-center overflow-hidden font-sans", type === 'action' ? cn(theme.colors.bgBase.replace('bg-bg-base', 'bg-bg-base/80'), 'backdrop-blur-xl') : theme.colors.bgBase)}>
       
       {/* Solid System Background */}
-      <div className="absolute inset-0 z-0 bg-[#0c0c0e]" />
+      {type !== 'action' && <div className={cn("absolute inset-0 z-0", theme.colors.bgBase)} />}
 
       {/* Back button (Matches Auth.tsx) */}
       <button type="button"
         onClick={handleClose}
-        className="absolute top-4 left-4 z-20 size-10 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-md flex items-center justify-center border border-white/10 text-white active:scale-95 transition-all"
+        className={cn("absolute top-4 left-4 z-20 size-10 rounded-full backdrop-blur-md flex items-center justify-center border active:scale-95 transition-all shadow-sm hover:opacity-90", theme.colors.surface1, theme.colors.borderSubtle, theme.colors.textPrimary)}
         aria-label="Go back"
       >
         <ArrowLeft className="size-5" />
@@ -41,24 +43,24 @@ export function GuestGate({ type, title, description, onClose }: GuestGateProps)
         animate={{ opacity: 1, y: 0 }}
         whileHover={{ scale: 1.02 }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        className="z-10 flex flex-col w-full max-w-[360px] p-6 sm:p-8 items-center rounded-[32px] border border-transparent hover:bg-white/[0.02] hover:border-white/[0.05] hover:shadow-[0_0_60px_rgba(239,41,80,0.15)] transition-colors duration-500 relative"
+        className="z-10 flex flex-col w-full max-w-[360px] p-6 sm:p-8 items-center rounded-[32px] border border-transparent hover:border-brand-primary/10 transition-colors duration-500 relative"
       >
         <div className="text-center mb-[34px] flex flex-col items-center">
           <motion.div 
              initial={{ scale: 0.9, opacity: 0 }}
              animate={{ scale: 1, opacity: 1 }}
              transition={{ delay: 0.1, duration: 0.5 }}
-             className="mb-6 size-[56px] rounded-2xl flex items-center justify-center border border-white/15 bg-gradient-to-br from-white/10 to-transparent backdrop-blur-md shrink-0 shadow-[0_0_30px_rgba(239,41,80,0.15)] relative overflow-hidden box-border"
+             className={cn("mb-6 size-[56px] rounded-2xl flex items-center justify-center border backdrop-blur-md shrink-0 relative overflow-hidden box-border shadow-xl", theme.colors.surface1, theme.colors.borderSubtle)}
           >
-            <div className="absolute inset-0 bg-gradient-to-tr from-[#ff5a36]/20 to-transparent opacity-50" />
-            <Crown className="size-7 text-white drop-shadow-md z-10" strokeWidth={1.5} />
+            <div className={cn("absolute inset-0 opacity-20", theme.colors.brandPrimary)} />
+            <Crown className={cn("size-7 drop-shadow-md z-10", theme.colors.textPrimary)} strokeWidth={1.5} />
           </motion.div>
 
           <motion.h1 
             initial={{ y: 5, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2, duration: 0.5 }}
-            className="text-[28px] font-sans font-bold tracking-wide text-white leading-[1.2] text-center"
+            className={cn("mb-2 text-center", theme.typography.heading1, theme.colors.textPrimary)}
           >
             {title || "Elevate your"}
             {!title && <><br/>Getnayi experience</>}
@@ -69,7 +71,7 @@ export function GuestGate({ type, title, description, onClose }: GuestGateProps)
                initial={{ y: 5, opacity: 0 }}
                animate={{ y: 0, opacity: 1 }}
                transition={{ delay: 0.3, duration: 0.5 }}
-               className="text-[15px] font-sans text-white/70 leading-relaxed font-medium tracking-wide mt-3.5 text-center"
+               className={cn("mt-3.5 text-center max-w-[280px]", theme.typography.body, theme.colors.textSecondary)}
              >
                {description || "Create a free account to unlock exclusive features and join our vibrant community."}
              </motion.p>
@@ -89,11 +91,11 @@ export function GuestGate({ type, title, description, onClose }: GuestGateProps)
               "Engage in vibrant discussions",
               "Discover tailored recommendations"
             ].map((text, i) => (
-              <div key={i} className="flex items-center gap-x-3.5 text-white/95">
-                 <div className="size-5 shrink-0 rounded-full bg-white/20 flex items-center justify-center border border-white/30 backdrop-blur-sm">
-                   <svg className="size-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              <div key={i} className={cn("flex items-center gap-x-3.5", theme.colors.textPrimary)}>
+                 <div className={cn("size-5 shrink-0 rounded-full flex items-center justify-center border backdrop-blur-sm", theme.colors.surface2, theme.colors.borderSubtle)}>
+                   <svg className={cn("size-3", theme.colors.textPrimary)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                  </div>
-                 <span className="text-[14.5px] font-medium tracking-wide leading-tight">{text}</span>
+                 <span className={cn(theme.typography.label)}>{text}</span>
               </div>
             ))}
           </div>
@@ -107,14 +109,14 @@ export function GuestGate({ type, title, description, onClose }: GuestGateProps)
         >
           <button type="button" aria-label="button" 
             onClick={() => navigate('/auth')}
-            className="w-full py-[15px] px-4 flex justify-center items-center bg-[#ff5a36] text-white font-bold font-sans rounded-xl hover:bg-[#f4284d] transition-all active:scale-[0.98] shadow-lg text-[15px] tracking-wide"
+            className={cn("w-full py-[15px] px-4 flex justify-center items-center font-bold rounded-xl transition-all active:scale-[0.98] shadow-lg text-[15px] tracking-wide hover:opacity-90", theme.colors.brandPrimary, "text-bg-base")}
           >
              Join Getnayi
           </button>
 
           <button type="button" aria-label="button" 
             onClick={handleClose}
-            className="text-[14px] font-sans font-medium text-white/60 hover:text-white transition-colors tracking-wide mt-1"
+            className={cn("transition-colors mt-1 opacity-70 hover:opacity-100", theme.typography.label, theme.colors.textPrimary)}
           >
             Maybe later
           </button>

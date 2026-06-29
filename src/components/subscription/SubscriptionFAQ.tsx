@@ -31,22 +31,22 @@ export function SubscriptionFAQ() {
   return (
     <div className="max-w-3xl mx-auto py-16">
       <div className="text-center mb-12">
-        <h2 className="text-3xl font-bold mb-4 text-white">Frequently Asked Questions</h2>
-        <p className="text-zinc-400">Everything you need to know about the product and billing.</p>
+        <h2 className="text-brand-primaryxl font-bold mb-4 text-text-primary">Frequently Asked Questions</h2>
+        <p className="text-text-secondary">Everything you need to know about the product and billing.</p>
       </div>
 
       <div className="space-y-4">
         {faqs.map((faq, index) => (
-          <div key={index} className="border border-zinc-800 rounded-2xl overflow-hidden bg-[#121214] transition-all duration-200">
+          <div key={index} className="border border-border-subtle rounded-2xl overflow-hidden bg-[#121214] transition-all duration-200">
             <button
               onClick={() => toggleOpen(index)}
               className="w-full flex items-center justify-between p-6 text-left"
             >
-              <span className="font-medium text-zinc-100">{faq.question}</span>
+              <span className="font-medium text-text-primary">{faq.question}</span>
               <ChevronDown 
                 className={cn(
-                  "size-5 text-zinc-400 transition-transform duration-200", 
-                  openIndex === index ? "rotate-180 text-white" : ""
+                  "size-5 text-text-secondary transition-transform duration-200", 
+                  openIndex === index ? "rotate-180 text-text-primary" : ""
                 )} 
               />
             </button>
@@ -56,7 +56,7 @@ export function SubscriptionFAQ() {
                 openIndex === index ? "max-h-48 pb-6 opacity-100" : "max-h-0 opacity-0"
               )}
             >
-              <p className="text-zinc-400 text-sm leading-relaxed">{faq.answer}</p>
+              <p className="text-text-secondary text-sm leading-relaxed">{faq.answer}</p>
             </div>
           </div>
         ))}

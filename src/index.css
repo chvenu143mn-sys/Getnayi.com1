@@ -1,21 +1,21 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 
 @theme {
-  --color-brand-primary: #ff5a36;
-  --color-bg-base: #0c0c0e;
-  --color-surface-1: #18181b;
-  --color-surface-2: #27272a;
-  --color-text-primary: #f8fafc;
-  --color-text-secondary: #a1a1aa;
-  --color-border-subtle: rgba(255, 255, 255, 0.05);
+  --color-brand-primary: oklch(0.65 0.25 25); /* Rich Terracotta */
+  --color-bg-base: oklch(0.12 0.005 25);
+  --color-surface-1: oklch(0.18 0.005 25);
+  --color-surface-2: oklch(0.24 0.005 25);
+  --color-text-primary: oklch(0.96 0.005 25);
+  --color-text-secondary: oklch(0.72 0.01 25);
+  --color-border-subtle: oklch(1 0 0 / 0.08);
 
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
-  --theme-bg: #0c0c0e;
+  --theme-bg: var(--color-bg-base);
 }
 
 @layer utilities {

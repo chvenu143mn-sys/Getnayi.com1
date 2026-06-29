@@ -56,13 +56,13 @@ export default function AdminDashboard({
     <div className="gap-y-6 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Command Center</h1>
-          <p className="text-zinc-400 text-xs mt-1">Real-time engagement telemetry & content moderation.</p>
+          <h1 className="text-2xl font-bold text-text-primary tracking-tight">Command Center</h1>
+          <p className="text-text-secondary text-xs mt-1">Real-time engagement telemetry & content moderation.</p>
         </div>
         <button type="button" aria-label="button" 
           onClick={handleRefresh}
           disabled={isRefreshing}
-          className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed border border-white/10 rounded-xl text-sm font-medium transition-all"
+          className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-surface-1 disabled:opacity-50 disabled:cursor-not-allowed border border-border-subtle rounded-xl text-sm font-medium transition-all"
         >
           <RefreshCw className={cn("size-4", isRefreshing && "animate-spin")} />
           {isRefreshing ? "Syncing..." : "Sync Control"}
@@ -72,52 +72,52 @@ export default function AdminDashboard({
       {/* Grid Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         {/* Total Users Card */}
-        <div className="bg-[#141416] border border-white/5 rounded-2xl p-5 flex flex-col justify-between transition-all hover:border-white/10">
-          <div className="text-zinc-400 text-xs font-mono uppercase tracking-wider mb-2">Total Directory Users</div>
+        <div className="bg-[#141416] border border-border-subtle rounded-2xl p-5 flex flex-col justify-between transition-all hover:border-border-subtle">
+          <div className="text-text-secondary text-xs font-mono uppercase tracking-wider mb-2">Total Directory Users</div>
           <div className="flex items-end justify-between">
-            <span className="text-2xl font-bold text-white">{stats.totalUsers.toLocaleString()}</span>
+            <span className="text-2xl font-bold text-text-primary">{stats.totalUsers.toLocaleString()}</span>
             <div className="flex flex-col items-end">
-              <TrendingUp className="size-4 text-zinc-400 mb-1" />
+              <TrendingUp className="size-4 text-text-secondary mb-1" />
               <span className="text-[#10B981] text-xs font-semibold flex items-center gap-0.5">↑ 14.2%</span>
             </div>
           </div>
         </div>
 
         {/* Total Creators Card */}
-        <div className="bg-[#141416] border border-white/5 rounded-2xl p-5 flex flex-col justify-between transition-all hover:border-white/10">
-          <div className="text-zinc-400 text-xs font-mono uppercase tracking-wider mb-2 flex items-center justify-between">
+        <div className="bg-[#141416] border border-border-subtle rounded-2xl p-5 flex flex-col justify-between transition-all hover:border-border-subtle">
+          <div className="text-text-secondary text-xs font-mono uppercase tracking-wider mb-2 flex items-center justify-between">
             <span>Verified Creators</span>
-            <Users className="size-4 text-zinc-400" />
+            <Users className="size-4 text-text-secondary" />
           </div>
           <div className="flex items-end justify-between">
-            <span className="text-2xl font-bold text-white">{creators.length.toLocaleString()}</span>
+            <span className="text-2xl font-bold text-text-primary">{creators.length.toLocaleString()}</span>
             <span className="text-[#10B981] text-xs font-semibold flex items-center gap-0.5">↑ 8.3%</span>
           </div>
         </div>
 
         {/* Total Videos Card */}
-        <div className="bg-[#141416] border border-white/5 rounded-2xl p-5 flex flex-col justify-between transition-all hover:border-white/10">
-          <div className="text-zinc-400 text-xs font-mono uppercase tracking-wider mb-2 flex items-center justify-between">
+        <div className="bg-[#141416] border border-border-subtle rounded-2xl p-5 flex flex-col justify-between transition-all hover:border-border-subtle">
+          <div className="text-text-secondary text-xs font-mono uppercase tracking-wider mb-2 flex items-center justify-between">
             <span>Uploaded Videos</span>
-            <PlaySquare className="size-4 text-zinc-400" />
+            <PlaySquare className="size-4 text-text-secondary" />
           </div>
           <div className="flex items-end justify-between">
-            <span className="text-2xl font-bold text-white">{stats.totalVideos.toLocaleString()}</span>
+            <span className="text-2xl font-bold text-text-primary">{stats.totalVideos.toLocaleString()}</span>
             <span className="text-[#10B981] text-xs font-semibold flex items-center gap-0.5">↑ 19.5%</span>
           </div>
         </div>
 
         {/* Total Reports Card */}
-        <div className="bg-[#141416] border border-white/5 rounded-2xl p-5 flex flex-col justify-between transition-all hover:border-white/10">
-          <div className="text-zinc-400 text-xs font-mono uppercase tracking-wider mb-2 flex items-center justify-between">
+        <div className="bg-[#141416] border border-border-subtle rounded-2xl p-5 flex flex-col justify-between transition-all hover:border-border-subtle">
+          <div className="text-text-secondary text-xs font-mono uppercase tracking-wider mb-2 flex items-center justify-between">
             <span>Outstanding Reports</span>
             <FileText className="size-4 text-zinc-650" />
           </div>
           <div className="flex items-end justify-between">
-            <span className={cn("text-2xl font-bold", stats.totalReports > 0 ? "text-[#EF4444]" : "text-white")}>
+            <span className={cn("text-2xl font-bold", stats.totalReports > 0 ? "text-[#EF4444]" : "text-text-primary")}>
               {stats.totalReports.toLocaleString()}
             </span>
-            <span className={cn("text-xs font-mono px-2 py-0.5 rounded-full border", stats.totalReports > 0 ? "bg-red-500/10 border-red-500/20 text-red-500" : "bg-white/5 border-white/5 text-zinc-400")}>
+            <span className={cn("text-xs font-mono px-2 py-0.5 rounded-full border", stats.totalReports > 0 ? "bg-red-500/10 border-red-500/20 text-red-500" : "bg-white/5 border-border-subtle text-text-secondary")}>
               {stats.totalReports > 0 ? 'CRITICAL' : 'OK'}
             </span>
           </div>
@@ -127,8 +127,8 @@ export default function AdminDashboard({
       {/* Visual Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         {/* User Growth */}
-        <div className="bg-[#141416] border border-white/5 rounded-2xl p-5">
-          <h3 className="text-zinc-400 text-sm font-semibold mb-4 flex items-center gap-2">
+        <div className="bg-[#141416] border border-border-subtle rounded-2xl p-5">
+          <h3 className="text-text-secondary text-sm font-semibold mb-4 flex items-center gap-2">
             <span>User Acquisition</span>
             <span className="text-[10px] bg-[#F97316]/10 text-[#F97316] px-2 py-0.5 rounded-full font-mono uppercase">Telemetry</span>
           </h3>
@@ -145,10 +145,10 @@ export default function AdminDashboard({
         </div>
 
         {/* Category Share */}
-        <div className="bg-[#141416] border border-white/5 rounded-2xl p-5 flex flex-row items-center justify-between">
+        <div className="bg-[#141416] border border-border-subtle rounded-2xl p-5 flex flex-row items-center justify-between">
           <div className="w-1/2 flex flex-col justify-between h-full py-1">
             <div>
-              <h3 className="text-zinc-400 text-sm font-semibold mb-3">Topic Categories</h3>
+              <h3 className="text-text-secondary text-sm font-semibold mb-3">Topic Categories</h3>
               <p className="text-zinc-650 text-[11px] leading-relaxed">Distribution of tagged content across product domains.</p>
             </div>
             <div className="flex flex-col gap-1.5 mt-4">
@@ -156,12 +156,12 @@ export default function AdminDashboard({
                 <div key={cat.name} className="flex items-center justify-between text-xs font-mono">
                   <div className="flex items-center gap-1.5">
                     <span className="size-1.5 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                    <span className="text-zinc-300 truncate max-w-[85px]">{cat.name}</span>
+                    <span className="text-text-primary truncate max-w-[85px]">{cat.name}</span>
                   </div>
-                  <span className="text-zinc-400 font-bold">{cat.value}</span>
+                  <span className="text-text-secondary font-bold">{cat.value}</span>
                 </div>
               )) : (
-                <div className="text-zinc-400 text-xs">No active video categories assigned.</div>
+                <div className="text-text-secondary text-xs">No active video categories assigned.</div>
               )}
             </div>
           </div>
@@ -188,19 +188,19 @@ export default function AdminDashboard({
         </div>
 
         {/* High Risk Content Card */}
-        <div className="bg-[#141416] border border-white/5 rounded-2xl p-5 flex flex-col justify-between">
+        <div className="bg-[#141416] border border-border-subtle rounded-2xl p-5 flex flex-col justify-between">
           <div>
-            <h3 className="text-zinc-400 text-sm font-semibold mb-3">Moderation Pipeline</h3>
+            <h3 className="text-text-secondary text-sm font-semibold mb-3">Moderation Pipeline</h3>
             <p className="text-zinc-6 text-xs leading-relaxed mb-4">Urgent review cues extracted from community flagging.</p>
           </div>
           <div className="gap-y-3">
             {reports.slice(0, 3).map((r, i) => (
-              <div key={r.id} className="flex items-center justify-between bg-white/[0.02] border border-white/5 p-2 rounded-xl">
+              <div key={r.id} className="flex items-center justify-between bg-white/[0.02] border border-border-subtle p-2 rounded-xl">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="size-2 rounded-full bg-[#EF4444] animate-pulse" />
                   <div className="min-w-0">
-                    <p className="text-white text-xs font-medium truncate max-w-[120px]">{r.reason || 'Flagged content'}</p>
-                    <p className="text-zinc-400 text-[10px] truncate">by {r.profiles?.username || 'user'}</p>
+                    <p className="text-text-primary text-xs font-medium truncate max-w-[120px]">{r.reason || 'Flagged content'}</p>
+                    <p className="text-text-secondary text-[10px] truncate">by {r.profiles?.username || 'user'}</p>
                   </div>
                 </div>
                 <button type="button" aria-label="button" 
@@ -212,8 +212,8 @@ export default function AdminDashboard({
               </div>
             ))}
             {reports.length === 0 && (
-              <div className="text-center py-6 border border-dashed border-white/5 rounded-xl">
-                <p className="text-zinc-400 text-xs font-mono">No reports in queue</p>
+              <div className="text-center py-6 border border-dashed border-border-subtle rounded-xl">
+                <p className="text-text-secondary text-xs font-mono">No reports in queue</p>
               </div>
             )}
           </div>
@@ -221,8 +221,8 @@ export default function AdminDashboard({
       </div>
 
       {/* Top Trending Categories Bar Chart Row */}
-      <div className="bg-[#141416] border border-white/5 rounded-2xl p-5 mt-6">
-        <h3 className="text-zinc-400 text-sm font-semibold mb-4 flex items-center gap-2">
+      <div className="bg-[#141416] border border-border-subtle rounded-2xl p-5 mt-6">
+        <h3 className="text-text-secondary text-sm font-semibold mb-4 flex items-center gap-2">
           <span>Top 5 Trending Categories by Video Count</span>
           <span className="text-[10px] bg-[#3B82F6]/10 text-[#3B82F6] px-2 py-0.5 rounded-full font-mono uppercase">Distribution</span>
         </h3>
@@ -246,10 +246,10 @@ export default function AdminDashboard({
       </div>
 
       {/* Embedded Live Reports Table */}
-      <div className="bg-[#141416] border border-white/5 rounded-2xl overflow-hidden mt-6 shadow-xl">
-        <div className="p-5 border-b border-white/5 flex items-center justify-between">
+      <div className="bg-[#141416] border border-border-subtle rounded-2xl overflow-hidden mt-6 shadow-xl">
+        <div className="p-5 border-b border-border-subtle flex items-center justify-between">
           <div>
-            <h2 className="text-white text-sm font-semibold flex items-center gap-2">
+            <h2 className="text-text-primary text-sm font-semibold flex items-center gap-2">
               <span>Active Community Warnings</span>
               <span className="bg-[#EF4444]/15 border border-red-500/20 text-[#EF4444] px-2 py-0.5 rounded-full font-mono text-[10px]">
                 {reports.length} pending
@@ -259,7 +259,7 @@ export default function AdminDashboard({
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-[#18181a] border-b border-white/5 text-zinc-400 uppercase font-mono text-[10px] tracking-wider">
+            <thead className="bg-[#18181a] border-b border-border-subtle text-text-secondary uppercase font-mono text-[10px] tracking-wider">
               <tr>
                 <th className="py-4 px-5 font-semibold">Flag reason</th>
                 <th className="py-4 px-5 font-semibold">Uploader Info</th>
@@ -271,14 +271,14 @@ export default function AdminDashboard({
             <tbody className="divide-y divide-white/5 text-xs font-medium">
               {reports.slice(0, 6).map((r) => (
                 <tr key={r.id} className="hover:bg-white/[0.01] group transition-all">
-                  <td className="py-4 px-5 text-white flex flex-col justify-start">
+                  <td className="py-4 px-5 text-text-primary flex flex-col justify-start">
                     <span className="font-semibold text-[13px]">{r.reason || 'Violation Flagged'}</span>
-                    <span className="text-[10px] text-zinc-400 mt-0.5 font-mono">{r.id.substring(0, 8)}</span>
+                    <span className="text-[10px] text-text-secondary mt-0.5 font-mono">{r.id.substring(0, 8)}</span>
                   </td>
-                  <td className="py-4 px-5 text-zinc-400">
+                  <td className="py-4 px-5 text-text-secondary">
                     <span className="text-zinc-33">{r.videos?.profiles?.username || 'Unknown Creator'}</span>
                   </td>
-                  <td className="py-4 px-5 text-zinc-400">@{r.profiles?.username || 'user'}</td>
+                  <td className="py-4 px-5 text-text-secondary">@{r.profiles?.username || 'user'}</td>
                   <td className="py-4 px-5">
                     <span className={cn(
                       "font-mono px-2 py-0.5 border text-[11px] font-semibold rounded-full",
@@ -292,14 +292,14 @@ export default function AdminDashboard({
                   <td className="py-4 px-5 text-right font-mono flex justify-end gap-2 shrink-0">
                     <button type="button" aria-label="button" 
                       onClick={() => handleViewVideo(r.videos)}
-                      className="p-1.5 rounded-lg border border-white/5 bg-[#0c0c0e]/45 hover:bg-white/5 text-zinc-400 hover:text-white transition"
+                      className="p-1.5 rounded-lg border border-border-subtle bg-bg-base/45 hover:bg-surface-1 text-text-secondary hover:text-text-primary transition"
                       title="Inspect Video"
                     >
                       <Eye className="size-3.5" />
                     </button>
                     <button type="button" aria-label="button" 
                       onClick={() => handleDismissReport(r.id)}
-                      className="p-1.5 rounded-lg border border-white/5 bg-[#0c0c0e]/45 hover:bg-green-500/10 text-zinc-400 hover:text-green-500 transition"
+                      className="p-1.5 rounded-lg border border-border-subtle bg-bg-base/45 hover:bg-green-500/10 text-text-secondary hover:text-green-500 transition"
                       title="Dismiss Report"
                     >
                       <CheckCircle className="size-3.5" />
@@ -309,7 +309,7 @@ export default function AdminDashboard({
               ))}
               {reports.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-zinc-400 bg-[#121214]">
+                  <td colSpan={5} className="py-12 text-center text-text-secondary bg-[#121214]">
                     No pending community warning reports. System safe.
                   </td>
                 </tr>

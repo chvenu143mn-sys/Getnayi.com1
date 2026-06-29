@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { Loader2, Check } from 'lucide-react';
+import { safeFetch } from '../utils/apiClient';
 
 interface Category {
   id: string;
@@ -48,7 +49,7 @@ export default function Interests() {
       const sessionData = await supabase.auth.getSession();
       const token = sessionData.data.session?.access_token;
       
-      const res = await fetch('/api/user/interests', {
+      await safeFetch('/api/user/interests', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -56,10 +57,6 @@ export default function Interests() {
         },
         body: JSON.stringify({ categoryIds: Array.from(selected) })
       });
-      
-      if (!res.ok) {
-        throw new Error('Failed to initialize interests');
-      }
 
       // Save to user metadata
       const { error } = await supabase.auth.updateUser({
@@ -82,7 +79,7 @@ export default function Interests() {
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-[100dvh]">
-        <Loader2 className="w-8 h-8 animate-spin text-white/50" />
+        <Loader2 className="w-8 h-8 animate-spin text-text-primary/50" />
       </div>
     );
   }
@@ -94,8 +91,8 @@ export default function Interests() {
         animate={{ opacity: 1, y: 0 }}
         className="flex flex-col flex-1"
       >
-        <h1 className="text-3xl font-bold text-white mb-2 font-sans tracking-tight">What are you into?</h1>
-        <p className="text-white/60 mb-8 font-sans">
+        <h1 className="text-brand-primaryxl font-bold text-text-primary mb-2 font-sans tracking-tight">What are you into?</h1>
+        <p className="text-text-primary/60 mb-8 font-sans">
           Pick a few things you love so we can customize your feed. You can always change these later.
         </p>
 
@@ -112,8 +109,8 @@ export default function Interests() {
               }}
               className={`px-5 py-3 rounded-full font-medium text-sm transition-all border ${
                 selected.size === categories.length 
-                  ? 'bg-[#ff5a36] border-[#ff5a36] text-white shadow-lg shadow-[#ff5a36]/20' 
-                  : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10'
+                  ? 'bg-brand-primary border-brand-primary text-text-primary shadow-lg shadow-brand-primary/20' 
+                  : 'bg-white/5 border-border-subtle text-text-primary/80 hover:bg-surface-1'
               } flex items-center gap-2`}
             >
               All (Category)
@@ -129,8 +126,8 @@ export default function Interests() {
                 onClick={() => toggleCategory(cat.id)}
                 className={`px-5 py-3 rounded-full font-medium text-sm transition-all border ${
                   isSelected 
-                    ? 'bg-[#ff5a36] border-[#ff5a36] text-white shadow-lg shadow-[#ff5a36]/20' 
-                    : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10'
+                    ? 'bg-brand-primary border-brand-primary text-text-primary shadow-lg shadow-brand-primary/20' 
+                    : 'bg-white/5 border-border-subtle text-text-primary/80 hover:bg-surface-1'
                 } flex items-center gap-2`}
               >
                 {cat.name}

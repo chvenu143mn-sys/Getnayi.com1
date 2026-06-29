@@ -61,7 +61,7 @@ export function TagCloud({ tags, onTagClick }: TagCloudProps) {
       .style('fill', (d: any) => colorScale(d.tag) as string)
       .style('cursor', 'pointer')
       .style('transition', 'transform 0.2s, opacity 0.2s')
-      .attr('text-anchor', 'middle')
+      .attr('text-brand-primarynchor', 'middle')
       .attr('transform', (d: any) => `translate(${d.x},${d.y})`)
       .text((d: any) => `#${d.tag.replace(/^#/, '')}`)
       .on('click', (event, d: any) => {

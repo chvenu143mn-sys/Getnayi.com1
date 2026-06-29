@@ -58,13 +58,13 @@ export default function UpdatePasswordPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-[100dvh] bg-[#0c0c0e] px-4">
+    <div className="flex items-center justify-center min-h-[100dvh] bg-bg-base px-4">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-[340px] z-10 relative bg-[#151518] p-6 rounded-2xl border border-white/10"
+        className="w-full max-w-[340px] z-10 relative bg-surface-1 p-6 rounded-2xl border border-border-subtle"
       >
-        <h2 className="text-xl font-bold text-white mb-4 text-center">Update Password</h2>
+        <h2 className="text-xl font-bold text-text-primary mb-4 text-center">Update Password</h2>
         
         <form onSubmit={handleUpdatePassword} className="gap-y-4 flex flex-col">
           <input
@@ -72,7 +72,7 @@ export default function UpdatePasswordPage() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/50 focus:outline-none focus:border-white/30 transition-all font-sans text-[15px]"
+            className="w-full px-5 py-3.5 bg-white/5 border border-border-subtle rounded-xl text-text-primary placeholder:text-text-primary/50 focus:outline-none focus:border-white/30 transition-all font-sans text-[15px]"
             placeholder="New password"
           />
 
@@ -83,7 +83,7 @@ export default function UpdatePasswordPage() {
           )}
 
           {success && (
-            <div className="text-[13px] text-zinc-100 p-3 bg-green-500/20 rounded-xl border border-green-500/30 text-center">
+            <div className="text-[13px] text-text-primary p-3 bg-green-500/20 rounded-xl border border-green-500/30 text-center">
               {success}
             </div>
           )}

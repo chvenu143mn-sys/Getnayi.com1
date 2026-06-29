@@ -51,45 +51,45 @@ export default function AdminSubscriptions() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-         <h2 className="text-xl font-bold text-white">Subscription Management</h2>
-         <button onClick={fetchSubscriptions} className="p-2 bg-[#2c2c2e] hover:bg-[#3c3c3e] rounded-lg transition-colors">
+         <h2 className="text-xl font-bold text-text-primary">Subscription Management</h2>
+         <button onClick={fetchSubscriptions} className="p-2 bg-surface-2 hover:bg-[#3c3c3e] rounded-lg transition-colors">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
          </button>
       </div>
 
       {/* Analytics Summary */}
       <div className="grid grid-cols-3 gap-4">
-         <div className="bg-[#1c1c1e] border border-white/5 p-4 rounded-xl">
-           <p className="text-sm text-zinc-400 mb-1">Total Active Paid</p>
-           <p className="text-2xl font-bold text-white">{profiles.filter(p => p.subscription_status === 'active').length}</p>
+         <div className="bg-surface-2 border border-border-subtle p-4 rounded-xl">
+           <p className="text-sm text-text-secondary mb-1">Total Active Paid</p>
+           <p className="text-2xl font-bold text-text-primary">{profiles.filter(p => p.subscription_status === 'active').length}</p>
          </div>
-         <div className="bg-[#1c1c1e] border border-white/5 p-4 rounded-xl">
-           <p className="text-sm text-zinc-400 mb-1">Pro Users</p>
-           <p className="text-2xl font-bold text-white">{profiles.filter(p => p.subscription_plan === 'pro').length}</p>
+         <div className="bg-surface-2 border border-border-subtle p-4 rounded-xl">
+           <p className="text-sm text-text-secondary mb-1">Pro Users</p>
+           <p className="text-2xl font-bold text-text-primary">{profiles.filter(p => p.subscription_plan === 'pro').length}</p>
          </div>
-         <div className="bg-[#1c1c1e] border border-white/5 p-4 rounded-xl">
-           <p className="text-sm text-zinc-400 mb-1">Creator Users</p>
-           <p className="text-2xl font-bold text-white">{profiles.filter(p => p.subscription_plan === 'creator').length}</p>
+         <div className="bg-surface-2 border border-border-subtle p-4 rounded-xl">
+           <p className="text-sm text-text-secondary mb-1">Creator Users</p>
+           <p className="text-2xl font-bold text-text-primary">{profiles.filter(p => p.subscription_plan === 'creator').length}</p>
          </div>
       </div>
 
-      <div className="bg-[#1c1c1e] border border-white/10 rounded-xl overflow-hidden">
-        <div className="p-4 border-b border-white/10">
+      <div className="bg-surface-2 border border-border-subtle rounded-xl overflow-hidden">
+        <div className="p-4 border-b border-border-subtle">
           <div className="relative w-full max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
             <input 
               type="text" 
               placeholder="Search users..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-zinc-900 border border-white/10 rounded-lg py-2 pl-9 pr-4 text-sm focus:outline-none focus:border-[#ff5a36]"
+              className="w-full bg-surface-1 border border-border-subtle rounded-lg py-2 pl-9 pr-4 text-sm focus:outline-none focus:border-brand-primary"
             />
           </div>
         </div>
         
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-zinc-400">
-            <thead className="text-xs uppercase bg-black/20 text-zinc-400">
+          <table className="w-full text-left text-sm text-text-secondary">
+            <thead className="text-xs uppercase bg-black/20 text-text-secondary">
               <tr>
                 <th className="px-6 py-3 font-medium">User</th>
                 <th className="px-6 py-3 font-medium">Plan</th>
@@ -100,21 +100,21 @@ export default function AdminSubscriptions() {
             </thead>
             <tbody className="divide-y divide-white/5">
               {loading ? (
-                <tr><td colSpan={5} className="py-8 text-center text-zinc-400"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></td></tr>
+                <tr><td colSpan={5} className="py-8 text-center text-text-secondary"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={5} className="py-8 text-center text-zinc-400">No subscriptions found</td></tr>
+                <tr><td colSpan={5} className="py-8 text-center text-text-secondary">No subscriptions found</td></tr>
               ) : (
                 filtered.map(profile => (
-                  <tr key={profile.id} className="hover:bg-white/5 transition-colors">
+                  <tr key={profile.id} className="hover:bg-surface-1 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         {profile.avatar_url ? (
-                          <img src={profile.avatar_url} alt="" className="w-8 h-8 rounded-full border border-white/10" loading="lazy" decoding="async" />
+                          <img src={profile.avatar_url} alt="" className="w-8 h-8 rounded-full border border-border-subtle" loading="lazy" decoding="async" />
                         ) : (
-                          <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center font-serif italic text-white/50">{profile.username?.[0] || 'U'}</div>
+                          <div className="w-8 h-8 rounded-full bg-surface-2 flex items-center justify-center font-serif italic text-text-primary/50">{profile.username?.[0] || 'U'}</div>
                         )}
                         <div>
-                          <p className="text-white font-medium">{profile.username || 'Unknown'}</p>
+                          <p className="text-text-primary font-medium">{profile.username || 'Unknown'}</p>
                           <p className="text-xs">{profile.email}</p>
                         </div>
                       </div>

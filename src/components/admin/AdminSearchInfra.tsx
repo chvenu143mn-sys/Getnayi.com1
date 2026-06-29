@@ -69,16 +69,16 @@ export default function AdminSearchInfra() {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 text-white font-sans">
+    <div className="space-y-6 animate-in fade-in duration-500 text-text-primary font-sans">
       
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-y-4">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-text-primary tracking-tight flex items-center gap-2">
             <Cpu className="size-6 text-[#F97316] animate-pulse" />
             Search Infrastructure Simulator
           </h1>
-          <p className="text-zinc-400 text-xs mt-1">
+          <p className="text-text-secondary text-xs mt-1">
             System performance profiler simulating millions of lookup operations, database indexes, and security safeguards.
           </p>
         </div>
@@ -97,32 +97,32 @@ export default function AdminSearchInfra() {
 
       {/* Grid Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-[#141416] border border-white/5 rounded-2xl p-4 flex items-center gap-4">
+        <div className="bg-[#141416] border border-border-subtle rounded-2xl p-4 flex items-center gap-4">
           <div className="size-10 rounded-xl bg-orange-500/10 flex items-center justify-center border border-orange-500/15">
             <Server className="size-5 text-[#F97316]" />
           </div>
           <div>
-            <div className="text-[10px] uppercase font-mono tracking-wider text-zinc-400">Simulating Creators</div>
+            <div className="text-[10px] uppercase font-mono tracking-wider text-text-secondary">Simulating Creators</div>
             <div className="text-xl font-bold mt-0.5">{simulationSize.creators.toLocaleString()}</div>
           </div>
         </div>
 
-        <div className="bg-[#141416] border border-white/5 rounded-2xl p-4 flex items-center gap-4">
+        <div className="bg-[#141416] border border-border-subtle rounded-2xl p-4 flex items-center gap-4">
           <div className="size-10 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/15">
             <Layers className="size-5 text-[#38BDF8]" />
           </div>
           <div>
-            <div className="text-[10px] uppercase font-mono tracking-wider text-zinc-400">Simulating Products</div>
+            <div className="text-[10px] uppercase font-mono tracking-wider text-text-secondary">Simulating Products</div>
             <div className="text-xl font-bold mt-0.5">{simulationSize.products.toLocaleString()}</div>
           </div>
         </div>
 
-        <div className="bg-[#141416] border border-white/5 rounded-2xl p-4 flex items-center gap-4">
+        <div className="bg-[#141416] border border-border-subtle rounded-2xl p-4 flex items-center gap-4">
           <div className="size-10 rounded-xl bg-purple-500/10 flex items-center justify-center border border-purple-500/15">
             <Database className="size-5 text-[#A855F7]" />
           </div>
           <div>
-            <div className="text-[10px] uppercase font-mono tracking-wider text-zinc-400">Simulating Videos</div>
+            <div className="text-[10px] uppercase font-mono tracking-wider text-text-secondary">Simulating Videos</div>
             <div className="text-xl font-bold mt-0.5">{simulationSize.videos.toLocaleString()}</div>
           </div>
         </div>
@@ -132,19 +132,19 @@ export default function AdminSearchInfra() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Terminal/Logging Area */}
-        <div className="lg:col-span-2 bg-[#141416] border border-white/5 rounded-2xl p-5 flex flex-col h-[400px]">
-          <div className="flex items-center justify-between pb-3 border-b border-white/5">
-            <span className="text-xs font-mono text-zinc-400 flex items-center gap-1.5">
+        <div className="lg:col-span-2 bg-[#141416] border border-border-subtle rounded-2xl p-5 flex flex-col h-[400px]">
+          <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
+            <span className="text-xs font-mono text-text-secondary flex items-center gap-1.5">
               <Terminal className="size-3.5 text-orange-500" /> Live Audit Terminal Engine
             </span>
-            <span className="text-[10px] font-mono text-zinc-400 bg-white/5 px-2 py-0.5 rounded-full">
+            <span className="text-[10px] font-mono text-text-secondary bg-white/5 px-2 py-0.5 rounded-full">
               {terminalLogs.length} events logged
             </span>
           </div>
 
-          <div className="flex-1 overflow-y-auto no-scrollbar font-mono text-[11px] text-zinc-300 space-y-1.5 mt-3 py-1 leading-relaxed bg-[#0c0c0e] p-3.5 rounded-xl border border-white/5 h-[300px]">
+          <div className="flex-1 overflow-y-auto no-scrollbar font-mono text-[11px] text-text-primary space-y-1.5 mt-3 py-1 leading-relaxed bg-bg-base p-3.5 rounded-xl border border-border-subtle h-[300px]">
             {terminalLogs.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-zinc-400 py-20 text-center gap-2">
+              <div className="h-full flex flex-col items-center justify-center text-text-secondary py-20 text-center gap-2">
                 <Terminal className="size-8 opacity-40 animate-pulse" />
                 <span>Click "Run Performance Audit" to spin up simulated cluster telemetry logs.</span>
               </div>
@@ -155,7 +155,7 @@ export default function AdminSearchInfra() {
                   (log || '').includes('UNOPTIMIZED') ? 'text-red-400' :
                   (log || '').includes('[AUDIT]') ? 'text-blue-400' :
                   (log || '').includes('[SUMMARY]') ? 'text-[#F97316] font-bold' :
-                  'text-zinc-400'
+                  'text-text-secondary'
                 }`}>
                   {log}
                 </div>
@@ -165,49 +165,49 @@ export default function AdminSearchInfra() {
         </div>
 
         {/* Bottlenecks Explainer card */}
-        <div className="bg-[#141416] border border-white/5 rounded-2xl p-5 flex flex-col justify-between">
+        <div className="bg-[#141416] border border-border-subtle rounded-2xl p-5 flex flex-col justify-between">
           <div>
-            <h3 className="text-zinc-400 text-xs uppercase tracking-wider font-mono mb-4 flex items-center gap-1.5">
+            <h3 className="text-text-secondary text-xs uppercase tracking-wider font-mono mb-4 flex items-center gap-1.5">
               <AlertCircle className="size-4 text-orange-500" /> Expensive Query Bottlenecks
             </h3>
             <div className="space-y-4">
               <div className="space-y-1 border-l-2 border-red-500/50 pl-3">
-                <h4 className="text-semibold text-xs text-white">Sequential Scan Wildcard Match</h4>
-                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                <h4 className="text-semibold text-xs text-text-primary">Sequential Scan Wildcard Match</h4>
+                <p className="text-[11px] text-text-secondary leading-relaxed">
                   Queries on <code className="text-orange-300 font-mono text-[10px]">%search_term%</code> enforce seq-scans, causing database latency to jump to 410ms at 100k scale.
                 </p>
               </div>
 
               <div className="space-y-1 border-l-2 border-red-500/50 pl-3">
-                <h4 className="text-semibold text-xs text-white">Intermediate Ordering Sorting</h4>
-                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                <h4 className="text-semibold text-xs text-text-primary">Intermediate Ordering Sorting</h4>
+                <p className="text-[11px] text-text-secondary leading-relaxed">
                   Fulfilling filter requests with multiple standalone indexes triggers filesort steps. Compound index resolution prevents sorting overhead.
                 </p>
               </div>
 
               <div className="space-y-1 border-l-2 border-yellow-500/50 pl-3">
-                <h4 className="text-semibold text-xs text-white">Unsecured Link Vulnerabilities</h4>
-                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                <h4 className="text-semibold text-xs text-text-primary">Unsecured Link Vulnerabilities</h4>
+                <p className="text-[11px] text-text-secondary leading-relaxed">
                    permissive substring domain comparisons were prone to spoofed subdomain phishing. Resolving redirects and applying eTLD+1 parsing avoids this.
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="pt-4 border-t border-white/5 text-[11px] text-zinc-400 leading-tight">
+          <div className="pt-4 border-t border-border-subtle text-[11px] text-text-secondary leading-tight">
             Our hardened link audit converts homographs, follows hops, and sanitizes UTM tracking tags instantly.
           </div>
         </div>
       </div>
 
       {/* Tabs visualizer */}
-      <div className="bg-[#141416] border border-white/5 rounded-2xl p-5">
-        <div className="flex border-b border-white/5 gap-4 mb-5 pb-1">
+      <div className="bg-[#141416] border border-border-subtle rounded-2xl p-5">
+        <div className="flex border-b border-border-subtle gap-4 mb-5 pb-1">
           <button
             type="button"
             onClick={() => setActiveTab('latency')}
             className={`pb-3 text-xs font-semibold tracking-wider uppercase transition-colors relative ${
-              activeTab === 'latency' ? 'text-[#F97316]' : 'text-zinc-400 hover:text-zinc-300'
+              activeTab === 'latency' ? 'text-[#F97316]' : 'text-text-secondary hover:text-text-primary'
             }`}
           >
             Latency Speed Check
@@ -217,7 +217,7 @@ export default function AdminSearchInfra() {
             type="button"
             onClick={() => setActiveTab('architect')}
             className={`pb-3 text-xs font-semibold tracking-wider uppercase transition-colors relative ${
-              activeTab === 'architect' ? 'text-[#F97316]' : 'text-zinc-400 hover:text-zinc-300'
+              activeTab === 'architect' ? 'text-[#F97316]' : 'text-text-secondary hover:text-text-primary'
             }`}
           >
             Hardened URL Security Pipeline
@@ -227,7 +227,7 @@ export default function AdminSearchInfra() {
             type="button"
             onClick={() => setActiveTab('sql')}
             className={`pb-3 text-xs font-semibold tracking-wider uppercase transition-colors relative ${
-              activeTab === 'sql' ? 'text-[#F97316]' : 'text-zinc-400 hover:text-zinc-300'
+              activeTab === 'sql' ? 'text-[#F97316]' : 'text-text-secondary hover:text-text-primary'
             }`}
           >
             PostgreSQL Indices Script
@@ -251,17 +251,17 @@ export default function AdminSearchInfra() {
             </div>
 
             <div className="space-y-4">
-              <h4 className="text-sm font-semibold text-white">Telemetry Audit Breakdown</h4>
-              <p className="text-xs text-zinc-400 leading-relaxed">
+              <h4 className="text-sm font-semibold text-text-primary">Telemetry Audit Breakdown</h4>
+              <p className="text-xs text-text-secondary leading-relaxed">
                 By enabling pg_trgm trigram indices and composite B-tree layouts directly inside the public schema database, queries skip table scanning, executing almost immediately.
               </p>
               <div className="grid grid-cols-2 gap-3">
                 {auditData.map((d, i) => (
-                  <div key={i} className="bg-[#0c0c0e] border border-white/5 p-3 rounded-xl flex flex-col justify-between">
-                    <span className="text-[10px] text-zinc-400 truncate font-mono">{d.name}</span>
+                  <div key={i} className="bg-bg-base border border-border-subtle p-3 rounded-xl flex flex-col justify-between">
+                    <span className="text-[10px] text-text-secondary truncate font-mono">{d.name}</span>
                     <div className="flex items-baseline gap-2 mt-1">
                       <span className="text-sm font-bold text-green-400">{d.optimized}ms</span>
-                      <span className="text-[9px] text-zinc-400 line-through">{d.unoptimized}ms</span>
+                      <span className="text-[9px] text-text-secondary line-through">{d.unoptimized}ms</span>
                       <span className="text-[10px] font-bold text-orange-500 ml-auto bg-orange-500/10 px-1.5 py-0.5 rounded-full">{d.speedup}</span>
                     </div>
                   </div>
@@ -273,51 +273,51 @@ export default function AdminSearchInfra() {
 
         {activeTab === 'architect' && (
           <div className="space-y-4">
-            <h4 className="text-sm font-semibold text-white">Hardened URL Safety Pipeline (Link Ingestion Security)</h4>
-            <p className="text-xs text-zinc-400 leading-relaxed">
+            <h4 className="text-sm font-semibold text-text-primary">Hardened URL Safety Pipeline (Link Ingestion Security)</h4>
+            <p className="text-xs text-text-secondary leading-relaxed">
               We recently completely restructured the marketplace link validation engine (/api/videos) using a security sandbox. Below is the operational lifecycle of how user-entered products are processed safely:
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2">
-              <div className="bg-[#0c0c0e] border border-white/5 p-4 rounded-xl flex flex-col gap-2 relative">
+              <div className="bg-bg-base border border-border-subtle p-4 rounded-xl flex flex-col gap-2 relative">
                 <div className="flex items-center gap-1.5">
                   <span className="size-5 rounded-full bg-orange-500/20 text-orange-400 font-mono font-bold text-[10px] flex items-center justify-center">1</span>
-                  <span className="font-semibold text-xs text-zinc-300">HTTP HEAD Resolution</span>
+                  <span className="font-semibold text-xs text-text-primary">HTTP HEAD Resolution</span>
                 </div>
-                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                <p className="text-[11px] text-text-secondary leading-relaxed">
                   Performs a lightweight background fetch with a 10-hop max limit. Intercepts hidden 301/302 shortlink redirection walls.
                 </p>
                 <ArrowRight className="hidden md:block absolute size-4 text-zinc-700 right-[-10px] top-1/2 -translate-y-1/2" />
               </div>
 
-              <div className="bg-[#0c0c0e] border border-white/5 p-4 rounded-xl flex flex-col gap-2 relative">
+              <div className="bg-bg-base border border-border-subtle p-4 rounded-xl flex flex-col gap-2 relative">
                 <div className="flex items-center gap-1.5">
                   <span className="size-5 rounded-full bg-blue-500/20 text-blue-400 font-mono font-bold text-[10px] flex items-center justify-center">2</span>
-                  <span className="font-semibold text-xs text-zinc-300">eTLD+1 Root Matching</span>
+                  <span className="font-semibold text-xs text-text-primary">eTLD+1 Root Matching</span>
                 </div>
-                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                <p className="text-[11px] text-text-secondary leading-relaxed">
                   Uses the robust <code className="text-[#38BDF8] text-[10px]">tldts</code> engine to extract pure root brands, completely mitigating subdomain spoofing attacks.
                 </p>
                 <ArrowRight className="hidden md:block absolute size-4 text-zinc-700 right-[-10px] top-1/2 -translate-y-1/2" />
               </div>
 
-              <div className="bg-[#0c0c0e] border border-white/5 p-4 rounded-xl flex flex-col gap-2 relative">
+              <div className="bg-bg-base border border-border-subtle p-4 rounded-xl flex flex-col gap-2 relative">
                 <div className="flex items-center gap-1.5">
                   <span className="size-5 rounded-full bg-purple-500/20 text-purple-400 font-mono font-bold text-[10px] flex items-center justify-center">3</span>
-                  <span className="font-semibold text-xs text-zinc-300">Punycode Enforcement</span>
+                  <span className="font-semibold text-xs text-text-primary">Punycode Enforcement</span>
                 </div>
-                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                <p className="text-[11px] text-text-secondary leading-relaxed">
                   Resolves domain strings to their standard ASCII punycode equivalents to block homograph attacks utilizing visual character lookalikes.
                 </p>
                 <ArrowRight className="hidden md:block absolute size-4 text-zinc-700 right-[-10px] top-1/2 -translate-y-1/2" />
               </div>
 
-              <div className="bg-[#0c0c0e] border border-white/5 p-4 rounded-xl flex flex-col gap-2">
+              <div className="bg-bg-base border border-border-subtle p-4 rounded-xl flex flex-col gap-2">
                 <div className="flex items-center gap-1.5">
                   <span className="size-5 rounded-full bg-green-500/20 text-green-400 font-mono font-bold text-[10px] flex items-center justify-center">4</span>
-                  <span className="font-semibold text-xs text-zinc-300">Parameter Scrubbing</span>
+                  <span className="font-semibold text-xs text-text-primary">Parameter Scrubbing</span>
                 </div>
-                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                <p className="text-[11px] text-text-secondary leading-relaxed">
                   Removes user-specific affiliate tagging, cookie tracking ids, and UTM parameters, preventing affiliate URL stuffing easily.
                 </p>
               </div>
@@ -325,8 +325,8 @@ export default function AdminSearchInfra() {
 
             <div className="bg-green-500/5 border border-green-500/10 p-4 rounded-xl flex items-start gap-3 mt-2">
               <ShieldCheck className="size-5 text-green-400 shrink-0 mt-0.5" />
-              <div className="text-xs text-zinc-400 leading-relaxed">
-                <strong className="text-white">Active Protection Mode Enabled:</strong> The ingress route now checks for Google Safe Browsing APIs. Submissions violating these boundaries are automatically blocked with explicit error responses to the uploader.
+              <div className="text-xs text-text-secondary leading-relaxed">
+                <strong className="text-text-primary">Active Protection Mode Enabled:</strong> The ingress route now checks for Google Safe Browsing APIs. Submissions violating these boundaries are automatically blocked with explicit error responses to the uploader.
               </div>
             </div>
           </div>
@@ -334,12 +334,12 @@ export default function AdminSearchInfra() {
 
         {activeTab === 'sql' && (
           <div className="space-y-4">
-            <h4 className="text-sm font-semibold text-white">PostgreSQL Indices Migration Script</h4>
-            <p className="text-xs text-zinc-400 leading-relaxed">
+            <h4 className="text-sm font-semibold text-text-primary">PostgreSQL Indices Migration Script</h4>
+            <p className="text-xs text-text-secondary leading-relaxed">
               These index optimizations represent the exact schema statements written into our database layout:
             </p>
 
-            <pre className="text-[10px] font-mono text-zinc-300 bg-[#0c0c0e] p-4 rounded-xl border border-white/5 whitespace-pre-wrap leading-relaxed max-h-[350px] overflow-y-auto">
+            <pre className="text-[10px] font-mono text-text-primary bg-bg-base p-4 rounded-xl border border-border-subtle whitespace-pre-wrap leading-relaxed max-h-[350px] overflow-y-auto">
 {`-- 1. Enable pg_trgm (Trigram Operator Extension)
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 

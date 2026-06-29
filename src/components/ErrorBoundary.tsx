@@ -30,12 +30,12 @@ export class ErrorBoundary extends Component<Props, State> {
           return this.props.fallback;
       }
       return (
-        <div className="flex flex-col items-center justify-center min-h-[300px] w-full bg-[#0c0c0e] text-white p-6 rounded-2xl border border-red-500/20">
+        <div className="flex flex-col items-center justify-center min-h-[300px] w-full bg-bg-base text-text-primary p-6 rounded-2xl border border-red-500/20">
           <div className="size-14 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
             <AlertTriangle className="size-7 text-red-500" />
           </div>
           <h2 className="text-xl font-bold mb-2">Something went wrong</h2>
-          <p className="text-zinc-400 text-sm mb-6 text-center max-w-sm">
+          <p className="text-text-secondary text-sm mb-6 text-center max-w-sm">
             We encountered an unexpected error while loading this component.
           </p>
           <button 

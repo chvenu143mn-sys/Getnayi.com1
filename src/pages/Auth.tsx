@@ -100,7 +100,7 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="relative flex items-center justify-center min-h-[calc(100dvh-60px)] bg-[#0c0c0e] overflow-hidden pb-8">
+    <div className="relative flex items-center justify-center min-h-[calc(100dvh-60px)] bg-bg-base overflow-hidden pb-8">
       {/* Background Image full screen */}
       <div className="absolute inset-0 z-0">
         <motion.div
@@ -124,7 +124,7 @@ export default function AuthPage() {
             ? navigate(-1)
             : navigate("/", { replace: true })
         }
-        className="absolute top-4 left-4 z-20 size-10 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-md flex items-center justify-center border border-white/10 text-white active:scale-95 transition-all"
+        className="absolute top-4 left-4 z-20 size-10 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-md flex items-center justify-center border border-border-subtle text-text-primary active:scale-95 transition-all"
         aria-label="Go back"
       >
         <ArrowLeft className="size-5" />
@@ -141,7 +141,7 @@ export default function AuthPage() {
             initial={{ y: 5, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.1, duration: 0.5 }}
-            className="text-[17px] font-sans font-semibold tracking-wide text-white mb-1"
+            className="text-[17px] font-sans font-semibold tracking-wide text-text-primary mb-1"
           >
             Welcome to
           </motion.h2>
@@ -149,16 +149,16 @@ export default function AuthPage() {
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.2, duration: 0.5 }}
-            className="text-[44px] tracking-tight text-white mb-5 font-sans relative inline-flex items-end font-semibold"
+            className="text-[44px] tracking-tight text-text-primary mb-5 font-sans relative inline-flex items-end font-semibold"
           >
             Getnayi
-            <div className="size-[7px] rounded-full bg-[#ff5a36] shrink-0 mb-[9px] -ml-[2px]" />
+            <div className="size-[7px] rounded-full bg-brand-primary shrink-0 mb-[9px] -ml-[2px]" />
           </motion.h1>
           <motion.p
             initial={{ y: 5, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.5 }}
-            className="text-[15px] font-sans text-white/90 leading-relaxed font-medium tracking-wide"
+            className="text-[15px] font-sans text-text-primary/90 leading-relaxed font-medium tracking-wide"
           >
             Discover real products
             <br />
@@ -220,9 +220,9 @@ export default function AuthPage() {
                 aria-label="button"
                 type="button"
                 onClick={() => setShowEmailForm(true)}
-                className="w-full py-[15px] px-4 flex justify-center items-center bg-transparent border border-white/20 text-white font-bold font-sans rounded-[14px] hover:bg-white/10 transition-all active:scale-[0.98] text-[15px] gap-x-3 backdrop-blur-md"
+                className="w-full py-[15px] px-4 flex justify-center items-center bg-transparent border border-white/20 text-text-primary font-bold font-sans rounded-[14px] hover:bg-surface-1 transition-all active:scale-[0.98] text-[15px] gap-x-3 backdrop-blur-md"
               >
-                <Mail className="size-[18px] text-white" />
+                <Mail className="size-[18px] text-text-primary" />
                 <span>Continue with Email</span>
               </button>
             </motion.div>
@@ -242,7 +242,7 @@ export default function AuthPage() {
                     required
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="w-full px-5 py-3.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder:text-white/50 focus:outline-none focus:border-white/40 focus:bg-white/20 transition-all font-sans text-[15px] backdrop-blur-sm"
+                    className="w-full px-5 py-3.5 bg-white/10 border border-white/20 rounded-xl text-text-primary placeholder:text-text-primary/50 focus:outline-none focus:border-white/40 focus:bg-white/20 transition-all font-sans text-[15px] backdrop-blur-sm"
                     placeholder="Choose a username"
                   />
                 </div>
@@ -254,7 +254,7 @@ export default function AuthPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-5 py-3.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder:text-white/50 focus:outline-none focus:border-white/40 focus:bg-white/20 transition-all font-sans text-[15px] backdrop-blur-sm"
+                  className="w-full px-5 py-3.5 bg-white/10 border border-white/20 rounded-xl text-text-primary placeholder:text-text-primary/50 focus:outline-none focus:border-white/40 focus:bg-white/20 transition-all font-sans text-[15px] backdrop-blur-sm"
                   placeholder="Email address"
                 />
               </div>
@@ -266,25 +266,25 @@ export default function AuthPage() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-5 py-3.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder:text-white/50 focus:outline-none focus:border-white/40 focus:bg-white/20 transition-all font-sans text-[15px] backdrop-blur-sm"
+                    className="w-full px-5 py-3.5 bg-white/10 border border-white/20 rounded-xl text-text-primary placeholder:text-text-primary/50 focus:outline-none focus:border-white/40 focus:bg-white/20 transition-all font-sans text-[15px] backdrop-blur-sm"
                     placeholder="Password"
                   />
                 </div>
               )}
 
               {!isLogin && !showForgotPassword && (
-                <div className="flex items-start gap-x-2.5 mt-1 bg-white/5 border border-white/10 p-3 rounded-xl backdrop-blur-sm">
+                <div className="flex items-start gap-x-2.5 mt-1 bg-white/5 border border-border-subtle p-3 rounded-xl backdrop-blur-sm">
                   <input
                     type="checkbox"
                     id="agree-terms"
                     required
                     checked={acceptedTerms}
                     onChange={(e) => setAcceptedTerms(e.target.checked)}
-                    className="mt-0.5 size-4 rounded bg-black/30 border-white/20 text-[#ff5a36] focus:ring-0 focus:ring-offset-0 cursor-pointer shrink-0"
+                    className="mt-0.5 size-4 rounded bg-black/30 border-white/20 text-brand-primary focus:ring-0 focus:ring-offset-0 cursor-pointer shrink-0"
                   />
                   <label
                     htmlFor="agree-terms"
-                    className="text-[11px] text-zinc-400 leading-normal select-none cursor-pointer"
+                    className="text-[11px] text-text-secondary leading-normal select-none cursor-pointer"
                   >
                     I agree to the{" "}
                     <button
@@ -294,7 +294,7 @@ export default function AuthPage() {
                         e.stopPropagation();
                         navigate("/terms");
                       }}
-                      className="text-white hover:underline font-semibold inline"
+                      className="text-text-primary hover:underline font-semibold inline"
                     >
                       Terms of Service
                     </button>{" "}
@@ -306,7 +306,7 @@ export default function AuthPage() {
                         e.stopPropagation();
                         navigate("/privacy");
                       }}
-                      className="text-white hover:underline font-semibold inline"
+                      className="text-text-primary hover:underline font-semibold inline"
                     >
                       Privacy Policy
                     </button>
@@ -322,7 +322,7 @@ export default function AuthPage() {
               )}
 
               {success && (
-                <div className="text-[13px] text-white font-sans p-3 bg-white/20 rounded-xl border border-white/30 text-center backdrop-blur-sm">
+                <div className="text-[13px] text-text-primary font-sans p-3 bg-white/20 rounded-xl border border-white/30 text-center backdrop-blur-sm">
                   {success}
                 </div>
               )}
@@ -347,7 +347,7 @@ export default function AuthPage() {
                     aria-label="button"
                     type="button"
                     onClick={() => setShowForgotPassword(true)}
-                    className="text-white/70 text-[13px] font-medium hover:text-white mt-1"
+                    className="text-text-primary/70 text-[13px] font-medium hover:text-text-primary mt-1"
                   >
                     Forgot Password?
                   </button>
@@ -357,7 +357,7 @@ export default function AuthPage() {
                     aria-label="button"
                     type="button"
                     onClick={() => setShowForgotPassword(false)}
-                    className="text-white/70 text-[13px] font-medium hover:text-white mt-1"
+                    className="text-text-primary/70 text-[13px] font-medium hover:text-text-primary mt-1"
                   >
                     Back to Login
                   </button>
@@ -367,7 +367,7 @@ export default function AuthPage() {
                     aria-label="button"
                     type="button"
                     onClick={() => setShowEmailForm(false)}
-                    className="text-white/70 text-[13px] font-medium hover:text-white"
+                    className="text-text-primary/70 text-[13px] font-medium hover:text-text-primary"
                   >
                     Back
                   </button>
@@ -384,7 +384,7 @@ export default function AuthPage() {
             transition={{ delay: 0.6, duration: 0.5 }}
             className="mt-8 text-center"
           >
-            <p className="text-[14px] font-sans text-white/90 font-medium tracking-wide">
+            <p className="text-[14px] font-sans text-text-primary/90 font-medium tracking-wide">
               {isLogin ? "Don't have an account?" : "Already have an account?"}
               <button
                 type="button"
@@ -395,7 +395,7 @@ export default function AuthPage() {
                   setError(null);
                   setSuccess(null);
                 }}
-                className="text-[#ff5a36] ml-1.5 font-bold hover:text-[#f4284d] transition-colors"
+                className="text-brand-primary ml-1.5 font-bold hover:text-[#f4284d] transition-colors"
               >
                 {isLogin ? "Sign up" : "Log in"}
               </button>

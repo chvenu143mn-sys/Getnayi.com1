@@ -55,14 +55,16 @@ const SIDEBAR_ITEMS = [
     { id: 'search_infra', label: 'Search Optimization', icon: Search },
   ];
 
-async function fetchWithAdminAuth(url: string, options: RequestInit = {}) {
+import { safeFetch } from '../utils/apiClient';
+
+async function safeFetchWithAdminAuth(url: string, options: RequestInit = {}) {
   const { data: { session } } = await supabase.auth.getSession();
   const headers = {
     'Authorization': `Bearer ${session?.access_token}`,
     'Content-Type': 'application/json',
     ...options.headers
   };
-  return fetch(url, { credentials: 'include', ...options, headers });
+  return safeFetch(url, { credentials: 'include', ...options, headers });
 }
 
 type Tab = 'dashboard' | 'videos' | 'flagged' | 'reports' | 'creators' | 'verification' | 'links' | 'spam' | 'analytics' | 'settings' | 'categories' | 'audit_logs' | 'search_infra' | 'subscriptions';
@@ -212,11 +214,8 @@ export default function Admin() {
 
   async function fetchAllVideos() {
     try {
-      const res = await fetchWithAdminAuth('/api/admin/videos');
-      if (res.ok) {
-        const json = await res.json();
-        setVideos(json.data || []);
-      }
+      const json = await safeFetchWithAdminAuth('/api/admin/videos');
+      setVideos(json.data || []);
     } catch(err) {} 
   }
 
@@ -242,12 +241,9 @@ export default function Admin() {
 
   async function fetchApplications() {
     try {
-      const res = await fetchWithAdminAuth('/api/admin/applications');
-      if (res.ok) {
-        const json = await res.json();
-        const pending = (json.data || []).filter((app: any) => app.status === 'pending');
-        setApplications(pending);
-      }
+      const json = await safeFetchWithAdminAuth('/api/admin/applications');
+      const pending = (json.data || []).filter((app: any) => app.status === 'pending');
+      setApplications(pending);
     } catch (err) {
       console.error("fetchApplications catch:", err);
     }
@@ -255,73 +251,54 @@ export default function Admin() {
 
   async function fetchReports() {
     try {
-      const res = await fetchWithAdminAuth('/api/admin/reports');
-      if (res.ok) {
-        const json = await res.json();
-        setReports(json.data || []);
-      }
+      const json = await safeFetchWithAdminAuth('/api/admin/reports');
+      setReports(json.data || []);
     } catch (err) {}
   }
 
   async function fetchCreators() {
     try {
-      const res = await fetchWithAdminAuth('/api/admin/creators');
-      if (res.ok) {
-        const json = await res.json();
-        const list = json.data || [];
-        setCreators(list);
-        setBrands(list.filter((x: any) => x.is_brand));
-      }
+      const json = await safeFetchWithAdminAuth('/api/admin/creators');
+      const list = json.data || [];
+      setCreators(list);
+      setBrands(list.filter((x: any) => x.is_brand));
     } catch (err) {}
   }
 
   async function fetchProducts() {
     try {
-      const res = await fetchWithAdminAuth('/api/admin/products');
-      if (res.ok) {
-        const json = await res.json();
-        setProducts(json.data || []);
-      }
+      const json = await safeFetchWithAdminAuth('/api/admin/products');
+      setProducts(json.data || []);
     } catch (err) {}
   }
 
   async function fetchSpamItems() {
     try {
-      const res = await fetchWithAdminAuth('/api/admin/spam');
-      if (res.ok) {
-        const json = await res.json();
-        setSpamItems(json.data || []);
-      }
+      const json = await safeFetchWithAdminAuth('/api/admin/spam');
+      setSpamItems(json.data || []);
     } catch (err) {}
   }
 
   async function fetchSettingsDetail() {
     try {
-      const res = await fetchWithAdminAuth('/api/admin/settings');
-      if (res.ok) {
-        const json = await res.json();
-        setSettings(json.data || {});
-      }
+      const json = await safeFetchWithAdminAuth('/api/admin/settings');
+      setSettings(json.data || {});
     } catch (err) {}
   }
 
   async function fetchAuditLogs() {
     try {
-      const res = await fetchWithAdminAuth('/api/admin/audit-logs');
-      if (res.ok) {
-        const json = await res.json();
-        setAuditLogs(json.data || []);
-      }
+      const json = await safeFetchWithAdminAuth('/api/admin/audit-logs');
+      setAuditLogs(json.data || []);
     } catch (err) {}
   }
 
   const handleUpdateAppStatus = async (appId: string, userId: string, status: 'approved' | 'rejected') => {
     try {
-      const res = await fetchWithAdminAuth(`/api/admin/applications/${appId}`, {
+      await safeFetchWithAdminAuth(`/api/admin/applications/${appId}`, {
         method: 'PUT',
         body: JSON.stringify({ status, userId })
       });
-      if (!res.ok) throw new Error('Failed to update app status');
       handleRefresh();
     } catch (err: any) {
       alert('Error updating application: ' + err.message);
@@ -330,8 +307,7 @@ export default function Admin() {
 
   const handleDismissReport = async (reportId: string) => {
     try {
-      const res = await fetchWithAdminAuth(`/api/admin/reports/${reportId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to dismiss report');
+      await safeFetchWithAdminAuth(`/api/admin/reports/${reportId}`, { method: 'DELETE' });
       fetchReports();
       fetchStats();
       fetchAuditLogs();
@@ -342,11 +318,10 @@ export default function Admin() {
 
   const handleReviewReport = async (reportId: string, status: string) => {
     try {
-      const res = await fetchWithAdminAuth(`/api/admin/reports/${reportId}`, {
+      await safeFetchWithAdminAuth(`/api/admin/reports/${reportId}`, {
         method: 'PUT',
         body: JSON.stringify({ status })
       });
-      if (!res.ok) throw new Error('Failed to update report status');
       fetchReports();
       fetchAuditLogs();
     } catch(err: any) {
@@ -365,11 +340,10 @@ export default function Admin() {
 
   const handleVerifyProduct = async (videoId: string, isVerified: boolean) => {
     try {
-      const res = await fetchWithAdminAuth(`/api/admin/videos/${videoId}`, {
+      await safeFetchWithAdminAuth(`/api/admin/videos/${videoId}`, {
         method: 'PUT',
         body: JSON.stringify({ is_admin_verified_link: isVerified, trust_score: isVerified ? 100 : 70 })
       });
-      if (!res.ok) throw new Error('Failed to apply verification states');
       alert(isVerified ? 'Product Link Verified ✓' : 'Product Link Unverified');
       fetchAllVideos();
       fetchProducts();
@@ -382,11 +356,10 @@ export default function Admin() {
 
   const handleUpdateVideoCategory = async (videoId: string, categoryId: string) => {
     try {
-      const res = await fetchWithAdminAuth(`/api/admin/videos/${videoId}`, {
+      await safeFetchWithAdminAuth(`/api/admin/videos/${videoId}`, {
         method: 'PUT',
         body: JSON.stringify({ category_id: categoryId })
       });
-      if (!res.ok) throw new Error('Failed to set video category');
       fetchAllVideos();
       fetchAuditLogs();
     } catch (err: any) {
@@ -396,11 +369,10 @@ export default function Admin() {
 
   const handleUpdateVideoStatus = async (videoId: string, status: string, reason?: string) => {
     try {
-      const res = await fetchWithAdminAuth(`/api/admin/videos/${videoId}`, {
+      await safeFetchWithAdminAuth(`/api/admin/videos/${videoId}`, {
         method: 'PUT',
         body: JSON.stringify({ status, reason })
       });
-      if (!res.ok) throw new Error('Failed to update video status');
       fetchAllVideos();
       fetchAuditLogs();
     } catch (err: any) {
@@ -410,11 +382,10 @@ export default function Admin() {
 
   const handleToggleUploadPrivilege = async (userId: string, canUpload: boolean) => {
     try {
-      const res = await fetchWithAdminAuth(`/api/admin/creators/${userId}`, {
+      await safeFetchWithAdminAuth(`/api/admin/creators/${userId}`, {
         method: 'PUT',
         body: JSON.stringify({ can_upload: canUpload })
       });
-      if (!res.ok) throw new Error('Failed to set upload privileges');
       fetchCreators();
       fetchAuditLogs();
     } catch (err: any) {
@@ -424,11 +395,10 @@ export default function Admin() {
 
   const handleToggleCreatorRole = async (userId: string, field: string, value: boolean) => {
     try {
-      const res = await fetchWithAdminAuth(`/api/admin/creators/${userId}`, {
+      await safeFetchWithAdminAuth(`/api/admin/creators/${userId}`, {
         method: 'PUT',
         body: JSON.stringify({ [field]: value })
       });
-      if (!res.ok) throw new Error('Failed to configure user properties');
       fetchCreators();
       fetchAuditLogs();
     } catch (err: any) {
@@ -440,11 +410,10 @@ export default function Admin() {
     const act = isSuspended ? 'Suspend' : 'Reactivate';
     if (!window.confirm(`Are you sure you want to ${act.toLowerCase()} this user account?`)) return;
     try {
-      const res = await fetchWithAdminAuth(`/api/admin/creators/${userId}`, {
+      await safeFetchWithAdminAuth(`/api/admin/creators/${userId}`, {
         method: 'PUT',
         body: JSON.stringify({ is_suspended: isSuspended })
       });
-      if (!res.ok) throw new Error(`Failed to update suspension status`);
       alert(`User suspension updated: ${isSuspended ? 'SUSPENDED' : 'ACTIVE'}`);
       fetchCreators();
       fetchReports();
@@ -459,8 +428,7 @@ export default function Admin() {
   const handleDeleteVideo = async (videoId: string) => {
     if (!window.confirm('Are you sure you want to delete this video? This will erase database entries and Bunny stream file packages permanently.')) return;
     try {
-      const res = await fetchWithAdminAuth(`/api/admin/videos/${videoId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to purge video content');
+      await safeFetchWithAdminAuth(`/api/admin/videos/${videoId}`, { method: 'DELETE' });
       alert('Content took down successfully.');
       fetchReports();
       fetchAllVideos();
@@ -475,11 +443,10 @@ export default function Admin() {
 
   const handleDismissSpam = async (videoId: string) => {
     try {
-      const res = await fetchWithAdminAuth(`/api/admin/videos/${videoId}`, {
+      await safeFetchWithAdminAuth(`/api/admin/videos/${videoId}`, {
         method: 'PUT',
         body: JSON.stringify({ trust_score: 95 })
       });
-      if (!res.ok) throw new Error('Failed to whitelist spam video');
       alert('Spam alert dismissed and trust index whitelisted.');
       fetchSpamItems();
       fetchAllVideos();
@@ -492,11 +459,10 @@ export default function Admin() {
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetchWithAdminAuth('/api/admin/settings', {
+      await safeFetchWithAdminAuth('/api/admin/settings', {
         method: 'POST',
         body: JSON.stringify(settings)
       });
-      if (!res.ok) throw new Error('Failed to preserve system configurations');
       alert('System variables synchronized successfully!');
       fetchSettingsDetail();
       fetchSpamItems();
@@ -589,16 +555,11 @@ export default function Admin() {
         reader.onerror = (error) => reject(error);
       });
 
-      const res = await fetchWithAdminAuth('/api/bunny/upload-image', {
+      const data = await safeFetchWithAdminAuth('/api/bunny/upload-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageBase64: base64, filename: file.name })
       });
-
-      if (!res.ok) {
-        throw new Error('Failed to upload image');
-      }
-      const data = await res.json();
       setEditingCategoryImageUrl(data.url);
     } catch (err: any) {
       alert("Error uploading image: " + err.message);
@@ -637,12 +598,12 @@ export default function Admin() {
 
   if (loading) {
     return (
-      <div className="min-h-[calc(100dvh-64px-env(safe-area-inset-bottom))] w-full bg-[#0c0c0e] text-white pt-safe flex flex-col font-sans relative">
+      <div className="min-h-[calc(100dvh-64px-env(safe-area-inset-bottom))] w-full bg-bg-base text-text-primary pt-safe flex flex-col font-sans relative">
         <div className="absolute top-0 left-0 right-0 h-64 bg-gradient-to-b from-blue-900/20 to-transparent pointer-events-none" />
         <div className="max-w-md mx-auto w-full flex-1 flex flex-col relative z-10">
           <div className="px-4 py-6 sticky top-0 z-10">
             <div className="flex justify-between items-center mb-6">
-              <div className="w-40 h-8 bg-zinc-800/50 rounded-lg animate-pulse"></div>
+              <div className="w-40 h-8 bg-surface-2/50 rounded-lg animate-pulse"></div>
             </div>
             <div className="flex gap-x-1 bg-white/5 p-1 rounded-2xl backdrop-blur-md">
               {[1, 2, 3, 4, 5].map((i) => (
@@ -653,7 +614,7 @@ export default function Admin() {
           <div className="p-4 gap-y-6">
             <div className="grid grid-cols-2 gap-4">
               {[1, 2, 3, 4].map(i => (
-                <div key={i} className="bg-white/5 p-5 rounded-3xl h-28 animate-pulse backdrop-blur-sm border border-white/5"></div>
+                <div key={i} className="bg-white/5 p-5 rounded-3xl h-28 animate-pulse backdrop-blur-sm border border-border-subtle"></div>
               ))}
             </div>
           </div>
@@ -664,11 +625,11 @@ export default function Admin() {
 
   if (isAdmin === false) {
     return (
-      <div className="min-h-[calc(100dvh-64px-env(safe-area-inset-bottom))] w-full bg-[#0c0c0e] text-white flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
+      <div className="min-h-[calc(100dvh-64px-env(safe-area-inset-bottom))] w-full bg-bg-base text-text-primary flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-64 bg-red-500/10 blur-[100px] rounded-full" />
         <ShieldAlert className="size-16 text-red-500 mb-6 drop-shadow-[0_0_15px_rgba(239,68,68,0.5)] z-10" />
-        <h2 className="text-3xl font-display font-bold mb-3 tracking-tight z-10">Access Denied</h2>
-        <p className="text-zinc-400 mb-8 z-10">You don't have permission to view this command center.</p>
+        <h2 className="text-brand-primaryxl font-display font-bold mb-3 tracking-tight z-10">Access Denied</h2>
+        <p className="text-text-secondary mb-8 z-10">You don't have permission to view this command center.</p>
         <button type="button" aria-label="button"  onClick={() => navigate('/')} className="px-8 py-3.5 bg-white text-black rounded-xl font-bold tracking-wide active:scale-95 transition-transform z-10">
           Return Home
         </button>
@@ -697,24 +658,24 @@ export default function Admin() {
       {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (
         <div 
-          className="fixed inset-0 bg-[#0c0c0e]/60 z-40 md:hidden"
+          className="fixed inset-0 bg-bg-base/60 z-40 md:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
 
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 bg-[#141416] border-r border-white/5 flex flex-col shrink-0 transition-transform duration-300 md:static md:translate-x-0",
+        "fixed inset-y-0 left-0 z-50 w-64 bg-[#141416] border-r border-border-subtle flex flex-col shrink-0 transition-transform duration-300 md:static md:translate-x-0",
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        <div className="h-16 flex items-center justify-between px-6 border-b border-white/5 shrink-0 gap-3">
+        <div className="h-16 flex items-center justify-between px-6 border-b border-border-subtle shrink-0 gap-3">
           <div className="flex items-center gap-3">
-            <button type="button" aria-label="button"  onClick={() => (window.history.state && window.history.state.idx > 0) ? navigate(-1) : navigate('/', { replace: true })} className="p-1 -ml-2 text-zinc-400 hover:text-white transition-colors">
+            <button type="button" aria-label="button"  onClick={() => (window.history.state && window.history.state.idx > 0) ? navigate(-1) : navigate('/', { replace: true })} className="p-1 -ml-2 text-text-secondary hover:text-text-primary transition-colors">
                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
             </button>
-            <div className="size-8 rounded-full bg-[#F97316] text-white flex items-center justify-center font-bold text-xl">G</div>
-            <span className="font-bold text-white text-lg tracking-wide">Getnayi <span className="text-[#F97316] font-normal text-sm">Admin</span></span>
+            <div className="size-8 rounded-full bg-[#F97316] text-text-primary flex items-center justify-center font-bold text-xl">G</div>
+            <span className="font-bold text-text-primary text-lg tracking-wide">Getnayi <span className="text-[#F97316] font-normal text-sm">Admin</span></span>
           </div>
-          <button type="button" aria-label="button"  className="md:hidden p-1 text-zinc-400 hover:text-white" onClick={() => setIsMobileMenuOpen(false)}>
+          <button type="button" aria-label="button"  className="md:hidden p-1 text-text-secondary hover:text-text-primary" onClick={() => setIsMobileMenuOpen(false)}>
             <X className="size-5" />
           </button>
         </div>
@@ -731,25 +692,25 @@ export default function Admin() {
                 }}
                 className={cn(
                   "flex items-center justify-between px-4 py-3 rounded-xl transition-all font-medium text-sm text-left group",
-                  isActive ? "bg-white/10 text-white" : "text-zinc-400 hover:bg-white/5 hover:text-zinc-300"
+                  isActive ? "bg-white/10 text-text-primary" : "text-text-secondary hover:bg-surface-1 hover:text-text-primary"
                 )}
               >
                 <div className="flex items-center gap-4">
-                  <Icon className={cn("size-5", isActive ? "text-white" : "text-zinc-400")} />
+                  <Icon className={cn("size-5", isActive ? "text-text-primary" : "text-text-secondary")} />
                   {item.label}
                 </div>
                 {item.id === 'flagged' && videos.filter(v => v.status === 'pending_review').length > 0 && (
-                  <span className="bg-[#EF4444] text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center justify-center animate-in zoom-in">
+                  <span className="bg-[#EF4444] text-text-primary text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center justify-center animate-in zoom-in">
                     {videos.filter(v => v.status === 'pending_review').length}
                   </span>
                 )}
                 {item.id === 'verification' && applications.length > 0 && (
-                  <span className="bg-[#EF4444] text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center justify-center animate-in zoom-in">
+                  <span className="bg-[#EF4444] text-text-primary text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center justify-center animate-in zoom-in">
                     {applications.length}
                   </span>
                 )}
                 {item.id === 'reports' && reports.length > 0 && (
-                  <span className="bg-[#EF4444] text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center justify-center animate-in zoom-in">
+                  <span className="bg-[#EF4444] text-text-primary text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center justify-center animate-in zoom-in">
                     {reports.length}
                   </span>
                 )}
@@ -761,17 +722,17 @@ export default function Admin() {
       
       <div className="flex-1 flex flex-col h-screen bg-[#0A0A0C] w-full relative overflow-hidden">
         {/* Mobile Header */}
-        <div className="md:hidden h-16 border-b border-white/5 flex items-center px-4 shrink-0 bg-[#141416] z-30 w-full relative">
-          <button type="button" aria-label="button"  onClick={() => (window.history.state && window.history.state.idx > 0) ? navigate(-1) : navigate('/', { replace: true })} className="p-2 -ml-2 text-white/90 hover:text-white transition-colors">
+        <div className="md:hidden h-16 border-b border-border-subtle flex items-center px-4 shrink-0 bg-[#141416] z-30 w-full relative">
+          <button type="button" aria-label="button"  onClick={() => (window.history.state && window.history.state.idx > 0) ? navigate(-1) : navigate('/', { replace: true })} className="p-2 -ml-2 text-text-primary/90 hover:text-text-primary transition-colors">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
           </button>
           <button type="button" aria-label="button"  
             onClick={() => setIsMobileMenuOpen(true)}
-            className="p-2 ml-2 text-zinc-400 hover:text-white"
+            className="p-2 ml-2 text-text-secondary hover:text-text-primary"
           >
             <Menu className="size-6" />
           </button>
-          <span className="font-bold text-white ml-2 text-lg capitalize">{activeTab}</span>
+          <span className="font-bold text-text-primary ml-2 text-lg capitalize">{activeTab}</span>
         </div>
 
         <div className="flex-1 overflow-y-auto w-full p-4 md:p-8">
@@ -888,11 +849,11 @@ export default function Admin() {
           {(activeTab as any) === 'dashboard_old_hidden' && (
             <div className="gap-y-6 animate-in fade-in duration-500">
               <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-white tracking-tight">Dashboard</h1>
+                <h1 className="text-2xl font-bold text-text-primary tracking-tight">Dashboard</h1>
                 <button type="button" aria-label="button" 
                   onClick={handleRefresh}
                   disabled={isRefreshing}
-                  className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed border border-white/10 rounded-xl text-sm font-medium transition-all"
+                  className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-surface-1 disabled:opacity-50 disabled:cursor-not-allowed border border-border-subtle rounded-xl text-sm font-medium transition-all"
                 >
                   <RefreshCw className={cn("size-4", isRefreshing && "animate-spin")} />
                   {isRefreshing ? "Syncing..." : "Sync / Refresh"}
@@ -900,51 +861,51 @@ export default function Admin() {
               </div>
               
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-                 <div className="bg-[#161619] border border-white/5 rounded-2xl p-5 flex flex-col justify-between">
-                    <div className="text-zinc-400 text-sm mb-2">Total Users</div>
+                 <div className="bg-surface-1 border border-border-subtle rounded-2xl p-5 flex flex-col justify-between">
+                    <div className="text-text-secondary text-sm mb-2">Total Users</div>
                     <div className="flex items-end justify-between">
-                       <span className="text-2xl font-bold text-white">{stats.totalUsers > 1000000 ? (stats.totalUsers/1000000).toFixed(1)+'M' : stats.totalUsers.toLocaleString()}</span>
+                       <span className="text-2xl font-bold text-text-primary">{stats.totalUsers > 1000000 ? (stats.totalUsers/1000000).toFixed(1)+'M' : stats.totalUsers.toLocaleString()}</span>
                        <div className="flex flex-col items-end">
-                          <TrendingUp className="size-5 text-zinc-400 mb-1" />
+                          <TrendingUp className="size-5 text-text-secondary mb-1" />
                           <span className="text-[#10B981] text-xs font-semibold flex items-center gap-1">↑ 12.3%</span>
                        </div>
                     </div>
                  </div>
-                 <div className="bg-[#161619] border border-white/5 rounded-2xl p-5 flex flex-col justify-between">
-                    <div className="text-zinc-400 text-sm mb-2 flex items-center justify-between">
+                 <div className="bg-surface-1 border border-border-subtle rounded-2xl p-5 flex flex-col justify-between">
+                    <div className="text-text-secondary text-sm mb-2 flex items-center justify-between">
                       <span>Total Creators</span>
-                      <Users className="size-4 text-zinc-400" />
+                      <Users className="size-4 text-text-secondary" />
                     </div>
                     <div className="flex items-end justify-between">
-                       <span className="text-2xl font-bold text-white">{(creators.length > 1000 ? (creators.length/1000).toFixed(1)+'K' : creators.length.toLocaleString())}</span>
+                       <span className="text-2xl font-bold text-text-primary">{(creators.length > 1000 ? (creators.length/1000).toFixed(1)+'K' : creators.length.toLocaleString())}</span>
                        <span className="text-[#10B981] text-xs font-semibold flex items-center gap-1">↑ 8.3%</span>
                     </div>
                  </div>
-                 <div className="bg-[#161619] border border-white/5 rounded-2xl p-5 flex flex-col justify-between">
-                    <div className="text-zinc-400 text-sm mb-2 flex items-center justify-between">
+                 <div className="bg-surface-1 border border-border-subtle rounded-2xl p-5 flex flex-col justify-between">
+                    <div className="text-text-secondary text-sm mb-2 flex items-center justify-between">
                       <span>Total Videos</span>
-                      <PlaySquare className="size-4 text-zinc-400" />
+                      <PlaySquare className="size-4 text-text-secondary" />
                     </div>
                     <div className="flex items-end justify-between">
-                       <span className="text-2xl font-bold text-white">{(stats.totalVideos > 1000 ? (stats.totalVideos/1000).toFixed(1)+'K' : stats.totalVideos.toLocaleString())}</span>
+                       <span className="text-2xl font-bold text-text-primary">{(stats.totalVideos > 1000 ? (stats.totalVideos/1000).toFixed(1)+'K' : stats.totalVideos.toLocaleString())}</span>
                        <span className="text-[#10B981] text-xs font-semibold flex items-center gap-1">↑ 15.3%</span>
                     </div>
                  </div>
-                 <div className="bg-[#161619] border border-white/5 rounded-2xl p-5 flex flex-col justify-between">
-                    <div className="text-zinc-400 text-sm mb-2 flex items-center justify-between">
+                 <div className="bg-surface-1 border border-border-subtle rounded-2xl p-5 flex flex-col justify-between">
+                    <div className="text-text-secondary text-sm mb-2 flex items-center justify-between">
                       <span>Reports Today</span>
-                      <FileText className="size-4 text-zinc-400" />
+                      <FileText className="size-4 text-text-secondary" />
                     </div>
                     <div className="flex items-end justify-between">
-                       <span className="text-2xl font-bold text-white">{stats.totalReports.toLocaleString()}</span>
+                       <span className="text-2xl font-bold text-text-primary">{stats.totalReports.toLocaleString()}</span>
                        <span className="text-[#EF4444] text-xs font-semibold flex items-center gap-1">↓ 6.4%</span>
                     </div>
                  </div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-                 <div className="bg-[#161619] border border-white/5 rounded-2xl p-5">
-                    <h3 className="text-zinc-400 text-sm font-medium mb-4">User Growth</h3>
+                 <div className="bg-surface-1 border border-border-subtle rounded-2xl p-5">
+                    <h3 className="text-text-secondary text-sm font-medium mb-4">User Growth</h3>
                     <div className="h-[200px] w-full">
                        <ResponsiveContainer width="100%" height="100%">
                          <LineChart data={userGrowthData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -957,17 +918,17 @@ export default function Admin() {
                     </div>
                  </div>
                  
-                 <div className="bg-[#161619] border border-white/5 rounded-2xl p-5 flex flex-row items-center justify-between">
+                 <div className="bg-surface-1 border border-border-subtle rounded-2xl p-5 flex flex-row items-center justify-between">
                     <div className="w-1/2 flex flex-col justify-start h-full">
-                       <h3 className="text-zinc-400 text-sm font-medium mb-4">Top Categories</h3>
+                       <h3 className="text-text-secondary text-sm font-medium mb-4">Top Categories</h3>
                        <div className="flex flex-col gap-2">
                           {hasCategoryData ? topCategoriesData.map((cat, i) => (
                             <div key={cat.name} className="flex items-center justify-between text-xs">
-                               <span className="text-zinc-300">{cat.name}</span>
-                               <span className="text-zinc-400">{Math.round((cat.value / (stats.totalVideos || 1)) * 100)}%</span>
+                               <span className="text-text-primary">{cat.name}</span>
+                               <span className="text-text-secondary">{Math.round((cat.value / (stats.totalVideos || 1)) * 100)}%</span>
                             </div>
                           )) : (
-                            <div className="text-zinc-400 text-xs">No data available</div>
+                            <div className="text-text-secondary text-xs">No data available</div>
                           )}
                        </div>
                     </div>
@@ -993,18 +954,18 @@ export default function Admin() {
                     </div>
                  </div>
 
-                 <div className="bg-[#161619] border border-white/5 rounded-2xl p-5">
-                    <h3 className="text-zinc-400 text-sm font-medium mb-4">Recent Reports</h3>
+                 <div className="bg-surface-1 border border-border-subtle rounded-2xl p-5">
+                    <h3 className="text-text-secondary text-sm font-medium mb-4">Recent Reports</h3>
                     <div className="flex flex-col gap-4">
                        {reports.slice(0, 5).map((r, i) => (
                          <div key={r.id} className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                <div className="size-4 rounded-full flex items-center justify-center border-2 border-[#161619] ring-2 ring-[#EF4444]" />
-                               <span className="text-white text-sm whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]">{r.reason || 'Report'}</span>
+                               <span className="text-text-primary text-sm whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]">{r.reason || 'Report'}</span>
                             </div>
                             <div className="flex items-center justify-between w-1/2 text-xs">
-                               <span className="text-zinc-400 truncate">by {r.profiles?.username || 'user'}</span>
-                               <span className="text-zinc-400">
+                               <span className="text-text-secondary truncate">by {r.profiles?.username || 'user'}</span>
+                               <span className="text-text-secondary">
                                  {Math.floor((new Date().getTime() - new Date(r.created_at).getTime()) / 60000)}m ago
                                </span>
                             </div>
@@ -1014,14 +975,14 @@ export default function Admin() {
                  </div>
               </div>
 
-              <div className="bg-[#161619] border border-[#F97316]/20 rounded-2xl overflow-hidden mt-8 shadow-[0_0_20px_rgba(249,115,22,0.05)]">
-                 <div className="p-5 border-b border-white/5">
+              <div className="bg-surface-1 border border-[#F97316]/20 rounded-2xl overflow-hidden mt-8 shadow-[0_0_20px_rgba(249,115,22,0.05)]">
+                 <div className="p-5 border-b border-border-subtle">
                     <h2 className="text-[#E0E0E0] text-sm font-bold tracking-widest uppercase">17. Moderation - Reports</h2>
                  </div>
                  <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm whitespace-nowrap">
-                       <thead className="bg-[#131316]">
-                          <tr className="border-b border-white/5 text-zinc-400">
+                       <thead className="bg-surface-2">
+                          <tr className="border-b border-border-subtle text-text-secondary">
                              <th className="py-4 px-5 font-medium">Report</th>
                              <th className="py-4 px-5 font-medium">Type</th>
                              <th className="py-4 px-5 font-medium">Reported By</th>
@@ -1032,9 +993,9 @@ export default function Admin() {
                        <tbody className="divide-y divide-white/5">
                           {reports.slice(0, 10).map((r) => (
                              <tr key={r.id} className="hover:bg-white/[0.02] group">
-                                <td className="py-4 px-5 text-white">{r.reason || 'Unknown'}</td>
+                                <td className="py-4 px-5 text-text-primary">{r.reason || 'Unknown'}</td>
                                 <td className="py-4 px-5 text-[#F97316]">{r.reason}</td>
-                                <td className="py-4 px-5 text-zinc-400">{r.profiles?.username || 'user'}</td>
+                                <td className="py-4 px-5 text-text-secondary">{r.profiles?.username || 'user'}</td>
                                 <td className="py-4 px-5">
                                    <span className={cn(
                                       "px-3 py-1 rounded-full text-xs font-semibold border",
@@ -1046,13 +1007,13 @@ export default function Admin() {
                                    </span>
                                 </td>
                                 <td className="py-4 px-5 text-right flex justify-end gap-2">
-                                   <button type="button" aria-label="button"  className="size-8 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/10"><Eye className="size-4 text-zinc-400"/></button>
-                                   <button type="button" aria-label="button"  className="size-8 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/10"><CheckCircle className="size-4 text-zinc-400"/></button>
+                                   <button type="button" aria-label="button"  className="size-8 rounded-full border border-border-subtle flex items-center justify-center hover:bg-surface-1"><Eye className="size-4 text-text-secondary"/></button>
+                                   <button type="button" aria-label="button"  className="size-8 rounded-full border border-border-subtle flex items-center justify-center hover:bg-surface-1"><CheckCircle className="size-4 text-text-secondary"/></button>
                                 </td>
                              </tr>
                           ))}
                           {reports.length === 0 && (
-                             <tr><td colSpan={5} className="py-12 text-center text-zinc-400">No reports found</td></tr>
+                             <tr><td colSpan={5} className="py-12 text-center text-text-secondary">No reports found</td></tr>
                           )}
                        </tbody>
                     </table>
@@ -1063,14 +1024,14 @@ export default function Admin() {
 
           {(activeTab as any) === 'videos_old_hidden' && (
              <div className="gap-y-6 animate-in fade-in duration-500">
-               <div className="bg-[#161619] border border-[#F97316]/20 rounded-2xl overflow-hidden shadow-[0_0_20px_rgba(249,115,22,0.05)]">
-                 <div className="p-5 border-b border-white/5">
+               <div className="bg-surface-1 border border-[#F97316]/20 rounded-2xl overflow-hidden shadow-[0_0_20px_rgba(249,115,22,0.05)]">
+                 <div className="p-5 border-b border-border-subtle">
                     <h2 className="text-[#E0E0E0] text-sm font-bold tracking-widest uppercase">16. Moderation - Videos</h2>
                  </div>
                  <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm whitespace-nowrap">
-                       <thead className="bg-[#131316]">
-                          <tr className="border-b border-white/5 text-zinc-400">
+                       <thead className="bg-surface-2">
+                          <tr className="border-b border-border-subtle text-text-secondary">
                              <th className="py-4 px-5 font-medium">Video</th>
                              <th className="py-4 px-5 font-medium">Creator</th>
                              <th className="py-4 px-5 font-medium">Status</th>
@@ -1081,7 +1042,7 @@ export default function Admin() {
                        <tbody className="divide-y divide-white/5">
                           {videos.map((v) => (
                              <tr key={v.id} className="hover:bg-white/[0.02] group">
-                                <td className="py-4 px-5 flex items-center gap-3 text-white">
+                                <td className="py-4 px-5 flex items-center gap-3 text-text-primary">
                                    {v.thumbnail_url ? (
                                       <img src={v.thumbnail_url} className="size-10 rounded-md object-cover"  alt="" loading="lazy" decoding="async" />
                                    ) : (
@@ -1096,7 +1057,7 @@ export default function Admin() {
                                      ) : (
                                         <div className="size-6 rounded-full bg-white/10" />
                                      )}
-                                     <span className="text-zinc-300">{v.profiles?.username || 'Unknown'}</span>
+                                     <span className="text-text-primary">{v.profiles?.username || 'Unknown'}</span>
                                    </div>
                                 </td>
                                 <td className="py-4 px-5">
@@ -1104,16 +1065,16 @@ export default function Admin() {
                                       {v.status === 'active' ? 'Approved' : v.status === 'pending' ? 'Pending' : 'Review'}
                                    </span>
                                 </td>
-                                <td className="py-4 px-5 text-zinc-400">{(v.views || 0).toLocaleString()}</td>
+                                <td className="py-4 px-5 text-text-secondary">{(v.views || 0).toLocaleString()}</td>
                                 <td className="py-4 px-5 text-right flex justify-end gap-2">
-                                   <button type="button" aria-label="button"  className="size-8 rounded-lg border border-white/10 flex items-center justify-center hover:bg-white/10 bg-[#0c0c0e]/20"><Eye className="size-4 text-zinc-400"/></button>
-                                   <button type="button" aria-label="button"  className="size-8 rounded-lg border border-white/10 flex items-center justify-center hover:bg-white/10 bg-[#0c0c0e]/20"><CheckCircle className="size-4 text-zinc-400"/></button>
-                                   <button type="button" aria-label="button"  className="size-8 rounded-lg border border-white/10 flex items-center justify-center hover:bg-white/10 bg-[#0c0c0e]/20"><XCircle className="size-4 text-zinc-400"/></button>
+                                   <button type="button" aria-label="button"  className="size-8 rounded-lg border border-border-subtle flex items-center justify-center hover:bg-surface-1 bg-bg-base/20"><Eye className="size-4 text-text-secondary"/></button>
+                                   <button type="button" aria-label="button"  className="size-8 rounded-lg border border-border-subtle flex items-center justify-center hover:bg-surface-1 bg-bg-base/20"><CheckCircle className="size-4 text-text-secondary"/></button>
+                                   <button type="button" aria-label="button"  className="size-8 rounded-lg border border-border-subtle flex items-center justify-center hover:bg-surface-1 bg-bg-base/20"><XCircle className="size-4 text-text-secondary"/></button>
                                 </td>
                              </tr>
                           ))}
                           {videos.length === 0 && (
-                             <tr><td colSpan={5} className="py-12 text-center text-zinc-400">No videos found</td></tr>
+                             <tr><td colSpan={5} className="py-12 text-center text-text-secondary">No videos found</td></tr>
                           )}
                        </tbody>
                     </table>
@@ -1124,14 +1085,14 @@ export default function Admin() {
 
           {activeTab === 'verification' && (
              <div className="gap-y-6 animate-in fade-in duration-500">
-               <div className="bg-[#161619] border border-[#F97316]/20 rounded-2xl overflow-hidden shadow-[0_0_20px_rgba(249,115,22,0.05)]">
-                 <div className="p-5 border-b border-white/5">
+               <div className="bg-surface-1 border border-[#F97316]/20 rounded-2xl overflow-hidden shadow-[0_0_20px_rgba(249,115,22,0.05)]">
+                 <div className="p-5 border-b border-border-subtle">
                     <h2 className="text-[#E0E0E0] text-sm font-bold tracking-widest uppercase">18. Verification Requests</h2>
                  </div>
                  <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm whitespace-nowrap">
-                       <thead className="bg-[#131316]">
-                          <tr className="border-b border-white/5 text-zinc-400">
+                       <thead className="bg-surface-2">
+                          <tr className="border-b border-border-subtle text-text-secondary">
                              <th className="py-4 px-5 font-medium">Creator</th>
                              <th className="py-4 px-5 font-medium">Followers</th>
                              <th className="py-4 px-5 font-medium">Status</th>
@@ -1141,7 +1102,7 @@ export default function Admin() {
                        <tbody className="divide-y divide-white/5">
                           {applications.map((app) => (
                              <tr key={app.id} className="hover:bg-white/[0.02] group">
-                                <td className="py-4 px-5 flex items-center gap-3 text-white">
+                                <td className="py-4 px-5 flex items-center gap-3 text-text-primary">
                                    {app.profiles?.avatar_url ? (
                                       <img src={app.profiles.avatar_url} className="size-10 rounded-full object-cover"  alt="" loading="lazy" decoding="async" />
                                    ) : (
@@ -1149,10 +1110,10 @@ export default function Admin() {
                                    )}
                                    <span className="font-medium">{app.profiles?.username || 'Unknown'}</span>
                                 </td>
-                                <td className="py-4 px-5 text-zinc-400">128K</td>
+                                <td className="py-4 px-5 text-text-secondary">128K</td>
                                 <td className="py-4 px-5">
                                    <span className={cn(
-                                      "px-4 py-1.5 rounded-xl border font-medium bg-[#0c0c0e]/40",
+                                      "px-4 py-1.5 rounded-xl border font-medium bg-bg-base/40",
                                       app.status === 'pending' ? "border-[#F97316]/50 text-[#F97316]" :
                                       app.status === 'approved' ? "border-[#10B981]/50 text-[#10B981]" :
                                       "border-[#EF4444]/50 text-[#EF4444]"
@@ -1161,13 +1122,13 @@ export default function Admin() {
                                    </span>
                                 </td>
                                 <td className="py-4 px-5 text-right flex justify-end gap-2">
-                                   <button type="button" aria-label="button" title="Approve" onClick={() => handleUpdateAppStatus(app.id, app.user_id, 'approved')} className="size-8 rounded-lg border border-white/10 bg-[#0c0c0e]/20 flex items-center justify-center hover:bg-[#10B981]/20 hover:text-[#10B981] hover:border-[#10B981]/50 transition-colors"><CheckCircle className="size-4 text-zinc-400 hover:text-[#10B981]"/></button>
-                                   <button type="button" aria-label="button" title="Reject" onClick={() => handleUpdateAppStatus(app.id, app.user_id, 'rejected')} className="size-8 rounded-lg border border-white/10 bg-[#0c0c0e]/20 flex items-center justify-center hover:bg-[#EF4444]/20 hover:text-[#EF4444] hover:border-[#EF4444]/50 transition-colors"><XCircle className="size-4 text-zinc-400 hover:text-[#EF4444]"/></button>
+                                   <button type="button" aria-label="button" title="Approve" onClick={() => handleUpdateAppStatus(app.id, app.user_id, 'approved')} className="size-8 rounded-lg border border-border-subtle bg-bg-base/20 flex items-center justify-center hover:bg-[#10B981]/20 hover:text-[#10B981] hover:border-[#10B981]/50 transition-colors"><CheckCircle className="size-4 text-text-secondary hover:text-[#10B981]"/></button>
+                                   <button type="button" aria-label="button" title="Reject" onClick={() => handleUpdateAppStatus(app.id, app.user_id, 'rejected')} className="size-8 rounded-lg border border-border-subtle bg-bg-base/20 flex items-center justify-center hover:bg-[#EF4444]/20 hover:text-[#EF4444] hover:border-[#EF4444]/50 transition-colors"><XCircle className="size-4 text-text-secondary hover:text-[#EF4444]"/></button>
                                 </td>
                              </tr>
                           ))}
                           {applications.length === 0 && (
-                             <tr><td colSpan={4} className="py-12 text-center text-zinc-400">No requests found</td></tr>
+                             <tr><td colSpan={4} className="py-12 text-center text-text-secondary">No requests found</td></tr>
                           )}
                        </tbody>
                     </table>

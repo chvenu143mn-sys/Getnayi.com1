@@ -3,6 +3,7 @@ import { PlaySquare, Search, Filter, Trash2, Eye, ShieldCheck, CheckCircle, XCir
 import { cn } from '../../lib/utils';
 import { supabase } from '../../lib/supabase';
 import { parseVideoProduct } from '../../utils/videoUtils';
+import { safeFetch } from '../../utils/apiClient';
 
 interface AdminVideosProps {
   videos: any[];
@@ -49,21 +50,19 @@ Respond ONLY with the exact category name as a plain string, nothing else.`;
       const sessionData = await supabase.auth.getSession();
       const token = sessionData.data.session?.access_token;
       
-      const res = await fetch('/api/admin-auto-tag', {
-        method: 'POST',
-        headers: {
-           'Content-Type': 'application/json',
-           'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ prompt })
-      });
       let data;
       try {
-        data = await res.json();
-      } catch (e) {
-        throw new Error('Invalid server response');
+        data = await safeFetch('/api/admin-auto-tag', {
+          method: 'POST',
+          headers: {
+             'Content-Type': 'application/json',
+             'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ prompt })
+        });
+      } catch (err: any) {
+        throw new Error(err.message || 'Server error');
       }
-      if (!res.ok) throw new Error(data?.error || 'Server error');
       
       let catName: any = '';
       if (data.is_fallback) {
@@ -124,29 +123,29 @@ Respond ONLY with the exact category name as a plain string, nothing else.`;
   return (
     <div className="gap-y-6 animate-in fade-in duration-500">
       <div>
-        <h1 className="text-2xl font-bold text-white tracking-tight">Catalogs & Video Archives</h1>
-        <p className="text-zinc-400 text-xs mt-1">Audit, edit metadata, adjust safety ratings, and purge video streams.</p>
+        <h1 className="text-2xl font-bold text-text-primary tracking-tight">Catalogs & Video Archives</h1>
+        <p className="text-text-secondary text-xs mt-1">Audit, edit metadata, adjust safety ratings, and purge video streams.</p>
       </div>
 
       {/* Control Filters */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-text-secondary" />
           <input
             type="text"
             placeholder="Search by caption, creator username..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-[#141416]/90 border border-white/5 focus:border-white/15 focus:ring-1 focus:ring-white/10 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none transition-all"
+            className="w-full pl-10 pr-4 py-2 bg-[#141416]/90 border border-border-subtle focus:border-border-subtle focus:ring-1 focus:ring-white/10 rounded-xl text-sm text-text-primary placeholder-zinc-500 focus:outline-none transition-all"
           />
         </div>
 
         <div className="flex items-center gap-2">
-          <Filter className="size-4 text-zinc-400" />
+          <Filter className="size-4 text-text-secondary" />
           <select
             value={statusFilter}
             onChange={(e: any) => setStatusFilter(e.target.value)}
-            className="w-full px-3 py-2 bg-[#141416]/90 border border-white/5 focus:border-white/15 rounded-xl text-sm text-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-800"
+            className="w-full px-3 py-2 bg-[#141416]/90 border border-border-subtle focus:border-border-subtle rounded-xl text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-zinc-800"
           >
             <option value="all">All Content States</option>
             <option value="active">Approved / Active Only</option>
@@ -157,7 +156,7 @@ Respond ONLY with the exact category name as a plain string, nothing else.`;
         </div>
 
         <div className="flex items-center justify-end gap-4">
-          <span className="text-zinc-400 text-xs font-mono">
+          <span className="text-text-secondary text-xs font-mono">
             {filtered.length} of {videos.length} indices loaded
           </span>
           <button type="button"
@@ -172,10 +171,10 @@ Respond ONLY with the exact category name as a plain string, nothing else.`;
       </div>
 
       {/* Main Table */}
-      <div className="bg-[#141416] border border-white/5 rounded-2xl overflow-hidden shadow-xl">
+      <div className="bg-[#141416] border border-border-subtle rounded-2xl overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-[#18181a] border-b border-white/5 text-zinc-400 uppercase font-mono text-[10px] tracking-wider">
+            <thead className="bg-[#18181a] border-b border-border-subtle text-text-secondary uppercase font-mono text-[10px] tracking-wider">
               <tr>
                 <th className="py-4 px-5 font-semibold">Media Metadata</th>
                 <th className="py-4 px-5 font-semibold">Creator</th>
@@ -190,15 +189,15 @@ Respond ONLY with the exact category name as a plain string, nothing else.`;
                 <tr key={v.id} className="hover:bg-white/[0.01] transition-all">
                   <td className="py-4 px-5 flex items-center gap-3">
                     {v.thumbnail_url ? (
-                      <img src={v.thumbnail_url} className="w-12 h-16 rounded-lg object-cover bg-neutral-900 border border-white/5" referrerPolicy="no-referrer"  alt="" loading="lazy" decoding="async" />
+                      <img src={v.thumbnail_url} className="w-12 h-16 rounded-lg object-cover bg-neutral-900 border border-border-subtle" referrerPolicy="no-referrer"  alt="" loading="lazy" decoding="async" />
                     ) : (
-                      <div className="w-12 h-16 rounded-lg bg-white/5 border border-white/5 flex items-center justify-center text-zinc-400 font-mono text-[9px]">NO IMG</div>
+                      <div className="w-12 h-16 rounded-lg bg-white/5 border border-border-subtle flex items-center justify-center text-text-secondary font-mono text-[9px]">NO IMG</div>
                     )}
                     <div className="min-w-0 flex flex-col justify-center">
-                      <span className="text-white font-semibold text-[13px] truncate max-w-[200px]" title={parseVideoProduct(v.caption).captionText}>
+                      <span className="text-text-primary font-semibold text-[13px] truncate max-w-[200px]" title={parseVideoProduct(v.caption).captionText}>
                         {parseVideoProduct(v.caption).captionText || 'Untitled Video'}
                       </span>
-                      <span className="text-zinc-400 font-mono text-[10px] mt-1 flex items-center gap-2">
+                      <span className="text-text-secondary font-mono text-[10px] mt-1 flex items-center gap-2">
                         <span>views: {v.views || 0}</span>
                         <span>•</span>
                         <span>trust: {v.trust_score || 100}%</span>
@@ -208,7 +207,7 @@ Respond ONLY with the exact category name as a plain string, nothing else.`;
                   <td className="py-4 px-5">
                     <div className="flex items-center gap-2">
                       {v.profiles?.avatar_url ? (
-                        <img src={v.profiles.avatar_url} className="size-6 rounded-full object-cover border border-white/15" referrerPolicy="no-referrer"  alt="" loading="lazy" decoding="async" />
+                        <img src={v.profiles.avatar_url} className="size-6 rounded-full object-cover border border-border-subtle" referrerPolicy="no-referrer"  alt="" loading="lazy" decoding="async" />
                       ) : (
                         <div className="size-6 rounded-full bg-white/10" />
                       )}
@@ -217,11 +216,11 @@ Respond ONLY with the exact category name as a plain string, nothing else.`;
                   </td>
                   <td className="py-4 px-5">
                     <div className="flex items-center gap-2">
-                      <Tag className="size-3.5 text-zinc-400 shrink-0" />
+                      <Tag className="size-3.5 text-text-secondary shrink-0" />
                       <select
                         value={v.category_id || ''}
                         onChange={(e) => handleUpdateVideoCategory(v.id, e.target.value)}
-                        className="bg-[#0c0c0e]/45 border border-white/5 text-zinc-300 px-2 py-1.5 rounded-lg text-xs focus:outline-none focus:border-white/10"
+                        className="bg-bg-base/45 border border-border-subtle text-text-primary px-2 py-1.5 rounded-lg text-xs focus:outline-none focus:border-border-subtle"
                       >
                         <option value="">Unassigned</option>
                         {categories.map(c => (
@@ -255,7 +254,7 @@ Respond ONLY with the exact category name as a plain string, nothing else.`;
                             "px-1.5 py-0.5 rounded text-[9px] font-bold border text-left w-fit max-w-full truncate",
                             v.is_admin_verified_link 
                               ? "bg-green-500/10 border-green-500/25 text-green-500" 
-                              : "bg-zinc-500/10 border-white/5 text-zinc-400 hover:text-white"
+                              : "bg-zinc-500/10 border-border-subtle text-text-secondary hover:text-text-primary"
                           )}
                         >
                           {v.is_admin_verified_link ? '✓ Verified link' : 'Verify Link'}
@@ -284,7 +283,7 @@ Respond ONLY with the exact category name as a plain string, nothing else.`;
                       <>
                         <button type="button" aria-label="button" 
                           onClick={() => handleUpdateVideoStatus(v.id, 'active')}
-                          className="p-1.5 bg-[#0c0c0e]/45 border border-white/5 rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition"
+                          className="p-1.5 bg-bg-base/45 border border-border-subtle rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition"
                           title="Approve to Feed"
                         >
                           <CheckCircle className="size-3.5" />
@@ -300,7 +299,7 @@ Respond ONLY with the exact category name as a plain string, nothing else.`;
                               handleUpdateVideoStatus(v.id, 'rejected', reason.trim());
                             }
                           }}
-                          className="p-1.5 bg-[#0c0c0e]/45 border border-white/5 rounded-lg text-rose-400 hover:bg-rose-500/10 transition"
+                          className="p-1.5 bg-bg-base/45 border border-border-subtle rounded-lg text-rose-400 hover:bg-rose-500/10 transition"
                           title="Reject Video"
                         >
                           <XCircle className="size-3.5" />
@@ -309,14 +308,14 @@ Respond ONLY with the exact category name as a plain string, nothing else.`;
                     )}
                     <button type="button" aria-label="button" 
                       onClick={() => handleViewVideo(v)}
-                      className="p-1.5 bg-[#0c0c0e]/45 border border-white/5 rounded-lg text-zinc-400 hover:text-white transition"
+                      className="p-1.5 bg-bg-base/45 border border-border-subtle rounded-lg text-text-secondary hover:text-text-primary transition"
                       title="Inspect Video Player"
                     >
                       <Eye className="size-3.5" />
                     </button>
                     <button type="button" aria-label="button" 
                       onClick={() => handleDeleteVideo(v.id)}
-                      className="p-1.5 bg-[#0c0c0e]/45 border border-white/5 rounded-lg text-zinc-400 hover:text-[#EF4444] transition"
+                      className="p-1.5 bg-bg-base/45 border border-border-subtle rounded-lg text-text-secondary hover:text-[#EF4444] transition"
                       title="Delete / Purge Stream"
                     >
                       <Trash2 className="size-3.5" />
@@ -326,7 +325,7 @@ Respond ONLY with the exact category name as a plain string, nothing else.`;
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-zinc-400 bg-[#121214]">
+                  <td colSpan={6} className="py-12 text-center text-text-secondary bg-[#121214]">
                     No videos match search queries.
                   </td>
                 </tr>

@@ -35,32 +35,32 @@ export default function AdminProductLinks({
   return (
     <div className="gap-y-6 animate-in fade-in duration-500">
       <div>
-        <h1 className="text-2xl font-bold text-white tracking-tight">Affiliate Product Links</h1>
-        <p className="text-zinc-400 text-xs mt-1">Audit out-bound store domains, check trust parameters, and issue verified badges.</p>
+        <h1 className="text-2xl font-bold text-text-primary tracking-tight">Affiliate Product Links</h1>
+        <p className="text-text-secondary text-xs mt-1">Audit out-bound store domains, check trust parameters, and issue verified badges.</p>
       </div>
 
       {/* Domain stats summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-[#141416] border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+        <div className="bg-[#141416] border border-border-subtle rounded-2xl p-4 flex items-center justify-between">
           <div>
-            <p className="text-zinc-400 text-[10px] font-mono tracking-wider uppercase">Active Product Links</p>
-            <p className="text-xl font-bold text-white mt-1">{products.length}</p>
+            <p className="text-text-secondary text-[10px] font-mono tracking-wider uppercase">Active Product Links</p>
+            <p className="text-xl font-bold text-text-primary mt-1">{products.length}</p>
           </div>
           <Link2 className="size-8 text-zinc-650" />
         </div>
-        <div className="bg-[#141416] border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+        <div className="bg-[#141416] border border-border-subtle rounded-2xl p-4 flex items-center justify-between">
           <div>
-            <p className="text-zinc-400 text-[10px] font-mono tracking-wider uppercase">Verified Listings</p>
-            <p className="text-xl font-bold text-white mt-1">
+            <p className="text-text-secondary text-[10px] font-mono tracking-wider uppercase">Verified Listings</p>
+            <p className="text-xl font-bold text-text-primary mt-1">
               {products.filter(p => p.is_verified).length}
             </p>
           </div>
           <ShieldCheck className="size-8 text-green-500/20" />
         </div>
-        <div className="bg-[#141416] border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+        <div className="bg-[#141416] border border-border-subtle rounded-2xl p-4 flex items-center justify-between">
           <div>
-            <p className="text-zinc-400 text-[10px] font-mono tracking-wider uppercase">Unverified Listings</p>
-            <p className="text-xl font-bold text-white mt-1">
+            <p className="text-text-secondary text-[10px] font-mono tracking-wider uppercase">Unverified Listings</p>
+            <p className="text-xl font-bold text-text-primary mt-1">
               {products.filter(p => !p.is_verified).length}
             </p>
           </div>
@@ -70,22 +70,22 @@ export default function AdminProductLinks({
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-text-secondary" />
           <input
             type="text"
             placeholder="Search products by brand, tag..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-[#141416]/90 border border-white/5 focus:border-white/15 focus:ring-1 focus:ring-white/10 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none transition-all"
+            className="w-full pl-10 pr-4 py-2 bg-[#141416]/90 border border-border-subtle focus:border-border-subtle focus:ring-1 focus:ring-white/10 rounded-xl text-sm text-text-primary placeholder-zinc-500 focus:outline-none transition-all"
           />
         </div>
 
         <div className="flex items-center gap-2">
-          <Filter className="size-4 text-zinc-400" />
+          <Filter className="size-4 text-text-secondary" />
           <select
             value={domainFilter}
             onChange={(e) => setDomainFilter(e.target.value)}
-            className="w-full px-3 py-2 bg-[#141416]/90 border border-white/5 focus:border-white/15 rounded-xl text-sm text-zinc-300 focus:outline-none"
+            className="w-full px-3 py-2 bg-[#141416]/90 border border-border-subtle focus:border-border-subtle rounded-xl text-sm text-text-primary focus:outline-none"
           >
             <option value="all">All Domains Whitelist</option>
             {uniqueDomains.map(dom => (
@@ -95,17 +95,17 @@ export default function AdminProductLinks({
         </div>
 
         <div className="flex items-center justify-end">
-          <span className="text-zinc-400 text-xs font-mono">
+          <span className="text-text-secondary text-xs font-mono">
             {filtered.length} listings identified
           </span>
         </div>
       </div>
 
       {/* Main Grid table */}
-      <div className="bg-[#141416] border border-white/5 rounded-2xl overflow-hidden shadow-xl">
+      <div className="bg-[#141416] border border-border-subtle rounded-2xl overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-[#18181a] border-b border-white/5 text-zinc-400 uppercase font-mono text-[10px] tracking-wider">
+            <thead className="bg-[#18181a] border-b border-border-subtle text-text-secondary uppercase font-mono text-[10px] tracking-wider">
               <tr>
                 <th className="py-4 px-5 font-semibold">Store Destination / Domain</th>
                 <th className="py-4 px-5 font-semibold">Creator Account</th>
@@ -123,19 +123,19 @@ export default function AdminProductLinks({
                         href={prod.product_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-white hover:text-[#F97316] font-semibold text-[13px] flex items-center gap-1.5 hover:underline"
+                        className="text-text-primary hover:text-[#F97316] font-semibold text-[13px] flex items-center gap-1.5 hover:underline"
                       >
                         <span className="truncate max-w-[250px]">{prod.product_url}</span>
                         <ExternalLink className="size-3.5 shrink-0" />
                       </a>
-                      <span className="text-[10px] text-zinc-400 font-mono mt-0.5 truncate max-w-[250px]">{parseVideoProduct(prod.caption).captionText || 'Product listing'}</span>
+                      <span className="text-[10px] text-text-secondary font-mono mt-0.5 truncate max-w-[250px]">{parseVideoProduct(prod.caption).captionText || 'Product listing'}</span>
                     </div>
                   </td>
                   <td className="py-4 px-5">
                     <span className="text-zinc-33">@{prod.username}</span>
                   </td>
                   <td className="py-4 px-5">
-                    <span className="font-mono text-[11px] text-zinc-400 bg-white/5 border border-white/5 px-2 py-0.5 rounded">
+                    <span className="font-mono text-[11px] text-text-secondary bg-white/5 border border-border-subtle px-2 py-0.5 rounded">
                       {prod.domain}
                     </span>
                   </td>
@@ -150,7 +150,7 @@ export default function AdminProductLinks({
                   <td className="py-4 px-5 text-right font-mono flex justify-end gap-2 pr-5 mt-2">
                     <button type="button" aria-label="button" 
                       onClick={() => handleViewVideo({ id: prod.video_id, caption: prod.caption })}
-                      className="px-2.5 py-1.5 bg-[#0c0c0e]/45 border border-white/5 text-zinc-400 hover:text-white rounded-lg flex items-center gap-1.5 text-xs font-semibold hover:border-white/10"
+                      className="px-2.5 py-1.5 bg-bg-base/45 border border-border-subtle text-text-secondary hover:text-text-primary rounded-lg flex items-center gap-1.5 text-xs font-semibold hover:border-border-subtle"
                     >
                       <Eye className="size-3.5" /> Inspect
                     </button>
@@ -160,7 +160,7 @@ export default function AdminProductLinks({
                         "px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1",
                         prod.is_verified
                           ? "bg-green-500/15 text-green-500 border border-green-500/20 hover:bg-green-500/25"
-                          : "bg-white/5 text-zinc-300 border border-white/5 hover:bg-white/10"
+                          : "bg-white/5 text-text-primary border border-border-subtle hover:bg-surface-1"
                       )}
                     >
                       {prod.is_verified ? '✓ Verified' : 'Grant Verification'}
@@ -170,7 +170,7 @@ export default function AdminProductLinks({
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-zinc-400 bg-[#121214]">
+                  <td colSpan={5} className="py-12 text-center text-text-secondary bg-[#121214]">
                     No associated affiliate links match selection parameters.
                   </td>
                 </tr>

@@ -3,8 +3,8 @@ import { cn } from '../lib/utils';
 
 export function VideoPlayerSkeleton({ className }: { className?: string }) {
   return (
-    <div className={cn("h-[100dvh] w-full shrink-0 snap-start snap-always relative bg-[#0c0c0e] flex flex-col justify-end p-0 overflow-hidden", className)}>
-      <div className="absolute inset-0 pointer-events-none bg-zinc-900 animate-pulse" />
+    <div className={cn("h-[100dvh] w-full shrink-0 snap-start snap-always relative bg-bg-base flex flex-col justify-end p-0 overflow-hidden", className)}>
+      <div className="absolute inset-0 pointer-events-none bg-surface-1 animate-pulse" />
       
       {/* Right Side Action Buttons Skeleton */}
       <div className="absolute bottom-[calc(90px+env(safe-area-inset-bottom))] right-2 w-[52px] flex flex-col items-center gap-y-[18px] z-20 pointer-events-none">
@@ -49,13 +49,13 @@ export function VideoPlayerSkeleton({ className }: { className?: string }) {
           {/* Tags / Store link */}
           <div className="mb-2 flex items-center gap-2">
             <div className="w-16 h-4 bg-white/10 rounded animate-pulse" />
-            <div className="w-20 h-4 bg-[#ff5a36]/20 rounded animate-pulse" />
+            <div className="w-20 h-4 bg-brand-primary/20 rounded animate-pulse" />
           </div>
 
           {/* Username area */}
           <div className="flex items-center gap-2 mb-2">
             <div className="w-32 h-5 bg-white/10 rounded animate-pulse" />
-            <div className="w-16 h-5 bg-[#ff5a36]/40 rounded-full animate-pulse ml-2" />
+            <div className="w-16 h-5 bg-brand-primary/40 rounded-full animate-pulse ml-2" />
           </div>
 
           {/* Caption text */}
@@ -66,7 +66,7 @@ export function VideoPlayerSkeleton({ className }: { className?: string }) {
 
           {/* Product CTA Card */}
           <div className="flex flex-col gap-2 mt-5">
-            <div className="flex items-center bg-black/60 rounded-xl p-2 pr-4 w-52 border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
+            <div className="flex items-center bg-black/60 rounded-xl p-2 pr-4 w-52 border border-border-subtle shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
               <div className="size-[42px] rounded-lg bg-white/10 animate-pulse shrink-0 mr-3" />
               <div className="flex flex-col gap-1.5 w-full">
                  <div className="w-full h-3 bg-white/10 rounded animate-pulse" />

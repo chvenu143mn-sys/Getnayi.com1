@@ -4,6 +4,7 @@ import { ArrowLeft, Loader2, Share2, Play, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'motion/react';
 import { GlobalBackButton } from '../components/GlobalBackButton';
+import { safeFetch } from '../utils/apiClient';
 
 export default function Collection() {
   const { id } = useParams();
@@ -75,17 +76,14 @@ export default function Collection() {
     let shareUrl = `${baseUrl}${longRelativeUrl}`;
     
     try {
-      const res = await fetch('/api/shorten', {
+      const data = await safeFetch('/api/shorten', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ longUrl: longRelativeUrl })
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.shortUrl) {
-          shareUrl = `${baseUrl}${data.shortUrl}`;
-        }
+      if (data && data.shortUrl) {
+        shareUrl = `${baseUrl}${data.shortUrl}`;
       }
     } catch (err) {
       console.warn("Failed to shorten url", err);
@@ -105,6 +103,7 @@ export default function Collection() {
         
         if (imageUrl) {
           try {
+            // explicitly using fetch() here instead of safeFetch() because this expects a binary blob, not JSON.
             const response = await fetch(imageUrl);
             const blob = await response.blob();
             const file = new File([blob], 'thumbnail.jpg', { type: blob.type || 'image/jpeg' });
@@ -130,15 +129,15 @@ export default function Collection() {
 
   if (loading) {
     return (
-      <div className="flex-1 w-full bg-[#0c0c0e] text-white flex flex-col h-full items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-[#ff5a36]" />
+      <div className="flex-1 w-full bg-bg-base text-text-primary flex flex-col h-full items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-brand-primary" />
       </div>
     );
   }
 
   if (!collection) {
     return (
-      <div className="flex-1 w-full bg-[#0c0c0e] text-white flex flex-col h-full items-center justify-center">
+      <div className="flex-1 w-full bg-bg-base text-text-primary flex flex-col h-full items-center justify-center">
         <p>Collection not found.</p>
         <button type="button" aria-label="button"  onClick={() => (window.history.state && window.history.state.idx > 0) ? navigate(-1) : navigate('/', { replace: true })} className="mt-4 px-4 py-2 bg-white/10 rounded-lg">Go Back</button>
       </div>
@@ -146,19 +145,19 @@ export default function Collection() {
   }
 
   return (
-    <div className="flex-1 w-full bg-[#0c0c0e] text-white font-sans flex flex-col h-full selection:bg-white/20 pb-[calc(60px+env(safe-area-inset-bottom))]">
+    <div className="flex-1 w-full bg-bg-base text-text-primary font-sans flex flex-col h-full selection:bg-white/20 pb-[calc(60px+env(safe-area-inset-bottom))]">
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-[#0c0c0e]/80 backdrop-blur-md pt-6 pb-4 px-5 flex items-center justify-between">
+      <div className="sticky top-0 z-20 bg-bg-base/80 backdrop-blur-md pt-6 pb-4 px-5 flex items-center justify-between">
         <div className="flex items-center">
-          <GlobalBackButton className="p-2 -ml-2 bg-transparent hover:bg-white/5 border-transparent" fallbackPath="/saved" iconClassName="size-6" />
-          <h2 className="text-[19px] font-semibold text-white ml-2 tracking-wide">{collection.name}</h2>
+          <GlobalBackButton className="p-2 -ml-2 bg-transparent hover:bg-surface-1 border-transparent" fallbackPath="/saved" iconClassName="size-6" />
+          <h2 className="text-[19px] font-semibold text-text-primary ml-2 tracking-wide">{collection.name}</h2>
         </div>
         <button type="button" aria-label="button"  
           onClick={() => {
             setSelectedVideos(videos.slice(0, MAX_SHARE).map(v => v.video.id));
             setShareModalOpen(true);
           }}
-          className="p-2 -mr-2 text-white/90 hover:text-white transition-colors bg-white/10 rounded-full"
+          className="p-2 -mr-2 text-text-primary/90 hover:text-text-primary transition-colors bg-white/10 rounded-full"
         >
           <Share2 className="size-5" />
         </button>
@@ -166,7 +165,7 @@ export default function Collection() {
       
       <div className="px-5 pt-2 flex-1 overflow-y-auto no-scrollbar">
         {videos.length === 0 ? (
-          <div className="py-20 text-center text-zinc-400">
+          <div className="py-20 text-center text-text-secondary">
             <p className="text-sm font-medium">This collection is empty.</p>
           </div>
         ) : (
@@ -175,15 +174,15 @@ export default function Collection() {
               <div 
                 key={item.id} 
                 onClick={() => navigate(`/video/${item.video.id}`)}
-                className="aspect-[3/4] bg-zinc-900 overflow-hidden relative group cursor-pointer"
+                className="aspect-[3/4] bg-surface-1 overflow-hidden relative group cursor-pointer"
               >
                 {item.video.thumbnail_url || item.video.main_product_image_url ? (
                   <img src={item.video.thumbnail_url || item.video.main_product_image_url} alt="Video thumbnail" className="size-full object-cover" loading="lazy" decoding="async" />
                 ) : (
-                  <div className="size-full flex items-center justify-center text-zinc-400 bg-zinc-800 text-xs">No img</div>
+                  <div className="size-full flex items-center justify-center text-text-secondary bg-surface-2 text-xs">No img</div>
                 )}
-                <div className="absolute inset-0 bg-[#0c0c0e]/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <Play className="size-8 fill-white/80 text-white/80" />
+                <div className="absolute inset-0 bg-bg-base/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Play className="size-8 fill-white/80 text-text-primary/80" />
                 </div>
               </div>
             ))}
@@ -198,7 +197,7 @@ export default function Collection() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-[#0c0c0e]/80 backdrop-blur-sm flex flex-col justify-end"
+            className="fixed inset-0 z-50 bg-bg-base/80 backdrop-blur-sm flex flex-col justify-end"
             onClick={() => setShareModalOpen(false)}
           >
             <motion.div
@@ -206,14 +205,14 @@ export default function Collection() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="bg-[#151518] w-full max-w-md mx-auto rounded-t-3xl border-t border-white/10 p-6 pb-safe max-h-[85vh] flex flex-col"
+              className="bg-surface-1 w-full max-w-md mx-auto rounded-t-3xl border-t border-border-subtle p-6 pb-safe max-h-[85vh] flex flex-col"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-2">
                 <h3 className="text-xl font-bold tracking-tight">Share Collection</h3>
-                <span className="text-sm text-zinc-400 font-medium">{selectedVideos.length}/{MAX_SHARE} max</span>
+                <span className="text-sm text-text-secondary font-medium">{selectedVideos.length}/{MAX_SHARE} max</span>
               </div>
-              <p className="text-sm text-zinc-400 mb-5 leading-relaxed">Select up to {MAX_SHARE} videos you want to include in the shareable link.</p>
+              <p className="text-sm text-text-secondary mb-5 leading-relaxed">Select up to {MAX_SHARE} videos you want to include in the shareable link.</p>
               
               <div className="flex-1 overflow-y-auto no-scrollbar grid grid-cols-3 gap-2 mb-6">
                 {videos.map((item) => {
@@ -222,16 +221,16 @@ export default function Collection() {
                     <div 
                       key={item.video.id} 
                       onClick={() => toggleSelect(item.video.id)}
-                      className={`aspect-[3/4] bg-zinc-900 rounded-lg overflow-hidden relative cursor-pointer border-2 transition-colors ${isSelected ? 'border-[#ff5a36]' : 'border-transparent'}`}
+                      className={`aspect-[3/4] bg-surface-1 rounded-lg overflow-hidden relative cursor-pointer border-2 transition-colors ${isSelected ? 'border-brand-primary' : 'border-transparent'}`}
                     >
                       {item.video.thumbnail_url || item.video.main_product_image_url ? (
                         <img src={item.video.thumbnail_url || item.video.main_product_image_url} className="size-full object-cover"  alt="" loading="lazy" decoding="async" />
                       ) : (
-                        <div className="size-full bg-zinc-800" />
+                        <div className="size-full bg-surface-2" />
                       )}
                       
-                      <div className={`absolute top-2 right-2 size-5 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'border-[#ff5a36] bg-[#ff5a36]' : 'border-white/50 bg-[#0c0c0e]/20'}`}>
-                        {isSelected && <Check className="size-3 text-white" strokeWidth={3} />}
+                      <div className={`absolute top-2 right-2 size-5 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'border-brand-primary bg-brand-primary' : 'border-border-subtle0 bg-bg-base/20'}`}>
+                        {isSelected && <Check className="size-3 text-text-primary" strokeWidth={3} />}
                       </div>
                     </div>
                   );
@@ -241,13 +240,13 @@ export default function Collection() {
               <div className="pt-2 flex gap-x-3">
                 <button type="button" aria-label="button"  
                   onClick={() => setShareModalOpen(false)}
-                  className="flex-1 py-3.5 rounded-xl font-semibold bg-white/5 hover:bg-white/10 transition-colors"
+                  className="flex-1 py-3.5 rounded-xl font-semibold bg-white/5 hover:bg-surface-1 transition-colors"
                 >
                   Cancel
                 </button>
                 <button type="button" aria-label="button"  
                   onClick={handleShare}
-                  className="flex-1 py-3.5 rounded-xl font-semibold bg-[#ff5a36] hover:bg-[#f4284d] text-white transition-colors"
+                  className="flex-1 py-3.5 rounded-xl font-semibold bg-brand-primary hover:bg-[#f4284d] text-text-primary transition-colors"
                 >
                   Create Link
                 </button>

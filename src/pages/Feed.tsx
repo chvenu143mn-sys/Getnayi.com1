@@ -3,6 +3,8 @@ import { supabase } from "../lib/supabase";
 import { Video } from "../types";
 import { VideoPlayer } from "../components/VideoPlayer";
 import { VideoPlayerSkeleton } from "../components/VideoPlayerSkeleton";
+import { GuestGate } from "../components/GuestGate";
+import { useAuth } from "../context/AuthContext";
 import {
   Play,
   Menu,
@@ -16,10 +18,13 @@ import { useInView } from "react-intersection-observer";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../lib/utils";
 import { Link, useParams, useSearchParams } from "react-router-dom";
+import { safeFetch } from "../utils/apiClient";
 import { SEO } from "../components/SEO";
 import { parseVideoProduct } from "../utils/videoUtils";
+import { theme } from "../styles/theme";
 
 export default function Feed() {
+  const { user } = useAuth();
   const { videoId } = useParams<{ videoId?: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const categoryParam = searchParams.get("category");
@@ -155,16 +160,13 @@ export default function Feed() {
       let fetchedVideos: Video[] = [];
       if (videoId && !currentCursor) {
         // Fetch the specific video via API to bypass any client RLS restrictions
-        const specRes = await fetch(`/api/videos/${videoId}`);
-        if (!specRes.ok) {
-          console.warn(
-            "Failed to fetch specific video. It might be deleted or restricted.",
-          );
-        } else {
-          const specData = await specRes.json();
-          if (specData.data && !controller.signal.aborted) {
-            fetchedVideos.push(specData.data);
+        try {
+          const specRes = await safeFetch(`/api/videos/${videoId}`);
+          if (specRes && specRes.data && !controller.signal.aborted) {
+            fetchedVideos.push(specRes.data);
           }
+        } catch (specErr) {
+          console.warn("Failed to fetch specific video. It might be deleted or restricted.", specErr);
         }
       }
 
@@ -181,7 +183,7 @@ export default function Feed() {
         data: { session },
       } = await supabase.auth.getSession();
 
-      const res = await fetch(`/api/feed?${params.toString()}`, {
+      const resData = await safeFetch(`/api/feed?${params.toString()}`, {
         signal: controller.signal,
         headers: session
           ? {
@@ -189,12 +191,9 @@ export default function Feed() {
             }
           : undefined,
       });
-      if (!res.ok) {
-        throw new Error(`Failed to fetch feed: ${await res.text()}`);
-      }
 
       if (controller.signal.aborted) return;
-      const { data, nextCursor } = await res.json();
+      const { data, nextCursor } = resData || { data: [], nextCursor: null };
 
       let combinedData = data || [];
       if (videoId && !currentCursor) {
@@ -242,19 +241,19 @@ export default function Feed() {
 
   if (loading && cursor === null && videos.length === 0) {
     return (
-      <div className="h-full bg-[#0c0c0e] relative overflow-hidden">
+      <div className="h-full bg-bg-base relative overflow-hidden">
         {/* Top Header Skeleton */}
-        <div className="absolute top-0 left-0 right-0 z-20 flex flex-col pointer-events-none bg-gradient-to-b from-black/80 via-black/40 to-transparent pt-[calc(env(safe-area-inset-top,40px)+8px)] pb-12">
+        <div className="absolute top-0 left-0 right-0 z-20 flex flex-col pointer-events-none bg-gradient-to-b from-bg-base/90 via-bg-base/50 to-transparent pt-[calc(env(safe-area-inset-top,40px)+8px)] pb-12">
           <div className="flex justify-between items-center px-5">
             <div className="flex items-center gap-1.5 shrink-0">
-              <div className="size-8 bg-white/10 rounded-[10px] animate-pulse"></div>
-              <div className="w-20 h-5 bg-white/10 rounded animate-pulse"></div>
+              <div className="size-8 bg-surface-2 rounded-xl animate-pulse"></div>
+              <div className="w-20 h-5 bg-surface-2 rounded animate-pulse"></div>
             </div>
             <div className="flex items-center gap-x-6">
-              <div className="w-16 h-5 bg-white/10 rounded-md animate-pulse"></div>
-              <div className="w-16 h-5 bg-white/10 rounded-md animate-pulse"></div>
+              <div className="w-16 h-5 bg-surface-2 rounded-md animate-pulse"></div>
+              <div className="w-16 h-5 bg-surface-2 rounded-md animate-pulse"></div>
             </div>
-            <div className="size-8 bg-white/10 rounded-full animate-pulse mr-1" />
+            <div className="size-8 bg-surface-2 rounded-full animate-pulse mr-1" />
           </div>
         </div>
 
@@ -265,21 +264,21 @@ export default function Feed() {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-full bg-[#0c0c0e] px-8 text-center font-sans">
-        <div className="size-24 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-6 shadow-xl">
-          <AlertOctagon className="size-10 text-rose-500" strokeWidth={1.5} />
+      <div className={cn("flex flex-col items-center justify-center h-full px-8 text-center font-sans", theme.colors.bgBase)}>
+        <div className="size-24 rounded-full bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center mb-6 shadow-xl">
+          <AlertOctagon className={cn("size-10", theme.colors.brandPrimary)} strokeWidth={1.5} />
         </div>
-        <h2 className="text-white font-semibold text-xl mb-2 tracking-tight">
+        <h2 className={cn("font-display font-semibold text-2xl mb-2 tracking-tight", theme.colors.textPrimary)}>
           Couldn't load feed
         </h2>
-        <p className="text-sm tracking-wide text-zinc-400 leading-relaxed max-w-[260px] mb-8">
+        <p className={cn("text-base tracking-wide leading-relaxed max-w-[280px] mb-8", theme.colors.textSecondary)}>
           Please check your connection and try again.
         </p>
         <button
           type="button"
           aria-label="button"
           onClick={() => fetchVideos(null)}
-          className="px-8 py-3.5 bg-white text-black rounded-xl font-semibold active:scale-95 transition-all shadow-lg hover:bg-zinc-200"
+          className={cn("px-8 py-3.5 bg-text-primary text-bg-base rounded-full font-semibold active:scale-95 transition-all shadow-lg hover:bg-white/90")}
         >
           Try Again
         </button>
@@ -289,14 +288,14 @@ export default function Feed() {
 
   if (videos.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full bg-[#0c0c0e] px-8 text-center">
-        <div className="size-24 rounded-full bg-zinc-900 border border-white/5 flex items-center justify-center mb-8 shadow-xl">
-          <Play className="size-10 text-zinc-600 ml-2" strokeWidth={1.5} />
+      <div className={cn("flex flex-col items-center justify-center h-full px-8 text-center font-sans", theme.colors.bgBase)}>
+        <div className={cn("size-24 rounded-full border flex items-center justify-center mb-8 shadow-xl", theme.colors.surface1, theme.colors.borderSubtle)}>
+          <Play className={cn("size-10 ml-2", theme.colors.textSecondary)} strokeWidth={1.5} />
         </div>
-        <h2 className="text-white font-sans font-semibold text-xl mb-3 tracking-tight">
+        <h2 className={cn("font-display font-semibold text-2xl mb-3 tracking-tight", theme.colors.textPrimary)}>
           No videos found
         </h2>
-        <p className="text-sm font-sans tracking-wide text-zinc-400 leading-relaxed max-w-[260px]">
+        <p className={cn("text-base leading-relaxed max-w-[280px]", theme.colors.textSecondary)}>
           We couldn't find any active content right now. Check back later or
           adjust your filters.
         </p>
@@ -340,8 +339,29 @@ export default function Feed() {
       }
     : undefined;
 
+  const handleCloseGate = () => {
+    if (feedRef.current) {
+      const windowHeight = feedRef.current.clientHeight;
+      feedRef.current.scrollTo({
+        top: windowHeight * 2,
+        behavior: "smooth",
+      });
+    }
+  };
+
   return (
-    <div className="relative w-full h-full bg-[#0c0c0e] pb-0">
+    <div className={cn("relative w-full h-full pb-0", theme.colors.bgBase)}>
+      <AnimatePresence>
+        {!user && activeIndex >= 3 && (
+          <GuestGate
+            type="action"
+            title="Sign up to continue watching"
+            description="Create a free account to unlock endless inspiration and discover your next favorite product."
+            onClose={handleCloseGate}
+          />
+        )}
+      </AnimatePresence>
+
       {activeVideo && (
         <SEO
           title={`${activeVideoCaption ? activeVideoCaption.substring(0, 50) + "..." : "Getnayi Video"} | Getnayi`}
@@ -372,10 +392,10 @@ export default function Feed() {
           opacity: pullDistance > 0 ? Math.min(pullDistance / 50, 1) : 0,
         }}
       >
-        <div className="bg-zinc-950/90 border border-white/10 text-white rounded-full p-2.5 shadow-xl backdrop-blur-md flex items-center justify-center size-10">
+        <div className="bg-surface-1 border border-border-subtle text-text-primary rounded-full p-2.5 shadow-xl backdrop-blur-md flex items-center justify-center size-10">
           <svg
             className={cn(
-              "size-5 text-white transition-transform duration-75",
+              "size-5 text-text-primary transition-transform duration-75",
               isRefreshing ? "animate-spin" : "",
             )}
             style={{
@@ -398,25 +418,25 @@ export default function Feed() {
       </div>
 
       {/* Top Header Overlay */}
-      <div className="absolute top-0 left-0 right-0 z-20 flex flex-col pointer-events-none bg-gradient-to-b from-black/70 via-black/30 to-transparent pt-[calc(env(safe-area-inset-top,40px)+12px)] pb-12">
+      <div className="absolute top-0 left-0 right-0 z-20 flex flex-col pointer-events-none bg-gradient-to-b from-black/60 via-black/20 to-transparent pt-[calc(env(safe-area-inset-top,40px)+12px)] pb-16">
         <div className="flex justify-center items-center px-5 pointer-events-auto">
-          <div className="flex items-center gap-x-7">
+          <div className="flex items-center gap-x-6 px-5 py-1">
             <button
               type="button"
               aria-label="Trending Feed"
               onClick={() => setActiveTab("trending")}
               className={cn(
-                "relative py-2 font-display transition-all duration-200 cursor-pointer",
+                "relative py-2 font-display transition-all duration-300 cursor-pointer",
                 activeTab === "trending"
-                  ? "text-[#f8fafc] font-bold text-[18px]"
-                  : "text-zinc-400 font-medium text-[16px] hover:text-[#f8fafc]",
+                  ? "text-white font-bold text-[17px] drop-shadow-md"
+                  : "text-white/70 font-semibold text-[16px] hover:text-white drop-shadow-sm",
               )}
             >
-              <span className="drop-shadow-sm">Trending</span>
+              <span>Trending</span>
               {activeTab === "trending" && (
                 <motion.div
                   layoutId="tab-indicator"
-                  className="absolute bottom-0 left-[25%] right-[25%] h-[3px] bg-[#ff5a36] rounded-full shadow-sm"
+                  className="absolute bottom-1 left-1/2 -translate-x-1/2 w-5 h-[3px] bg-white rounded-full shadow-sm"
                 />
               )}
             </button>
@@ -426,17 +446,17 @@ export default function Feed() {
               aria-label="For You Feed"
               onClick={() => setActiveTab("for_you")}
               className={cn(
-                "relative py-2 font-display transition-all duration-200 cursor-pointer",
+                "relative py-2 font-display transition-all duration-300 cursor-pointer",
                 activeTab === "for_you"
-                  ? "text-[#f8fafc] font-bold text-[18px]"
-                  : "text-zinc-400 font-medium text-[16px] hover:text-[#f8fafc]",
+                  ? "text-white font-bold text-[17px] drop-shadow-md"
+                  : "text-white/70 font-semibold text-[16px] hover:text-white drop-shadow-sm",
               )}
             >
-              <span className="drop-shadow-sm">For You</span>
+              <span>For You</span>
               {activeTab === "for_you" && (
                 <motion.div
                   layoutId="tab-indicator"
-                  className="absolute bottom-0 left-[25%] right-[25%] h-[3px] bg-[#ff5a36] rounded-full shadow-sm"
+                  className="absolute bottom-1 left-1/2 -translate-x-1/2 w-5 h-[3px] bg-white rounded-full shadow-sm"
                 />
               )}
             </button>
@@ -445,20 +465,20 @@ export default function Feed() {
 
         {/* Filter overlay indicator */}
         {(storeParam || tagParam) && (
-          <div className="mx-4 mt-3 bg-zinc-900/90 backdrop-blur-xl border border-white/5 rounded-2xl px-4 py-3.5 flex items-center justify-between pointer-events-auto shadow-lg animate-fade-in select-none">
-            <div className="flex flex-col gap-1">
-              <span className="text-[11px] uppercase tracking-wider text-[#ff5a36] font-sans font-bold">
+          <div className="mx-4 mt-4 bg-surface-1/90 backdrop-blur-xl border border-border-subtle rounded-2xl px-5 py-4 flex items-center justify-between pointer-events-auto shadow-lg animate-fade-in select-none">
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs uppercase tracking-wider text-brand-primary font-sans font-bold">
                 Active Filter
               </span>
-              <span className="text-white text-sm font-sans font-medium tracking-tight flex items-center gap-2">
+              <span className="text-text-primary text-sm font-sans font-medium tracking-tight flex items-center gap-2">
                 {storeParam ? (
                   <>
-                    <ShoppingBag className="size-4 text-zinc-400" />
+                    <ShoppingBag className="size-4 text-text-secondary" />
                     <span>Store: {storeParam}</span>
                   </>
                 ) : (
                   <>
-                    <Tag className="size-4 text-zinc-400" />
+                    <Tag className="size-4 text-text-secondary" />
                     <span>Tag: #{tagParam}</span>
                   </>
                 )}
@@ -473,7 +493,7 @@ export default function Feed() {
                 updated.delete("tag");
                 setSearchParams(updated);
               }}
-              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-white text-xs font-medium rounded-lg border border-white/5 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+              className="px-3.5 py-2 bg-surface-2 hover:bg-surface-2/80 active:scale-95 text-text-primary text-xs font-medium rounded-xl border border-border-subtle transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
             >
               <X className="size-3.5" />
               <span>Clear</span>
